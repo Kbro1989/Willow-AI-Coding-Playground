@@ -287,6 +287,72 @@ class CloudflareProvider {
   }
 
   /**
+   * Speech-to-Text using Whisper
+   * Model: @cf/openai/whisper
+   */
+  async transcribe(audioBase64: string): Promise<{ text: string; model: string }> {
+    try {
+      // Convert base64 to binary for the worker (or send as json if worker handles it)
+      // Standard worker expectation is often binary body for audio
+      // But for our JSON api wrapper:
+      const response = await fetch(`${this.workerUrl}/api/transcribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audio: audioBase64,
+          model: '@cf/openai/whisper'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Cloudflare API error: ${response.status}`);
+      }
+
+      const data = await response.json() as any;
+
+      return {
+        text: data.text || data.result?.text,
+        model: '@cf/openai/whisper'
+      };
+    } catch (error) {
+      console.error('[CF/WHISPER] Transcription error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Text-to-Speech using MeloTTS
+   * Model: @cf/myshell-ai/melotts
+   */
+  async synthesizeAudio(text: string): Promise<{ audioBase64: string; model: string }> {
+    try {
+      // Warning: This model assumes English ('en') by default
+      const response = await fetch(`${this.workerUrl}/api/text-to-speech`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          model: '@cf/myshell-ai/melotts-english' // Specific endpoint for English
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Cloudflare API error: ${response.status}`);
+      }
+
+      const data = await response.json() as any;
+
+      return {
+        audioBase64: data.audio || data.result,
+        model: '@cf/myshell-ai/melotts'
+      };
+    } catch (error) {
+      console.error('[CF/MELOTTS] TTS error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Text embeddings using BGE (for semantic search)
    * Model: @cf/baai/bge-large-en-v1.5
    */
@@ -329,8 +395,71 @@ class CloudflareProvider {
   async codeCompletion(request: CloudflareCodeRequest): Promise<{ code: string; model: string }> {
     return this.codeWithQwen(request.prompt, request.language);
   }
+  /**
+   * Generate video from text or image using Stable Video Diffusion
+   * (If text is provided, generates image first)
+   */
+  async generateVideo(prompt: string, imageBase64?: string): Promise<{ videoUrl: string; model: string }> {
+    try {
+      let sourceImage = imageBase64;
+
+      // Step 1: Text-to-Image (if no image provided)
+      if (!sourceImage) {
+        console.log('[CF/VIDEO] Generating base image for video...');
+        const imgResult = await this.imageWithSDXL(prompt, "blurry, nsfw, text, bad quality");
+        sourceImage = imgResult.imageUrl;
+      }
+
+      // Step 2: Image-to-Video
+      console.log('[CF/VIDEO] Synthesizing video from base image...');
+      // Ensure no prefix for the API call if it expects raw base64
+      const rawBase64 = sourceImage?.includes('base64,') ? sourceImage.split('base64,')[1] : sourceImage;
+
+      // Cloudflare Workers AI often supports a generic header-passed model runner or specific endpoints.
+      // We will assume the worker has a generic '/api/run-model' or we use the specific known endpoint pattern if available.
+      // Currently, we'll try the generic pattern seen in other integrations or a direct specific path if standard.
+      const response = await fetch(`${this.workerUrl}/api/run-model`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: rawBase64,
+          num_steps: 30,
+          model: '@cf/stabilityai/stable-video-diffusion-img2vid-xt'
+        })
+      });
+
+      if (!response.ok) {
+        // Fallback: If run-model doesn't exist, try a specific named endpoint that might exist on their worker
+        console.warn('[CF/VIDEO] Generic run-model failed, trying specific video endpoint...');
+        const fallbackResponse = await fetch(`${this.workerUrl}/api/video-generation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: rawBase64 })
+        });
+
+        if (!fallbackResponse.ok) throw new Error(`Cloudflare API error: ${response.status}`);
+
+        const fallbackData = await fallbackResponse.json() as any;
+        return {
+          videoUrl: `data:video/mp4;base64,${fallbackData.result?.video || fallbackData.video}`,
+          model: '@cf/stabilityai/stable-video-diffusion-img2vid-xt'
+        };
+      }
+
+      const data = await response.json() as any;
+
+      return {
+        videoUrl: `data:video/mp4;base64,${data.result?.video || data.video || data.result}`,
+        model: '@cf/stabilityai/stable-video-diffusion-img2vid-xt'
+      };
+
+    } catch (error) {
+      console.error('[CF/VIDEO] Video generation error:', error);
+      throw error;
+    }
+  }
+
 }
 
-// Export singleton instance
 export const cloudflareProvider = new CloudflareProvider();
 export default cloudflareProvider;

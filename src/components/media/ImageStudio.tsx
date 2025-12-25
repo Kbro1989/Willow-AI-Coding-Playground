@@ -15,10 +15,13 @@ import {
     applyFilter,
     compositeLayers,
     removeBackground,
+    upscaleImage,
+    enhanceImage,
     exportImage,
     loadImage,
     type ImageLayer,
-    type ImageEditorState
+    type ImageEditorState,
+    type FilterType
 } from '../../services/media/imageProcessing';
 import type { MediaAsset } from '../../types/media';
 
@@ -43,6 +46,7 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
     });
 
     const [tool, setTool] = useState<Tool>('select');
+    const [activeTab, setActiveTab] = useState<'layers' | 'adjust' | 'ai'>('layers');
     const [zoom, setZoom] = useState(100);
     const [brightness, setBrightness] = useState(0);
     const [contrast, setContrast] = useState(0);
@@ -252,6 +256,41 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
         }
     };
 
+    const handleUpscale = async (factor: 2 | 4) => {
+        const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
+        if (!activeLayer?.imageData) return;
+
+        setIsProcessing(true);
+        try {
+            const result = await upscaleImage(activeLayer.imageData, factor);
+            updateLayer(activeLayer.id, { imageData: result });
+            // Also need to update global width/height if it's the base layer, or let it be distinct?
+            // For now, let's update canvas size to match if it's the only layer or background
+            if (state.layers.length === 1 || activeLayer.name === 'Background') {
+                setState(prev => ({ ...prev, width: result.width, height: result.height }));
+            }
+        } catch (error) {
+            console.error('[IMAGE_STUDIO] Upscale error:', error);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleEnhance = async () => {
+        const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
+        if (!activeLayer?.imageData) return;
+
+        setIsProcessing(true);
+        try {
+            const result = await enhanceImage(activeLayer.imageData);
+            updateLayer(activeLayer.id, { imageData: result });
+        } catch (error) {
+            console.error('[IMAGE_STUDIO] Enhance error:', error);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const handleExport = async () => {
         setIsProcessing(true);
         try {
@@ -392,122 +431,201 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
                 <div className="w-80 bg-[#0a1222] border-l border-slate-700 flex flex-col shrink-0">
                     {/* Tabs */}
                     <div className="flex border-b border-slate-700">
-                        <button className="flex-1 py-3 text-xs font-black uppercase bg-cyan-600 text-white">Layers</button>
-                        <button className="flex-1 py-3 text-xs font-black uppercase text-slate-400">Adjustments</button>
-                        <button className="flex-1 py-3 text-xs font-black uppercase text-slate-400">AI Tools</button>
+                        <button
+                            onClick={() => setActiveTab('layers')}
+                            className={`flex-1 py-3 text-xs font-black uppercase transition-colors ${activeTab === 'layers' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-cyan-400'}`}
+                        >
+                            Layers
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('adjust')}
+                            className={`flex-1 py-3 text-xs font-black uppercase transition-colors ${activeTab === 'adjust' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-cyan-400'}`}
+                        >
+                            Colors
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('ai')}
+                            className={`flex-1 py-3 text-xs font-black uppercase transition-colors ${activeTab === 'ai' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-purple-400'}`}
+                        >
+                            AI Tools
+                        </button>
                     </div>
 
-                    {/* Layers Panel */}
+                    {/* Content Panel */}
                     <div className="flex-1 flex flex-col overflow-hidden">
-                        <div className="p-3 border-b border-slate-700 flex items-center justify-between">
-                            <span className="text-xs font-black uppercase text-slate-400">Layers ({state.layers.length})</span>
-                            <button
-                                onClick={addLayer}
-                                className="p-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg transition-all"
-                                title="Add Layer"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                            {[...state.layers].reverse().map(layer => (
-                                <div
-                                    key={layer.id}
-                                    onClick={() => setState(prev => ({ ...prev, activeLayerId: layer.id }))}
-                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${state.activeLayerId === layer.id
-                                            ? 'border-cyan-500 bg-cyan-600/10'
-                                            : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
-                                        }`}
-                                >
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm font-bold text-cyan-50 truncate">{layer.name}</span>
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); updateLayer(layer.id, { visible: !layer.visible }); }}
-                                                className="p-1 hover:bg-slate-700 rounded"
-                                                title={layer.visible ? 'Hide' : 'Show'}
-                                            >
-                                                {layer.visible ? '👁️' : '🚫'}
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); deleteLayer(layer.id); }}
-                                                className="p-1 hover:bg-red-600 rounded"
-                                                title="Delete"
-                                            >
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[9px] text-slate-400 uppercase w-16">Opacity</span>
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="1"
-                                                step="0.01"
-                                                value={layer.opacity}
-                                                onChange={(e) => updateLayer(layer.id, { opacity: parseFloat(e.target.value) })}
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="flex-1 accent-cyan-500"
-                                            />
-                                            <span className="text-[9px] text-cyan-400 w-8">{Math.round(layer.opacity * 100)}</span>
-                                        </div>
-
-                                        <select
-                                            value={layer.blendMode}
-                                            onChange={(e) => updateLayer(layer.id, { blendMode: e.target.value as any })}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-cyan-400 outline-none"
+                        {activeTab === 'layers' && (
+                            <>
+                                <div className="p-3 border-b border-slate-700 flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase text-slate-400">Layers ({state.layers.length})</span>
+                                    <button
+                                        onClick={addLayer}
+                                        className="p-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg transition-all"
+                                        title="Add Layer"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                                    {[...state.layers].reverse().map(layer => (
+                                        <div
+                                            key={layer.id}
+                                            onClick={() => setState(prev => ({ ...prev, activeLayerId: layer.id }))}
+                                            className={`p-3 rounded-xl border cursor-pointer transition-all ${state.activeLayerId === layer.id
+                                                ? 'border-cyan-500 bg-cyan-600/10'
+                                                : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                                                }`}
                                         >
-                                            <option value="normal">Normal</option>
-                                            <option value="multiply">Multiply</option>
-                                            <option value="screen">Screen</option>
-                                            <option value="overlay">Overlay</option>
-                                            <option value="darken">Darken</option>
-                                            <option value="lighten">Lighten</option>
-                                        </select>
+                                            {/* Layer Item Content */}
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-sm font-bold text-cyan-50 truncate">{layer.name}</span>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); updateLayer(layer.id, { visible: !layer.visible }); }}
+                                                        className="p-1 hover:bg-slate-700 rounded"
+                                                        title={layer.visible ? 'Hide' : 'Show'}
+                                                    >
+                                                        {layer.visible ? '👁️' : '🚫'}
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); deleteLayer(layer.id); }}
+                                                        className="p-1 hover:bg-red-600 rounded"
+                                                        title="Delete"
+                                                    >
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] text-slate-400 uppercase w-16">Opacity</span>
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="1"
+                                                        step="0.01"
+                                                        value={layer.opacity}
+                                                        onChange={(e) => updateLayer(layer.id, { opacity: parseFloat(e.target.value) })}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="flex-1 accent-cyan-500"
+                                                    />
+                                                </div>
+                                                <select
+                                                    value={layer.blendMode}
+                                                    onChange={(e) => updateLayer(layer.id, { blendMode: e.target.value as any })}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-cyan-400 outline-none"
+                                                >
+                                                    <option value="normal">Normal</option>
+                                                    <option value="multiply">Multiply</option>
+                                                    <option value="screen">Screen</option>
+                                                    <option value="overlay">Overlay</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        {activeTab === 'adjust' && (
+                            <div className="p-4 space-y-6">
+                                {/* Adjustment sliders (placeholder for now) */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase">Brightness</label>
+                                    <input
+                                        type="range" min="-100" max="100" value={brightness}
+                                        onChange={(e) => { setBrightness(parseInt(e.target.value)); handleAdjustments(); }}
+                                        className="w-full accent-cyan-500"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase">Contrast</label>
+                                    <input
+                                        type="range" min="-100" max="100" value={contrast}
+                                        onChange={(e) => { setContrast(parseInt(e.target.value)); handleAdjustments(); }}
+                                        className="w-full accent-cyan-500"
+                                    />
+                                </div>
+                                <div className="pt-4 border-t border-slate-700">
+                                    <span className="text-xs font-black uppercase text-slate-400 block mb-2">Filters</span>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { id: 'grayscale', label: 'Grayscale' },
+                                            { id: 'sepia', label: 'Sepia' },
+                                            { id: 'invert', label: 'Invert' },
+                                            { id: 'blur', label: 'Blur' },
+                                            { id: 'sharpen', label: 'Sharpen' }
+                                        ].map(f => (
+                                            <button
+                                                key={f.id}
+                                                onClick={() => handleFilter(f.id as any)}
+                                                disabled={!state.activeLayerId || isProcessing}
+                                                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded-lg text-xs font-bold transition-all"
+                                            >
+                                                {f.label}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* Quick Filters */}
-                        <div className="p-3 border-t border-slate-700 space-y-2">
-                            <span className="text-xs font-black uppercase text-slate-400 block">Quick Filters</span>
-                            <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    { id: 'grayscale' as FilterType, label: 'Grayscale' },
-                                    { id: 'sepia' as FilterType, label: 'Sepia' },
-                                    { id: 'invert' as FilterType, label: 'Invert' },
-                                    { id: 'blur' as FilterType, label: 'Blur' },
-                                    { id: 'sharpen' as FilterType, label: 'Sharpen' }
-                                ].map(f => (
-                                    <button
-                                        key={f.id}
-                                        onClick={() => handleFilter(f.id)}
-                                        disabled={!state.activeLayerId || isProcessing}
-                                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-xs font-bold transition-all"
-                                    >
-                                        {f.label}
-                                    </button>
-                                ))}
                             </div>
+                        )}
 
-                            <button
-                                onClick={handleRemoveBackground}
-                                disabled={!state.activeLayerId || isProcessing}
-                                className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-xs font-black uppercase transition-all"
-                            >
-                                🪄 Remove Background (AI)
-                            </button>
-                        </div>
+                        {activeTab === 'ai' && (
+                            <div className="p-4 space-y-4">
+                                <div className="p-3 bg-purple-900/20 border border-purple-500/30 rounded-xl space-y-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                                        <span className="text-xs font-black text-purple-400 uppercase tracking-widest">Workers AI</span>
+                                    </div>
+
+                                    <button
+                                        onClick={handleRemoveBackground}
+                                        disabled={!state.activeLayerId || isProcessing}
+                                        className="w-full px-3 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <span>🪄</span> Remove Background
+                                    </button>
+
+                                    <button
+                                        onClick={handleEnhance}
+                                        disabled={!state.activeLayerId || isProcessing}
+                                        className="w-full px-3 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <span>✨</span> Auto Enhance
+                                    </button>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <span className="text-xs font-black uppercase text-slate-400">Upscaling</span>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={() => handleUpscale(2)}
+                                            disabled={!state.activeLayerId || isProcessing}
+                                            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded-lg text-xs font-bold transition-all"
+                                        >
+                                            Upscale 2x
+                                        </button>
+                                        <button
+                                            onClick={() => handleUpscale(4)}
+                                            disabled={!state.activeLayerId || isProcessing}
+                                            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded-lg text-xs font-bold transition-all"
+                                        >
+                                            Upscale 4x
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="p-3 bg-blue-900/10 border border-blue-500/20 rounded-xl">
+                                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                                        AI operations process safely on Cloudflare Workers. Your image data is handled privately.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

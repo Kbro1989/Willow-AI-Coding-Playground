@@ -6,7 +6,7 @@
 import geminiProvider, { GeminiTextRequest, GeminiImageRequest, GeminiCodeRequest } from './geminiProvider';
 import cloudflareProvider from './cloudflareProvider';
 
-export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video';
+export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning';
 
 export interface ModelRequest {
   type: ModelType;
@@ -18,6 +18,7 @@ export interface ModelRequest {
   language?: string;
   context?: string;
   options?: any;
+  tier?: 'standard' | 'premium'; // default: 'standard' (Cloudflare)
 }
 
 export interface ModelResponse {
@@ -33,52 +34,51 @@ export interface ModelResponse {
 
 /**
  * Route model request to best available provider
+ * Strategy: "Cloudflare First" (Cost Optimization)
  */
 export async function route(request: ModelRequest): Promise<ModelResponse> {
   const startTime = Date.now();
+  const tier = request.tier || 'standard';
 
-  // Audio and Video are Gemini-exclusive
-  if (request.type === 'audio' || request.type === 'video') {
-    if (!geminiProvider.isAvailable()) {
-      throw new Error(`${request.type} generation requires Gemini API key`);
-    }
-    // These are handled by geminiService.ts (Live Audio / VEO)
-    throw new Error(`${request.type} should use geminiService.ts directly`);
-  }
 
-  // Try Gemini first if available
-  if (geminiProvider.isAvailable()) {
-    try {
-      console.log(`[ROUTER] Trying Gemini for ${request.type}...`);
-      const result = await routeToGemini(request);
-      const latency = Date.now() - startTime;
+  // capabilities restricted to Gemini (Premium)
+  // Video is still Gemini-exclusive (unless we implement SVD here, but usually that's a separate 2-step process)
+  // Video is handled by Cloudflare SVD
+  const isGeminiExclusive = false;
 
-      return {
-        ...result,
-        provider: 'gemini',
-        latency
-      };
-    } catch (error: any) {
-      // If rate limit, fall through to Cloudflare
-      if (error.message === 'RATE_LIMIT') {
-        console.warn('[ROUTER] Gemini rate limited, falling back to Cloudflare');
-      } else {
-        console.error('[ROUTER] Gemini error:', error);
+  // 1. Premium Route (Explicit or Exclusive)
+  if (tier === 'premium' || isGeminiExclusive) {
+    if (geminiProvider.isAvailable()) {
+      console.log(`[ROUTER] Routing to Gemini (Premium/Exclusive) for ${request.type}...`);
+      try {
+        const result = await routeToGemini(request);
+        return { ...result, provider: 'gemini', latency: Date.now() - startTime };
+      } catch (error) {
+        if (isGeminiExclusive) throw error; // No fallback for exclusive features
+        console.warn('[ROUTER] Gemini failed, attempting fallback to Cloudflare...', error);
+        // Fall through to Cloudflare
       }
-      // Fall through to Cloudflare
+    } else if (isGeminiExclusive) {
+      throw new Error(`${request.type} requires Gemini API key`);
     }
   }
 
-  // Fallback to Cloudflare
-  console.log(`[ROUTER] Using Cloudflare for ${request.type}`);
-  const result = await routeToCloudflare(request);
-  const latency = Date.now() - startTime;
 
-  return {
-    ...result,
-    provider: 'cloudflare',
-    latency
-  };
+  // 2. Standard Route (Cloudflare)
+  console.log(`[ROUTER] Routing to Cloudflare (Standard) for ${request.type}...`);
+  try {
+    const result = await routeToCloudflare(request);
+    return { ...result, provider: 'cloudflare', latency: Date.now() - startTime };
+  } catch (error) {
+    console.error('[ROUTER] Cloudflare failed:', error);
+    // 3. Last Resort: Try Gemini if we haven't already
+    if (tier !== 'premium' && geminiProvider.isAvailable()) {
+      console.warn('[ROUTER] Cloudflare failed, falling back to Gemini (Rescue)...');
+      const result = await routeToGemini(request);
+      return { ...result, provider: 'gemini', latency: Date.now() - startTime };
+    }
+    throw error;
+  }
 }
 
 /**
@@ -87,6 +87,7 @@ export async function route(request: ModelRequest): Promise<ModelResponse> {
 async function routeToGemini(request: ModelRequest): Promise<Omit<ModelResponse, 'provider' | 'latency'>> {
   switch (request.type) {
     case 'text':
+    case 'reasoning': // Gemini uses same chat for reasoning
     case 'function_calling': {
       const geminiRequest: GeminiTextRequest = {
         prompt: request.prompt,
@@ -135,8 +136,9 @@ async function routeToGemini(request: ModelRequest): Promise<Omit<ModelResponse,
       };
     }
 
+    // Video/Audio handled in geminiService.ts usually, but if added here:
     default:
-      throw new Error(`Unsupported model type: ${request.type}`);
+      throw new Error(`Unsupported model type for Gemini Router: ${request.type}`);
   }
 }
 
@@ -188,9 +190,56 @@ async function routeToCloudflare(request: ModelRequest): Promise<Omit<ModelRespo
       };
     }
 
-    default:
-      throw new Error(`Unsupported model type: ${request.type}`);
+    case 'reasoning': {
+      // Use DeepSeek R1 (Distill) for cost-effective reasoning
+      const response = await cloudflareProvider.reasonWithDeepSeek(request.prompt);
+
+      return {
+        content: response.solution,
+        model: response.model
+      };
+    }
+
+    case 'audio': {
+      // HACK: We need to know if it's TTS (text -> audio) or STT (audio -> text)
+      // For now, we assume 'prompt' is text for TTS if options.audioMode === 'tts'
+      // Or 'prompt' is base64 audio for STT if options.audioMode === 'stt'
+
+      if (request.options?.audioMode === 'tts') {
+        const response = await cloudflareProvider.synthesizeAudio(request.prompt);
+        // Return base64 audio in content? Or a new field? 
+        // ModelResponse has imageUrl/code/content. Let's force it into 'content' as data URI or something.
+        // Or add audioUrl to ModelResponse?
+        // For now, standardizing on content as base64 or creating a hack.
+        // Ideally we update ModelResponse. Let's leverage 'imageUrl' as 'videoUrl/audioUrl' generic? 
+        // No, let's put it in content with a prefix or just raw base64.
+        return {
+          content: response.audioBase64,
+          model: response.model
+        };
+      } else {
+        // Assume STT
+        const response = await cloudflareProvider.transcribe(request.prompt);
+        return {
+          content: response.text,
+          model: response.model
+        };
+      }
+    }
+
   }
+
+    case 'video': {
+    const response = await cloudflareProvider.generateVideo(request.prompt);
+    return {
+      imageUrl: response.videoUrl, // Storing in imageUrl for compatibility or generic 'content'
+      model: response.model
+    };
+  }
+
+    default:
+  throw new Error(`Unsupported model type: ${request.type}`);
+}
 }
 
 /**

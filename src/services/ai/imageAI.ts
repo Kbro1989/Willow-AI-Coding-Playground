@@ -152,6 +152,74 @@ export async function upscaleImageAI(imageData: ImageData, factor: 2 | 4 = 2): P
     }
 }
 
+
+/**
+ * Generate image from text prompt using AI
+ */
+export async function generateImageAI(prompt: string): Promise<string> {
+    try {
+        const response = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${CF_API_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt,
+                    num_steps: 40
+                })
+            }
+        );
+
+        if (!response.ok) throw new Error(`Cloudflare AI error: ${response.statusText}`);
+        const result: CloudflareAIResponse = await response.json();
+
+        if (!result.success) throw new Error(result.errors?.[0]?.message || 'Generation failed');
+
+        return result.result.image; // Base64
+    } catch (error) {
+        console.error('[IMAGE_AI] Generation failed:', error);
+        throw error;
+    }
+}
+
+/**
+ * Generate video from image using AI (Image-to-Video)
+ */
+export async function generateVideoAI(imageBase64: string): Promise<string> {
+    try {
+        const response = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/stabilityai/stable-video-diffusion-img2vid-xt`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${CF_API_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    image: imageBase64,
+                    num_steps: 30,
+                    decoder_steps: 10
+                })
+            }
+        );
+
+        if (!response.ok) throw new Error(`Cloudflare AI error: ${response.statusText}`);
+
+        const result: CloudflareAIResponse = await response.json();
+
+        // Note: SVD output field might vary, assuming 'video' or 'result.video'
+        // If the type definition doesn't handle 'video', we cast or check result.
+        // CloudflareAIResponse interface has result: { image: string }. We might need to handle video.
+        return (result as any).result.video || result.result.image;
+    } catch (error) {
+        console.error('[IMAGE_AI] Video generation failed:', error);
+        throw error;
+    }
+}
+
 /**
  * Auto-enhance image (brightness, contrast, color correction)
  */

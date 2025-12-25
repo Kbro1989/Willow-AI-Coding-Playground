@@ -6,6 +6,7 @@
 
 import { GoogleGenerativeAI, FunctionDeclaration, SchemaType } from "@google/generative-ai";
 import { ModelKey } from "../types";
+import { generateImageAI, generateVideoAI } from './ai/imageAI';
 
 // Removed global auto-init to prevent crash on load
 // const ai = new GoogleGenerativeAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
@@ -60,6 +61,24 @@ export const ideTools: FunctionDeclaration[] = [
       description: 'Inject code into the filesystem.',
       properties: { path: { type: SchemaType.STRING }, content: { type: SchemaType.STRING }, optimization: { type: SchemaType.STRING } },
       required: ['path', 'content']
+    }
+  },
+  {
+    name: 'ide_read_diagnostics',
+    parameters: {
+      type: SchemaType.OBJECT,
+      description: 'Read current lint errors, build failures, and runtime warnings.',
+      properties: { filter: { type: SchemaType.STRING, enum: ['all', 'error', 'warning'], format: 'enum' } },
+      required: ['filter']
+    }
+  },
+  {
+    name: 'ide_verify_fix',
+    parameters: {
+      type: SchemaType.OBJECT,
+      description: 'Trigger a verification build to check if recent fixes resolved the issues.',
+      properties: { context: { type: SchemaType.STRING } },
+      required: ['context']
     }
   },
   {
@@ -281,28 +300,22 @@ export class LiveDirectorSession {
  * Generate Cinematic Video via VEO
  * (Frontend client implementation - will interact with Cloudflare Worker for video generation)
  */
-export const generateCinematic = async (prompt: string) => {
-  console.warn("generateCinematic is currently a placeholder. It will interact with a Cloudflare Worker for video generation.");
+
+
+/**
+ * Generate Cinematic Video via VEO
+ * (placeholder: generates a high-quality storyboard frame using Cloudflare AI)
+ */
+export const generateCinematic = async (prompt: string): Promise<string> => {
+  console.log("[VEO] Generating cinematic video (Step 1/2: Image Synthesis)...");
   try {
-    const response = await fetch("http://localhost:8787/generate-video", { // Replace with your actual Worker URL
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt,
-        apiKey: import.meta.env.REACT_APP_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY
-      }), // Pass API key securely via worker
-    });
+    const imageBase64 = await generateImageAI(`cinematic movie still, 8k resolution, photorealistic, wide angle, ${prompt}`);
 
-    if (!response.ok) {
-      throw new Error(`Video generation failed: ${response.statusText}`);
-    }
+    console.log("[VEO] Generating cinematic video (Step 2/2: Motion Synthesis)...");
+    const videoBase64 = await generateVideoAI(imageBase64);
 
-    const result = await response.json();
-    // Assuming the worker returns a video URI
-    return result.videoUri;
-
+    // Cloudflare SVD output is typically base64 encoded video
+    return `data:video/mp4;base64,${videoBase64}`;
   } catch (error) {
     console.error("[VEO] Cinematic Synthesis Failed:", error);
     throw error;

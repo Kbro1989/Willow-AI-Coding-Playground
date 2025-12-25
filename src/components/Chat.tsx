@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { GoogleGenerativeAI, FunctionDeclaration, SchemaType } from "@google/generative-ai";
 import { ideTools } from '../services/geminiService';
-import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPreferences, Extension, SceneObject, PhysicsConfig, WorldConfig, RenderConfig, CompositingConfig, SimulationState, EngineAction } from '../types';
+import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPreferences, Extension, SceneObject, PhysicsConfig, WorldConfig, RenderConfig, CompositingConfig, SimulationState, EngineAction, EngineLog } from '../types';
 // Hybrid: Cloudflare for text/images now through modelRouter, Gemini for live audio/video
 import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
 import { generateCinematic, generateImage, synthesizeSpeech, cloudlareLimiter as limiter } from '../services/cloudflareService';
@@ -35,6 +35,7 @@ interface ChatProps {
   onUpdateVersion?: (v: string) => void;
   onTriggerBuild?: () => void;
   onTriggerPresentation?: () => void;
+  engineLogs?: EngineLog[];
 }
 
 export interface ChatHandle {
@@ -46,7 +47,7 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
   project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig, simulation,
   isOverwatchActive, messages, setMessages, userPrefs, onFileUpdate, onAddSceneObject, onUpdateSceneObject,
   onUpdatePhysics, onUpdateWorld, onUpdateConfig, onRemoveSceneObject, onInjectScript,
-  onSyncVariableData, extensions, projectVersion, onUpdateVersion, onTriggerBuild, onTriggerPresentation
+  onSyncVariableData, extensions, projectVersion, onUpdateVersion, onTriggerBuild, onTriggerPresentation, engineLogs = []
 }, ref) => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -87,6 +88,22 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           onInjectScript?.(args.path, args.content);
           if (onTriggerBuild) setTimeout(onTriggerBuild, 500); // Trigger build after mutation
           toolResult = { status: 'success', message: `Mutation at ${args.path} complete. Build cycle triggered.` };
+          break;
+        case 'ide_read_diagnostics':
+          const recentLogs = engineLogs.slice(-20);
+          const errors = recentLogs.filter(l => l.type === 'error');
+          toolResult = {
+            status: 'success',
+            diagnostics: {
+              errorCount: errors.length,
+              recentErrors: errors.map(e => e.message),
+              latestLogs: recentLogs.map(l => `[${l.type.toUpperCase()}] ${l.message}`)
+            }
+          };
+          break;
+        case 'ide_verify_fix':
+          if (onTriggerBuild) setTimeout(onTriggerBuild, 100);
+          toolResult = { status: 'success', message: 'Verification build triggered. Monitor diagnostics for results.' };
           break;
         case 'ide_matrix_intervention':
           const payload = typeof args.payload === 'string' ? JSON.parse(args.payload) : args.payload;
@@ -269,7 +286,7 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           fps: 144
         });
 
-        const systemPrompt = `You are the Antigravity Engine Architect. Master of solo game creation. Goal: Zero friction. Execute multi-step synthesis.\r\n\r\nYou have access to IDE tools for file mutation, scene updates, and testing, as well as Cloudflare AI for media generation and a local code agent for terminal and file system access. Respond with structured JSON when tool calls are needed.`;
+        const systemPrompt = `You are the Antigravity Engine Architect. Master of solo game creation. Goal: Zero friction. Execute multi-step synthesis.\r\n\r\nCRITICAL DIRECTIVE: SELF-CORRECTION\r\nWhen you modify code (ide_filesystem_mutation), you MUST immediately verify your work using 'ide_read_diagnostics'.\r\nIf valid errors (TypeScript, Lint, Build) appear, you MUST attempt to fix them in the same turn or the next.\r\nDo not ask the user for permission to fix broken code. Just fix it.\r\n\r\nYou have access to IDE tools for file mutation, scene updates, testing, and DIAGNOSTICS. Use them.`;
 
         const history = messages.map(m => ({
           role: m.role === 'assistant' ? 'model' as const : m.role === 'user' ? 'user' as const : 'user' as const,
@@ -366,6 +383,55 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
     }
   };
 
+  const compactConversation = async () => {
+    if (messages.length < 6) return;
+
+    setIsProcessing(true);
+    const originalAgent = activeAgent;
+    setActiveAgent("Optimizing Neural Matrix...");
+
+    try {
+      // Keep the system init message (0) if it exists, and the last 5 messages
+      const keepCount = 5;
+      const messagesToKeep = messages.slice(-keepCount);
+      const messagesToSummarize = messages.slice(messages[0].id === 'init-1' ? 1 : 0, -keepCount);
+
+      if (messagesToSummarize.length === 0) return;
+
+      const conversationText = messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+      const prompt = `Summarize the following conversation history into a single concise paragraph. Preserve all key technical decisions, file paths modified, current project state, and pending user directives. Ignore casual chatter.\n\n[HISTORY]\n${conversationText}`;
+
+      const summaryResponse = await modelRouter.chat([
+        { role: 'user', content: prompt }
+      ], "You are a context compression engine. Output only the summary.");
+
+      const summary = summaryResponse.content;
+
+      const summaryMessage: Message = {
+        id: `summary-${Date.now()}`,
+        role: 'assistant', // Use assistant role so it renders nicely
+        content: `[MEMORY OPTIMIZATION COMPLETED]\n\n**Previous Context:**\n${summary}`,
+        model: 'Cortical Stack',
+        timestamp: Date.now()
+      };
+
+      // Reconstruct: Keep Init + Summary + Recent
+      const newMessages = messages[0].id === 'init-1'
+        ? [messages[0], summaryMessage, ...messagesToKeep]
+        : [summaryMessage, ...messagesToKeep];
+
+      setMessages(newMessages);
+      addMessage({ role: 'assistant', content: "Context compacted successfully. Ready for next cycle.", model: 'System' });
+
+    } catch (e) {
+      console.error("Compaction failed", e);
+      addMessage({ role: 'assistant', content: "Context compaction failed.", isError: true });
+    } finally {
+      setIsProcessing(false);
+      setActiveAgent(originalAgent);
+    }
+  };
+
   const handleDownloadProject = async () => {
     try {
       setIsProcessing(true);
@@ -415,8 +481,16 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           >
             Download Project
           </button>
-          <div className="text-[9px] text-cyan-400/30 font-black uppercase tracking-[0.3em]">
-            Tokens
+          <div className="text-[9px] text-cyan-400/30 font-black uppercase tracking-[0.3em] flex items-center space-x-2">
+            <span>Tokens</span>
+            <button
+              onClick={() => compactConversation()}
+              disabled={isProcessing || messages.length < 6}
+              className="hover:text-cyan-400 transition-colors disabled:opacity-50"
+              title="Compact Conversation History"
+            >
+              (Optimize)
+            </button>
           </div>
         </div>
       </div>

@@ -18,6 +18,14 @@ import BehaviorTreeEditor from './components/BehaviorTreeEditor';
 import ShaderGraph from './components/ShaderGraph';
 import Copywriter from './components/Copywriter'; // Add Import
 
+import AudioWorkshop from './components/media/AudioWorkshop';
+import ModelStudio from './components/media/ModelStudio';
+import ImageStudio from './components/media/ImageStudio';
+import { VideoStudio } from './components/media/VideoStudio';
+
+// Simple active view state for development
+type ActiveView = 'dashboard' | 'forge' | 'chat' | 'knowledge' | 'media' | 'image-studio' | 'audio-workshop' | 'model-studio' | 'video-studio';
+
 import RSMVBrowser from './components/RSMVBrowser';
 import DiagnosticsPanel from './components/DiagnosticsPanel';
 import ApiKeyManager from './components/ApiKeyManager';
@@ -46,6 +54,7 @@ const App: React.FC = () => {
     lastLearningUpdate: Date.now()
   });
 
+  const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [isWorkspaceSwitcherOpen, setIsWorkspaceSwitcherOpen] = useState(false);
@@ -99,7 +108,7 @@ const App: React.FC = () => {
     { id: 'a2', name: 'Overwatch_LUT', type: 'texture', status: 'optimized' },
   ]);
 
-  const [bottomPanel, setBottomPanel] = useState<'terminal' | 'chat' | 'dashboard' | 'diagnostics' | 'forge' | 'pipeline' | 'behavior' | 'rsmv' | 'shader' | 'copywriter'>('chat');
+  const [bottomPanel, setBottomPanel] = useState<'terminal' | 'chat' | 'dashboard' | 'diagnostics' | 'forge' | 'pipeline' | 'behavior' | 'rsmv' | 'shader' | 'copywriter' | 'audio-workshop' | 'model-studio' | 'video-studio'>('chat');
   const chatRef = useRef<ChatHandle>(null);
   const lastSimTimeRef = useRef<number>(Date.now());
   const saveTimeoutRef = useRef<number | null>(null);
@@ -522,6 +531,10 @@ const App: React.FC = () => {
             {!isPresenting && (
               <Editor content={activeFileContent} onChange={handleFileChange} filename={project.activeFile || ''} lastSaved={lastSaved} isSyncing={isSyncing} />
             )}
+            {activeView === 'image-studio' && <ImageStudio />}
+            {activeView === 'audio-workshop' && <AudioWorkshop />}
+            {activeView === 'model-studio' && <ModelStudio />}
+            {activeView === 'video-studio' && <VideoStudio />}
             {/* GameDashboard is now hoisted out to the root layer for persistence */}
           </div>
 
@@ -537,9 +550,9 @@ const App: React.FC = () => {
               )}
               <div className="flex items-center justify-between px-6 h-12 border-b border-cyan-900/20 bg-[#050a15]/60 backdrop-blur-3xl shrink-0">
                 <div className="flex items-center space-x-1">
-                  {['chat', 'dashboard', 'terminal', 'diagnostics', 'forge', 'pipeline', 'behavior', 'rsmv', 'shader', 'copywriter'].map(tab => {
-                    const icons: Record<string, string> = { chat: '💬', dashboard: '🎮', terminal: '⚡', diagnostics: '🔍', forge: '🔨', pipeline: '🔄', behavior: '🧠', rsmv: '🎭', shader: '✨', copywriter: '✍️' };
-                    const labels: Record<string, string> = { chat: 'Neural Director', dashboard: 'Matrix', terminal: 'Console', diagnostics: 'Audit', forge: 'Forge', pipeline: 'Pipeline', behavior: 'Behavioral', rsmv: 'RSMV', shader: 'Shader', copywriter: 'Copywriter' };
+                  {['chat', 'dashboard', 'terminal', 'diagnostics', 'forge', 'pipeline', 'behavior', 'rsmv', 'shader', 'copywriter', 'audio-workshop', 'model-studio', 'video-studio'].map(tab => {
+                    const icons: Record<string, string> = { chat: '💬', dashboard: '🎮', terminal: '⚡', diagnostics: '🔍', forge: '🔨', pipeline: '🔄', behavior: '🧠', rsmv: '🎭', shader: '✨', copywriter: '✍️', 'audio-workshop': '🎙️', 'model-studio': '📦', 'video-studio': '🎥' };
+                    const labels: Record<string, string> = { chat: 'Neural Director', dashboard: 'Matrix', terminal: 'Console', diagnostics: 'Audit', forge: 'Forge', pipeline: 'Pipeline', behavior: 'Behavioral', rsmv: 'RSMV', shader: 'Shader', copywriter: 'Copywriter', 'audio-workshop': 'Audio', 'model-studio': 'Models', 'video-studio': 'Cinema' };
                     return (
                       <button key={tab} onClick={() => { setBottomPanel(tab as any); setIsBottomCollapsed(false); }} className={`px-3 py-2 text-xs font-black rounded-lg transition-all group relative ${bottomPanel === tab ? 'bg-cyan-600 text-white' : 'text-slate-500 hover:text-cyan-400 hover:bg-slate-800'}`} title={labels[tab]}>
                         <span className="text-base">{icons[tab]}</span>
@@ -561,6 +574,9 @@ const App: React.FC = () => {
                   {bottomPanel === 'rsmv' && <RSMVBrowser onImportModel={(m) => handleImportAsset({ id: `rsmv-${m.id}`, name: m.name, type: 'mesh', url: '', status: 'raw' })} />}
                   {bottomPanel === 'shader' && <ShaderGraph onCompile={(glsl) => addLog(`Shader Compiled: ${glsl.length} chars`, 'success', 'GPU')} onApplyToObjects={(id) => addLog(`Mat Applied: ${id}`, 'info', 'Render')} />}
                   {bottomPanel === 'copywriter' && <Copywriter />}
+                  {bottomPanel === 'audio-workshop' && <AudioWorkshop />}
+                  {bottomPanel === 'model-studio' && <ModelStudio />}
+                  {bottomPanel === 'video-studio' && <VideoStudio />}
                   {bottomPanel === 'chat' && (
                     <Chat
                       ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
@@ -576,6 +592,7 @@ const App: React.FC = () => {
                       extensions={extensions} projectVersion={projectVersion} onUpdateVersion={setProjectVersion}
                       onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
                       onTriggerPresentation={() => setIsPresenting(true)}
+                      engineLogs={engineLogs}
                     />
                   )}
                   {/* GameDashboard is NOT rendered here conditionally to avoid unmounting. It's handled by the persistent layer below. */}

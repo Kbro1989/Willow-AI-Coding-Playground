@@ -14,10 +14,17 @@ An AI-powered code editor and game development environment with advanced feature
 - **Pipeline Builder**: Visual workflow editor (n8n-style) for creating AI pipelines
 - **Extension Registry**: Manage and install extensions
 
+### Creative Suite 🎨
+- **Image Studio**: AI background removal, upscaling, & generation (SDXL/Flux)
+- **Audio Workshop**: Speech-to-Text & Text-to-Speech synthesis (Whisper/MeloTTS)
+- **Video Studio**: Cinematic text-to-video generation (Stable Video Diffusion)
+- **Model Studio**: Code-to-3D asset generation
+
 ### AI Integration
 - **Multi-Provider Support**: Gemini, Cloudflare AI, Local Ollama models
 - **Smart Routing**: Automatic provider selection based on availability and task type
 - **Rate Limiting**: Built-in rate limiting and API key management
+- **Reflective Agent**: Self-correcting AI that verifies code changes and fixes diagnostics automatically
 - **Live Director**: Real-time voice and video AI interactions
 
 ### 3D Game Development
