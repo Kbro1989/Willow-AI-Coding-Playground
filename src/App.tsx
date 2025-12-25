@@ -85,6 +85,7 @@ const App: React.FC = () => {
   const [variableData, setVariableData] = useState<Record<string, any>>({});
   const [extensions, setExtensions] = useState<Extension[]>(initialExtensions);
   const [projectVersion, setProjectVersion] = useState<string>('v1.0');
+  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([
     { id: 'p1', name: 'Willow_Hyper_Relay', provider: 'Cloudflare', status: 'online', endpoints: ['/relay/willow-high'], latency: 1 },
     { id: 'p2', name: 'Neural_Runtime_Engine', provider: 'Custom', status: 'online', endpoints: ['/compute/live'], latency: 4 },
@@ -525,88 +526,95 @@ const App: React.FC = () => {
           </div>
 
           {!isPresenting && (
-            <div style={{ height: `${bottomHeight}px` }} className="border-t border-cyan-900/30 flex flex-col bg-[#0a1222] z-10 relative shrink-0 shadow-[0_-10px_50px_rgba(0,0,0,0.8)] transition-all duration-500">
-              <div onMouseDown={() => setIsResizingBottom(true)} className="absolute -top-1 left-0 w-full h-2 cursor-row-resize z-50 group">
-                <div className="h-px w-full bg-cyan-500/10 group-hover:bg-cyan-400 transition-colors my-auto shadow-[0_0_10px_#00f2ff]"></div>
+            <div
+              style={{ height: isBottomCollapsed ? '48px' : `${bottomHeight}px` }}
+              className="border-t border-cyan-900/30 flex flex-col bg-[#0a1222] z-10 relative shrink-0 shadow-[0_-10px_50px_rgba(0,0,0,0.8)] transition-all duration-300"
+            >
+              {!isBottomCollapsed && (
+                <div onMouseDown={() => setIsResizingBottom(true)} className="absolute -top-1 left-0 w-full h-2 cursor-row-resize z-50 group">
+                  <div className="h-px w-full bg-cyan-500/10 group-hover:bg-cyan-400 transition-colors my-auto shadow-[0_0_10px_#00f2ff]"></div>
+                </div>
+              )}
+              <div className="flex items-center justify-between px-6 h-12 border-b border-cyan-900/20 bg-[#050a15]/60 backdrop-blur-3xl shrink-0">
+                <div className="flex items-center space-x-1">
+                  {['chat', 'dashboard', 'terminal', 'diagnostics', 'forge', 'pipeline', 'behavior', 'rsmv', 'shader', 'copywriter'].map(tab => (
+                    <button key={tab} onClick={() => setBottomPanel(tab as any)} className={`px-6 text-[11px] font-black uppercase h-full border-b-2 transition-all ${bottomPanel === tab ? 'border-cyan-500 text-cyan-400 bg-cyan-500/5' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}>
+                      {tab === 'chat' ? 'Neural Director' :
+                        tab === 'dashboard' ? 'Matrix' :
+                          tab === 'terminal' ? 'Console' :
+                            tab === 'diagnostics' ? 'Audit' :
+                              tab === 'forge' ? 'Forge' :
+                                tab === 'pipeline' ? 'Pipeline' :
+                                  tab === 'behavior' ? 'Behavior' :
+                                    tab === 'rsmv' ? 'RSMV' :
+                                      tab === 'shader' ? 'Shader' : 'Copy/Ads'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex-1 overflow-hidden relative bg-[#050a15]">
+                  {bottomPanel === 'terminal' && <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />}
+                  {bottomPanel === 'diagnostics' && <DiagnosticsPanel />}
+                  {bottomPanel === 'forge' && <Forge onClose={() => setBottomPanel('chat')} />}
+                  {bottomPanel === 'pipeline' && <PipelineBuilder onClose={() => setBottomPanel('chat')} />}
+                  {bottomPanel === 'behavior' && <BehaviorTreeEditor onSave={(tree) => addLog(`Behavior Sync: ${tree.length} nodes saved`, 'success', 'Neural')} onDebug={(id) => addLog(`Debugging node: ${id}`, 'info', 'Runtime')} />}
+                  {bottomPanel === 'rsmv' && <RSMVBrowser onImportModel={(m) => handleImportAsset({ id: `rsmv-${m.id}`, name: m.name, type: 'mesh', url: '', status: 'raw' })} />}
+                  {bottomPanel === 'shader' && <ShaderGraph onCompile={(glsl) => addLog(`Shader Compiled: ${glsl.length} chars`, 'success', 'GPU')} onApplyToObjects={(id) => addLog(`Mat Applied: ${id}`, 'info', 'Render')} />}
+                  {bottomPanel === 'copywriter' && <Copywriter />}
+                  {bottomPanel === 'chat' && (
+                    <Chat
+                      ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
+                      renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
+                      isOverwatchActive={isOverwatchActive} messages={chatMessages} setMessages={setChatMessages}
+                      userPrefs={userPrefs} onFileUpdate={handleFileChange}
+                      onAddSceneObject={handleAddSceneObject}
+                      onUpdateSceneObject={handleUpdateSceneObject} onUpdatePhysics={(u) => setPhysics(p => ({ ...p, ...u }))}
+                      onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
+                      onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
+                      onRemoveSceneObject={(id) => setSceneObjects(prev => prev.filter(o => o.id !== id))}
+                      onInjectScript={handleInjectScript} onSyncVariableData={handleSyncVariableData}
+                      extensions={extensions} projectVersion={projectVersion} onUpdateVersion={setProjectVersion}
+                      onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
+                      onTriggerPresentation={() => setIsPresenting(true)}
+                    />
+                  )}
+                  {/* GameDashboard is NOT rendered here conditionally to avoid unmounting. It's handled by the persistent layer below. */}
+                </div>
+              )}
               </div>
-              <div className="flex items-center space-x-2 px-10 h-16 border-b border-cyan-900/20 bg-[#050a15]/60 backdrop-blur-3xl shrink-0">
-                {['chat', 'dashboard', 'terminal', 'diagnostics', 'forge', 'pipeline', 'behavior', 'rsmv', 'shader', 'copywriter'].map(tab => (
-                  <button key={tab} onClick={() => setBottomPanel(tab as any)} className={`px-6 text-[11px] font-black uppercase h-full border-b-2 transition-all ${bottomPanel === tab ? 'border-cyan-500 text-cyan-400 bg-cyan-500/5' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}>
-                    {tab === 'chat' ? 'Neural Director' :
-                      tab === 'dashboard' ? 'Matrix' :
-                        tab === 'terminal' ? 'Console' :
-                          tab === 'diagnostics' ? 'Audit' :
-                            tab === 'forge' ? 'Forge' :
-                              tab === 'pipeline' ? 'Pipeline' :
-                                tab === 'behavior' ? 'Behavior' :
-                                  tab === 'rsmv' ? 'RSMV' :
-                                    tab === 'shader' ? 'Shader' : 'Copy/Ads'}
-                  </button>
-                ))}
-              </div>
-              <div className="flex-1 overflow-hidden relative bg-[#050a15]">
-                {bottomPanel === 'terminal' && <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />}
-                {bottomPanel === 'diagnostics' && <DiagnosticsPanel />}
-                {bottomPanel === 'forge' && <Forge onClose={() => setBottomPanel('chat')} />}
-                {bottomPanel === 'pipeline' && <PipelineBuilder onClose={() => setBottomPanel('chat')} />}
-                {bottomPanel === 'behavior' && <BehaviorTreeEditor onSave={(tree) => addLog(`Behavior Sync: ${tree.length} nodes saved`, 'success', 'Neural')} onDebug={(id) => addLog(`Debugging node: ${id}`, 'info', 'Runtime')} />}
-                {bottomPanel === 'rsmv' && <RSMVBrowser onImportModel={(m) => handleImportAsset({ id: `rsmv-${m.id}`, name: m.name, type: 'mesh', url: '', status: 'raw' })} />}
-                {bottomPanel === 'shader' && <ShaderGraph onCompile={(glsl) => addLog(`Shader Compiled: ${glsl.length} chars`, 'success', 'GPU')} onApplyToObjects={(id) => addLog(`Mat Applied: ${id}`, 'info', 'Render')} />}
-                {bottomPanel === 'copywriter' && <Copywriter />}
-                {bottomPanel === 'chat' && (
-                  <Chat
-                    ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
-                    renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
-                    isOverwatchActive={isOverwatchActive} messages={chatMessages} setMessages={setChatMessages}
-                    userPrefs={userPrefs} onFileUpdate={handleFileChange}
-                    onAddSceneObject={handleAddSceneObject}
-                    onUpdateSceneObject={handleUpdateSceneObject} onUpdatePhysics={(u) => setPhysics(p => ({ ...p, ...u }))}
-                    onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
-                    onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
-                    onRemoveSceneObject={(id) => setSceneObjects(prev => prev.filter(o => o.id !== id))}
-                    onInjectScript={handleInjectScript} onSyncVariableData={handleSyncVariableData}
-                    extensions={extensions} projectVersion={projectVersion} onUpdateVersion={setProjectVersion}
-                    onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
-                    onTriggerPresentation={() => setIsPresenting(true)}
-                  />
-                )}
-                {/* GameDashboard is NOT rendered here conditionally to avoid unmounting. It's handled by the persistent layer below. */}
-              </div>
-            </div>
           )}
-        </div>
+            </div>
 
         {/* Persistent GameDashboard Layer - Never unmounts to preserve WebGL Context */}
-        <div
-          className={`transition-all duration-500 ease-in-out bg-black ${showDashboard ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none delay-200'}`}
-          style={dashboardStyle}
-        >
-          <GameDashboard
-            onBuild={handleBuild} buildInfo={buildInfo} assets={assets} physics={physics} worldConfig={worldConfig} sceneObjects={sceneObjects}
-            pipelines={pipelines} renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
-            onUpdatePhysics={(u) => setPhysics(prev => ({ ...prev, ...u }))} onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
-            onImportAsset={(a) => addLog(`Linked: ${a.name}`, 'success', 'Neural')} onUpdateSceneObject={handleUpdateSceneObject}
-            onAddSceneObject={handleAddSceneObject}
-            onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
-            onRunAction={(c) => {
-              if (c === 'PRESENT_BUILD') setIsPresenting(true);
-              else if (c === 'EXIT_PRESENTATION') setIsPresenting(false);
-              else if (c === 'RUN_TEST_SUITE') {
-                setBottomPanel('chat');
-                chatRef.current?.sendMessage("Director, initiate full runtime test suite.");
-                addLog(`Command: ${c}`, 'info', 'Director');
-              }
-              else addLog(`Event: ${c}`, 'info', 'Director');
-            }}
-            onSendVisualFeedback={(img) => { setBottomPanel('chat'); chatRef.current?.addAnnotatedMessage(img); }}
-            sculptHistory={sculptHistory} redoStack={[]} onSculptTerrain={(p) => setSculptHistory(prev => [...prev, { ...p, brushSize: worldConfig.brushSize, brushStrength: worldConfig.brushStrength }])}
-            onUndoSculpt={() => setSculptHistory(prev => prev.slice(0, -1))} onRedoSculpt={() => { }} onClearSculpt={() => setSculptHistory([])}
-            nodes={nodes} edges={edges} onNeuralUpdate={handleNeuralUpdate} variableData={variableData} engineLogs={engineLogs}
-            onAddAsset={(newAsset) => setAssets(prev => [...prev, newAsset])}
-            isFullscreen={isPresenting}
-          />
+          <div
+            className={`transition-all duration-500 ease-in-out bg-black ${showDashboard ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none delay-200'}`}
+            style={dashboardStyle}
+          >
+            <GameDashboard
+              onBuild={handleBuild} buildInfo={buildInfo} assets={assets} physics={physics} worldConfig={worldConfig} sceneObjects={sceneObjects}
+              pipelines={pipelines} renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
+              onUpdatePhysics={(u) => setPhysics(prev => ({ ...prev, ...u }))} onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
+              onImportAsset={(a) => addLog(`Linked: ${a.name}`, 'success', 'Neural')} onUpdateSceneObject={handleUpdateSceneObject}
+              onAddSceneObject={handleAddSceneObject}
+              onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
+              onRunAction={(c) => {
+                if (c === 'PRESENT_BUILD') setIsPresenting(true);
+                else if (c === 'EXIT_PRESENTATION') setIsPresenting(false);
+                else if (c === 'RUN_TEST_SUITE') {
+                  setBottomPanel('chat');
+                  chatRef.current?.sendMessage("Director, initiate full runtime test suite.");
+                  addLog(`Command: ${c}`, 'info', 'Director');
+                }
+                else addLog(`Event: ${c}`, 'info', 'Director');
+              }}
+              onSendVisualFeedback={(img) => { setBottomPanel('chat'); chatRef.current?.addAnnotatedMessage(img); }}
+              sculptHistory={sculptHistory} redoStack={[]} onSculptTerrain={(p) => setSculptHistory(prev => [...prev, { ...p, brushSize: worldConfig.brushSize, brushStrength: worldConfig.brushStrength }])}
+              onUndoSculpt={() => setSculptHistory(prev => prev.slice(0, -1))} onRedoSculpt={() => { }} onClearSculpt={() => setSculptHistory([])}
+              nodes={nodes} edges={edges} onNeuralUpdate={handleNeuralUpdate} variableData={variableData} engineLogs={engineLogs}
+              onAddAsset={(newAsset) => setAssets(prev => [...prev, newAsset])}
+              isFullscreen={isPresenting}
+            />
+          </div>
         </div>
-      </div>
     </ErrorBoundary>
   );
 };
