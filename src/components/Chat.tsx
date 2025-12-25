@@ -401,9 +401,11 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
       const conversationText = messagesToSummarize.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
       const prompt = `Summarize the following conversation history into a single concise paragraph. Preserve all key technical decisions, file paths modified, current project state, and pending user directives. Ignore casual chatter.\n\n[HISTORY]\n${conversationText}`;
 
-      const summaryResponse = await modelRouter.chat([
-        { role: 'user', content: prompt }
-      ], "You are a context compression engine. Output only the summary.");
+      const summaryResponse = await modelRouter.chat(
+        prompt,
+        [], // history (empty for this isolated summarization task)
+        "You are a context compression engine. Output only the summary." // systemPrompt
+      );
 
       const summary = summaryResponse.content;
 
