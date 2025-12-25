@@ -43,17 +43,23 @@ export const runOrchestration = async (
   context: string,
   engineState: string,
   userPrefs: UserPreferences,
-  version: string
+  version: string,
+  reasoningLevel: 'standard' | 'high' = 'standard'
 ) => {
   try {
+    const model = reasoningLevel === 'high' ? 'DEEPSEEK_R1' : 'GPT_OSS'; // Tiered Routing
     const response = await fetch(`${WORKER_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: `Directive: "${prompt}"\nVersion: ${version}\n[PROJECT_TREE]: ${context}\n[ENGINE_STATE]: ${engineState}\n[USER_MEM]: ${JSON.stringify(userPrefs)}`,
         history: history.map(m => ({ role: m.role, content: m.content })),
-        model: 'GPT_OSS', // Uses llama-3.1-70b-instruct
+        model: model,
         systemPrompt: `You are the Antigravity Engine Architect. Master of solo game creation. Goal: Zero friction. Execute multi-step synthesis.
+        
+        Tiers:
+        - STANDARD: Use Llama 3.1 for fast code/chat.
+        - HIGH: Use DeepSeek R1 for complex reasoning, architecture, and "thinking".
 
 You have access to IDE tools for file mutation, scene updates, and testing. Respond with structured JSON when tool calls are needed.`
       })

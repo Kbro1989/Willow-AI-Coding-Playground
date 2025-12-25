@@ -16,6 +16,8 @@ import Forge from './components/Forge';
 import PipelineBuilder from './components/PipelineBuilder';
 import BehaviorTreeEditor from './components/BehaviorTreeEditor';
 import ShaderGraph from './components/ShaderGraph';
+import Copywriter from './components/Copywriter'; // Add Import
+
 import RSMVBrowser from './components/RSMVBrowser';
 import DiagnosticsPanel from './components/DiagnosticsPanel';
 import ApiKeyManager from './components/ApiKeyManager';
@@ -95,7 +97,7 @@ const App: React.FC = () => {
     { id: 'a2', name: 'Overwatch_LUT', type: 'texture', status: 'optimized' },
   ]);
 
-  const [bottomPanel, setBottomPanel] = useState<'terminal' | 'chat' | 'dashboard' | 'diagnostics' | 'forge' | 'pipeline' | 'behavior' | 'rsmv' | 'shader'>('chat');
+  const [bottomPanel, setBottomPanel] = useState<'terminal' | 'chat' | 'dashboard' | 'diagnostics' | 'forge' | 'pipeline' | 'behavior' | 'rsmv' | 'shader' | 'copywriter'>('chat');
   const chatRef = useRef<ChatHandle>(null);
   const lastSimTimeRef = useRef<number>(Date.now());
   const saveTimeoutRef = useRef<number | null>(null);
@@ -383,11 +385,31 @@ const App: React.FC = () => {
 
   const activeFileContent = activeFileNode?.content || '';
 
+  // Creative Control API - Expose internals to Window for Agents/Console
+  useEffect(() => {
+    window.antigravity = {
+      setTab: (tab) => setBottomPanel(tab),
+      importAsset: (asset) => handleImportAsset(asset),
+      runAction: (action) => {
+        if (action.type === 'ADD_OBJECT') handleAddSceneObject(action.payload);
+        else if (action.type === 'UPDATE_OBJECT') handleUpdateSceneObject(action.payload.id, action.payload);
+        else console.log('Agent Action:', action);
+      },
+      toggleSidebar: () => setSidebarWidth(prev => prev === 0 ? 360 : 0),
+      build: (reason) => handleBuild(reason),
+      getState: () => ({ project, sceneObjects, worldConfig })
+    };
+    return () => {
+      // @ts-ignore
+      delete window.antigravity;
+    };
+  }, [handleImportAsset, handleBuild, project, sceneObjects, worldConfig]);
+
   // Determine dashboard visibility and styling for persistence
   const showDashboard = bottomPanel === 'dashboard' || isPresenting;
   const dashboardStyle: React.CSSProperties = isPresenting
     ? { position: 'fixed', inset: 0, zIndex: 50, width: '100vw', height: '100vh' }
-    : { position: 'absolute', bottom: 0, right: 0, left: `${sidebarWidth}px`, height: `${bottomHeight}px`, zIndex: 15 };
+    : { position: 'absolute', bottom: 0, right: 0, left: `${sidebarWidth}px`, height: `${bottomHeight - 64}px`, zIndex: 15 };
 
   if (isLoading) {
     return (
@@ -502,7 +524,7 @@ const App: React.FC = () => {
                 <div className="h-px w-full bg-cyan-500/10 group-hover:bg-cyan-400 transition-colors my-auto shadow-[0_0_10px_#00f2ff]"></div>
               </div>
               <div className="flex items-center space-x-2 px-10 h-16 border-b border-cyan-900/20 bg-[#050a15]/60 backdrop-blur-3xl shrink-0">
-                {['chat', 'dashboard', 'terminal', 'diagnostics', 'forge', 'pipeline', 'behavior', 'rsmv', 'shader'].map(tab => (
+                {['chat', 'dashboard', 'terminal', 'diagnostics', 'forge', 'pipeline', 'behavior', 'rsmv', 'shader', 'copywriter'].map(tab => (
                   <button key={tab} onClick={() => setBottomPanel(tab as any)} className={`px-6 text-[11px] font-black uppercase h-full border-b-2 transition-all ${bottomPanel === tab ? 'border-cyan-500 text-cyan-400 bg-cyan-500/5' : 'border-transparent text-slate-500 hover:text-cyan-400'}`}>
                     {tab === 'chat' ? 'Neural Director' :
                       tab === 'dashboard' ? 'Matrix' :
@@ -511,7 +533,8 @@ const App: React.FC = () => {
                             tab === 'forge' ? 'Forge' :
                               tab === 'pipeline' ? 'Pipeline' :
                                 tab === 'behavior' ? 'Behavior' :
-                                  tab === 'rsmv' ? 'RSMV' : 'Shader'}
+                                  tab === 'rsmv' ? 'RSMV' :
+                                    tab === 'shader' ? 'Shader' : 'Copy/Ads'}
                   </button>
                 ))}
               </div>
@@ -523,6 +546,7 @@ const App: React.FC = () => {
                 {bottomPanel === 'behavior' && <BehaviorTreeEditor onSave={(tree) => addLog(`Behavior Sync: ${tree.length} nodes saved`, 'success', 'Neural')} onDebug={(id) => addLog(`Debugging node: ${id}`, 'info', 'Runtime')} />}
                 {bottomPanel === 'rsmv' && <RSMVBrowser onImportModel={(m) => handleImportAsset({ id: `rsmv-${m.id}`, name: m.name, type: 'mesh', url: '', status: 'raw' })} />}
                 {bottomPanel === 'shader' && <ShaderGraph onCompile={(glsl) => addLog(`Shader Compiled: ${glsl.length} chars`, 'success', 'GPU')} onApplyToObjects={(id) => addLog(`Mat Applied: ${id}`, 'info', 'Render')} />}
+                {bottomPanel === 'copywriter' && <Copywriter />}
                 {bottomPanel === 'chat' && (
                   <Chat
                     ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}

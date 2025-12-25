@@ -11,15 +11,31 @@ class LocalBridgeClient {
     this.connect();
   }
 
+  public setBridgeUrl(url: string) {
+    localStorage.setItem('antigravity_bridge_url', url);
+    if (this.ws) {
+      this.ws.close();
+    }
+    this.connect();
+  }
+
   private connect() {
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
-    this.ws = new WebSocket("ws://localhost:3040"); // Connect to local-bridge server.js
+    const bridgeUrl = localStorage.getItem('antigravity_bridge_url') || "ws://localhost:3040";
+
+    try {
+      this.ws = new WebSocket(bridgeUrl); // Connect to dynamic bridge URL
+    } catch (e) {
+      console.error("[LocalBridge] Invalid URL provided, reverting to Cloud Mode.", e);
+      this.isCloudMode = true;
+      return;
+    }
 
     this.ws.onopen = () => {
-      console.log("[LocalBridge] Connected to local development tunnel.");
+      console.log(`[LocalBridge] Connected to ${bridgeUrl}`);
       this.isCloudMode = false;
     };
 
@@ -37,7 +53,7 @@ class LocalBridgeClient {
     };
 
     this.ws.onclose = () => {
-      console.log("[LocalBridge] Disconnected from local development tunnel. Reconnecting in 5 seconds... Switching to Cloud Mode.");
+      console.log("[LocalBridge] Disconnected. Reconnecting in 5s or staying in Cloud Mode.");
       this.isCloudMode = true;
       setTimeout(() => this.connect(), 5000);
     };
@@ -90,7 +106,9 @@ class LocalBridgeClient {
       this.ws.send(JSON.stringify({ type: 'terminal_command', command }));
       return { success: true };
     } catch (e: any) {
-      return { success: false, error: e.message };
+      console.warn("[LocalBridge] Terminal command failed, switching to Cloud Mode.", e);
+      this.isCloudMode = true;
+      return this.runTerminalCommand(command);
     }
   }
 
@@ -103,7 +121,9 @@ class LocalBridgeClient {
       const response = await this.sendMessage('fs_read', { filePath });
       return { success: true, content: response.content };
     } catch (e: any) {
-      return { success: false, error: e.message };
+      console.warn("[LocalBridge] Read file failed, switching to Cloud Mode.", e);
+      this.isCloudMode = true;
+      return this.readLocalFile(filePath);
     }
   }
 
@@ -116,7 +136,9 @@ class LocalBridgeClient {
       await this.sendMessage('fs_write', { filePath, content });
       return { success: true };
     } catch (e: any) {
-      return { success: false, error: e.message };
+      console.warn("[LocalBridge] Write file failed, switching to Cloud Mode.", e);
+      this.isCloudMode = true;
+      return this.writeLocalFile(filePath, content);
     }
   }
 
@@ -129,7 +151,9 @@ class LocalBridgeClient {
       await this.sendMessage('fs_delete', { filePath });
       return { success: true };
     } catch (e: any) {
-      return { success: false, error: e.message };
+      console.warn("[LocalBridge] Delete file failed, switching to Cloud Mode.", e);
+      this.isCloudMode = true;
+      return this.deleteLocalFile(filePath);
     }
   }
 
@@ -142,3 +166,7 @@ class LocalBridgeClient {
 }
 
 export const localBridgeClient = new LocalBridgeClient();
+
+export const setBridgeUrl = (url: string) => {
+  localBridgeClient.setBridgeUrl(url);
+};

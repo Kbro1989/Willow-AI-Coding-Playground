@@ -49,19 +49,24 @@ function handleMessage(ws, data) {
     switch (type) {
         case 'terminal_command':
             console.log(`[EXEC] ${data.command}`);
-            const process = exec(data.command, { cwd: data.cwd || process.cwd() });
+            const isWin = process.platform === "win32";
+            const shell = isWin ? 'powershell.exe' : undefined;
 
-            process.stdout.on('data', (d) => {
+            const proc = exec(data.command, {
+                cwd: data.cwd || process.cwd(),
+                shell: shell
+            });
+
+            proc.stdout.on('data', (d) => {
                 ws.send(JSON.stringify({ type: 'output', data: d.toString() }));
             });
 
-            process.stderr.on('data', (d) => {
-                ws.send(JSON.stringify({ type: 'output', data: d.toString() })); // Send stderr as output for visibility
+            proc.stderr.on('data', (d) => {
+                ws.send(JSON.stringify({ type: 'output', data: d.toString() }));
             });
 
-            process.on('close', (code) => {
+            proc.on('close', (code) => {
                 if (messageId) {
-                    // If it was a blocking call waiting for completion
                     sendResponse(code === 0);
                 }
                 ws.send(JSON.stringify({ type: 'system', data: `Process exited with code ${code}` }));

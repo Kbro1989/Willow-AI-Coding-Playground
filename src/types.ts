@@ -287,3 +287,16 @@ export enum ModelKey {
 }
 
 export type AgentTask = 'reasoning' | 'coding' | 'asset_gen' | 'cinematic' | 'optimization' | 'sprint_planning' | 'world_grounding' | 'ide_test_runtime';
+
+declare global {
+  interface Window {
+    antigravity: {
+      setTab: (tab: 'terminal' | 'chat' | 'dashboard' | 'diagnostics' | 'forge' | 'pipeline' | 'behavior' | 'rsmv' | 'shader') => void;
+      importAsset: (asset: GameAsset) => void;
+      runAction: (action: EngineAction) => void;
+      toggleSidebar: () => void;
+      build: (reason: string) => void;
+      getState: () => any;
+    }
+  }
+}
