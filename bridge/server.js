@@ -83,15 +83,72 @@ function handleMessage(ws, data) {
 
         case 'fs_write':
             console.log(`[WRITE] ${data.filePath}`);
-            fs.writeFile(data.filePath, data.content, (err) => {
-                if (err) sendResponse(false, {}, err.message);
-                else sendResponse(true);
+            // Ensure directory exists
+            const dir = path.dirname(data.filePath);
+            fs.mkdir(dir, { recursive: true }, (mkdirErr) => {
+                if (mkdirErr) {
+                    sendResponse(false, {}, mkdirErr.message);
+                    return;
+                }
+                fs.writeFile(data.filePath, data.content, (err) => {
+                    if (err) sendResponse(false, {}, err.message);
+                    else sendResponse(true);
+                });
             });
             break;
 
         case 'fs_delete':
             console.log(`[DELETE] ${data.filePath}`);
             fs.unlink(data.filePath, (err) => {
+                if (err) sendResponse(false, {}, err.message);
+                else sendResponse(true);
+            });
+            break;
+
+        case 'fs_list':
+            console.log(`[LIST] ${data.dirPath}`);
+            fs.readdir(data.dirPath, { withFileTypes: true }, (err, files) => {
+                if (err) {
+                    sendResponse(false, {}, err.message);
+                    return;
+                }
+                const fileList = files.map(f => ({
+                    name: f.name,
+                    isDirectory: f.isDirectory(),
+                    path: path.join(data.dirPath, f.name)
+                }));
+                sendResponse(true, { files: fileList });
+            });
+            break;
+
+        case 'fs_stat':
+            console.log(`[STAT] ${data.filePath}`);
+            fs.stat(data.filePath, (err, stats) => {
+                if (err) {
+                    sendResponse(false, {}, err.message);
+                    return;
+                }
+                sendResponse(true, {
+                    isFile: stats.isFile(),
+                    isDirectory: stats.isDirectory(),
+                    size: stats.size,
+                    modified: stats.mtime.getTime(),
+                    created: stats.birthtime.getTime()
+                });
+            });
+            break;
+
+        case 'fs_mkdir':
+            console.log(`[MKDIR] ${data.dirPath}`);
+            fs.mkdir(data.dirPath, { recursive: true }, (err) => {
+                if (err) sendResponse(false, {}, err.message);
+                else sendResponse(true);
+            });
+            break;
+
+        case 'fs_rename':
+            console.log(`[RENAME] ${data.oldPath} -> ${data.newPath}`);
+            fs.rename(data.oldPath, data.newPath, (err) => {
                 if (err) sendResponse(false, {}, err.message);
                 else sendResponse(true);
             });

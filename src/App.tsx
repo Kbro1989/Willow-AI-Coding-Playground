@@ -26,6 +26,7 @@ import { initialFiles } from './constants';
 import { cloudlareLimiter as limiter } from './services/cloudflareService';
 import { db } from './lib/db';
 import SignIn from './components/auth/SignIn';
+import { initializeAgentAPI } from './services/agentAPI';
 
 const DEFAULT_WORKSPACE_NAME = 'Willow Studio Professional';
 const STORAGE_KEY = 'antigravity_pro_workspace_v1';
@@ -387,6 +388,9 @@ const App: React.FC = () => {
 
   // Creative Control API - Expose internals to Window for Agents/Console
   useEffect(() => {
+    // Initialize Agent API
+    initializeAgentAPI();
+
     window.antigravity = {
       setTab: (tab) => setBottomPanel(tab),
       importAsset: (asset) => handleImportAsset(asset),
@@ -402,6 +406,8 @@ const App: React.FC = () => {
     return () => {
       // @ts-ignore
       delete window.antigravity;
+      // @ts-ignore
+      delete window.agentAPI;
     };
   }, [handleImportAsset, handleBuild, project, sceneObjects, worldConfig]);
 

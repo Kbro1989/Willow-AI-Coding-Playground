@@ -157,6 +157,58 @@ class LocalBridgeClient {
     }
   }
 
+  async listDirectory(dirPath: string): Promise<{ success: boolean, files?: Array<{ name: string, isDirectory: boolean, path: string }>, error?: string }> {
+    if (this.isCloudMode) {
+      // For cloud mode, return empty list or implement cloud directory listing
+      return { success: true, files: [] };
+    }
+    try {
+      const response = await this.sendMessage('fs_list', { dirPath });
+      return { success: true, files: response.files };
+    } catch (e: any) {
+      console.warn("[LocalBridge] List directory failed, switching to Cloud Mode.", e);
+      this.isCloudMode = true;
+      return this.listDirectory(dirPath);
+    }
+  }
+
+  async statFile(filePath: string): Promise<{ success: boolean, stats?: { isFile: boolean, isDirectory: boolean, size: number, modified: number, created: number }, error?: string }> {
+    if (this.isCloudMode) {
+      return { success: false, error: 'Cloud mode does not support stat' };
+    }
+    try {
+      const response = await this.sendMessage('fs_stat', { filePath });
+      return { success: true, stats: response };
+    } catch (e: any) {
+      console.warn("[LocalBridge] Stat file failed.", e);
+      return { success: false, error: e.message };
+    }
+  }
+
+  async makeDirectory(dirPath: string): Promise<{ success: boolean, error?: string }> {
+    if (this.isCloudMode) {
+      return { success: false, error: 'Cloud mode does not support mkdir' };
+    }
+    try {
+      await this.sendMessage('fs_mkdir', { dirPath });
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  async renameFile(oldPath: string, newPath: string): Promise<{ success: boolean, error?: string }> {
+    if (this.isCloudMode) {
+      return { success: false, error: 'Cloud mode does not support rename' };
+    }
+    try {
+      await this.sendMessage('fs_rename', { oldPath, newPath });
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
   disconnect() {
     if (this.ws) {
       this.ws.close();
