@@ -4,9 +4,9 @@
  */
 
 export type NodeType =
-  | 'input' | 'prompt' | 'image_upload' | 'file_input' | 'variable'
-  | 'ai_text' | 'ai_image' | 'ai_code' | 'ai_reasoning'
-  | 'transform' | 'filter' | 'loop' | 'merge'
+  | 'input' | 'prompt' | 'image_upload' | 'file_input' | 'variable' | 'input_media'
+  | 'ai_text' | 'ai_image' | 'ai_code' | 'ai_reasoning' | 'ai_video' | 'ai_audio'
+  | 'transform' | 'filter' | 'loop' | 'merge' | 'transform_upscale' | 'transform_remove_bg'
   | 'file_writer' | '3d_export' | 'git_commit' | 'deploy'
   | 'cloudflare' | 'github' | 'discord' | 'http';
 
@@ -87,6 +87,19 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
     outputs: [{ name: 'content', type: 'string', required: true }],
     parameters: [
       { name: 'path', type: 'string', label: 'File Path', required: true }
+    ]
+  },
+
+  input_media: {
+    type: 'input_media',
+    category: 'input',
+    label: 'Media Asset',
+    icon: '📂',
+    description: 'Load from Media Library',
+    inputs: [],
+    outputs: [{ name: 'asset', type: 'object', required: true }],
+    parameters: [
+      { name: 'assetId', type: 'string', label: 'Asset ID', required: true }
     ]
   },
 
@@ -206,6 +219,42 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
     ]
   },
 
+  ai_video: {
+    type: 'ai_video',
+    category: 'ai',
+    label: 'AI Video',
+    icon: '🎬',
+    description: 'Image-to-Video (SVD)',
+    inputs: [
+      { name: 'image', type: 'object', required: true },
+      { name: 'prompt', type: 'string', required: false }
+    ],
+    outputs: [{ name: 'video', type: 'object', required: true }],
+    parameters: [
+      { name: 'motionBucketId', type: 'number', label: 'Motion Strength (1-255)', default: 127 }
+    ]
+  },
+
+  ai_audio: {
+    type: 'ai_audio',
+    category: 'ai',
+    label: 'AI Audio',
+    icon: '🎙️',
+    description: 'Speech/Text Conversion',
+    inputs: [{ name: 'input', type: 'any', required: true }],
+    outputs: [{ name: 'output', type: 'any', required: true }],
+    parameters: [
+      {
+        name: 'mode', type: 'select', label: 'Mode',
+        options: [
+          { label: 'Text-to-Speech', value: 'tts' },
+          { label: 'Speech-to-Text', value: 'stt' }
+        ],
+        default: 'tts'
+      }
+    ]
+  },
+
   // PROCESSING NODES
   transform: {
     type: 'transform',
@@ -266,6 +315,34 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
       { name: 'input2', type: 'any', required: false }
     ],
     outputs: [{ name: 'merged', type: 'any', required: true }],
+    parameters: []
+  },
+
+  transform_upscale: {
+    type: 'transform_upscale',
+    category: 'processing',
+    label: 'Upscale Image',
+    icon: '🔍',
+    description: 'Enhance image resolution',
+    inputs: [{ name: 'image', type: 'object', required: true }],
+    outputs: [{ name: 'upscaled', type: 'object', required: true }],
+    parameters: [
+      {
+        name: 'scale', type: 'select', label: 'Scale Factor',
+        options: [{ label: '2x', value: 2 }, { label: '4x', value: 4 }],
+        default: 2
+      }
+    ]
+  },
+
+  transform_remove_bg: {
+    type: 'transform_remove_bg',
+    category: 'processing',
+    label: 'Remove BG',
+    icon: '✂️',
+    description: 'Remove background',
+    inputs: [{ name: 'image', type: 'object', required: true }],
+    outputs: [{ name: 'processed', type: 'object', required: true }],
     parameters: []
   },
 

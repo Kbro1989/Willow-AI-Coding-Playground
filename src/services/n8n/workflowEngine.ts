@@ -7,6 +7,9 @@ import { NodeType, getNodeDefinition } from './nodeDefinitions';
 import { modelRouter } from '../modelRouter';
 import { createFile } from '../bridgeService';
 import { orchestrate } from '../agents/orchestratorAgent';
+import { mediaContext } from '../media/mediaContextService';
+import { upscaleImage, removeBackground, loadImage } from '../media/imageProcessing';
+import { cloudflareProvider } from '../cloudflareProvider';
 
 export interface WorkflowNode {
   id: string;
@@ -148,6 +151,55 @@ export class WorkflowEngine {
           'You are a reasoning AI. Break down complex problems.'
         );
         return { solution: reasoningResponse.content };
+
+      case 'input_media':
+        const asset = mediaContext.get(node.parameters.assetId);
+        return { asset };
+
+      case 'ai_video':
+        // Handle image input (could be Asset, Blob, or URL)
+        let videoPrompt = inputs.prompt || node.parameters.prompt || '';
+        let sourceImage = inputs.image;
+        if (sourceImage && typeof sourceImage === 'object' && sourceImage.url) {
+          sourceImage = sourceImage.url; // Use URL if it's an Asset
+        }
+
+        // Use Cloudflare Provider directly for SVD
+        const videoResult = await cloudflareProvider.generateVideo(sourceImage, videoPrompt);
+        return { video: videoResult };
+
+      case 'ai_audio':
+        const audioMode = node.parameters.mode || 'tts';
+        if (audioMode === 'tts') {
+          const audioData = await cloudflareProvider.synthesizeAudio(inputs.input || '');
+          return { output: audioData };
+        } else {
+          // STT
+          const textData = await cloudflareProvider.transcribe(inputs.input);
+          return { output: textData };
+        }
+
+      case 'transform_upscale':
+        try {
+          const imgToUpscale = await loadImage(inputs.image?.url || inputs.image);
+          const upscaledData = await upscaleImage(imgToUpscale, node.parameters.scale || 2);
+          // Convert back to blob/url for pipeline transport? 
+          // For now, let's just return the ImageData or a Blob URL representation
+          // In a real env, we'd save it or keep it in memory
+          return { upscaled: upscaledData };
+        } catch (e) {
+          console.error('Upscale failed', e);
+          return { error: String(e) };
+        }
+
+      case 'transform_remove_bg':
+        try {
+          const imgToBgRemove = await loadImage(inputs.image?.url || inputs.image);
+          const noBgData = await removeBackground(imgToBgRemove);
+          return { processed: noBgData };
+        } catch (e) {
+          return { error: String(e) };
+        }
 
       case 'file_writer':
         const writeResult = await createFile(
@@ -318,6 +370,60 @@ export const WORKFLOW_TEMPLATES: Record<string, Workflow> = {
         id: 'conn-2',
         sourceNode: 'ai-code-1',
         sourceOutput: 'code',
+        targetNode: 'file-writer-1',
+        targetInput: 'content'
+      }
+    ]
+  },
+
+  'media-pipeline': {
+    id: 'media-pipeline',
+    name: 'Media Processing Pipeline',
+    nodes: [
+      {
+        id: 'input-1',
+        type: 'image_upload',
+        position: { x: 100, y: 100 },
+        parameters: { url: 'https://example.com/image.jpg' }
+      },
+      {
+        id: 'upscale-1',
+        type: 'transform_upscale',
+        position: { x: 350, y: 100 },
+        parameters: { scale: 2 }
+      },
+      {
+        id: 'ai-video-1',
+        type: 'ai_video',
+        position: { x: 600, y: 100 },
+        parameters: { motionBucketId: 127 }
+      },
+      {
+        id: 'file-writer-1',
+        type: 'file_writer',
+        position: { x: 850, y: 100 },
+        parameters: { path: 'assets/video_output.mp4' }
+      }
+    ],
+    connections: [
+      {
+        id: 'conn-1',
+        sourceNode: 'input-1',
+        sourceOutput: 'image',
+        targetNode: 'upscale-1',
+        targetInput: 'image'
+      },
+      {
+        id: 'conn-2',
+        sourceNode: 'upscale-1',
+        sourceOutput: 'upscaled',
+        targetNode: 'ai-video-1',
+        targetInput: 'image'
+      },
+      {
+        id: 'conn-3',
+        sourceNode: 'ai-video-1',
+        sourceOutput: 'video',
         targetNode: 'file-writer-1',
         targetInput: 'content'
       }

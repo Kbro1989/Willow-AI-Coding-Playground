@@ -20,6 +20,7 @@ An AI-powered code editor and game development environment with advanced feature
 - **Video Studio**: Cinematic text-to-video generation (Stable Video Diffusion)
 - **Model Studio**: Code-to-3D asset generation
 - **Code Library**: Reusable snippet management with injection API
+- **Collaborative Canvas**: Infinite whiteboard with real-time multiplayer cursors
 
 ### AI Integration
 - **Multi-Provider Support**: Gemini, Cloudflare AI, Local Ollama models
