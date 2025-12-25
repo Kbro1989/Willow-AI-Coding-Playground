@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
+import { AnnotationOverlay } from './AnnotationOverlay';
 import { Canvas, useFrame, useThree, ThreeElements } from '@react-three/fiber';
 import { OrbitControls, Sky, Environment, ContactShadows, PerspectiveCamera, Float, Stars, Grid, Gltf } from '@react-three/drei';
 import { XR, createXRStore } from '@react-three/xr';
@@ -234,6 +235,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
   const [isCapturing, setIsCapturing] = useState(false);
   const [telemetry, setTelemetry] = useState({ fps: 144, history: Array(30).fill(144) });
   const [localPipelines, setLocalPipelines] = useState(pipelines);
+  const [isAnnotating, setIsAnnotating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-select first object on mount if available
@@ -304,6 +306,41 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
   const handleRunTest = () => {
     onRunAction('RUN_TEST_SUITE');
     onBuild('Stress test: Verify binary-to-spatial sync.');
+  };
+
+  // Phase 18: Matrix Tools Logic
+  const handleRandomize = () => {
+    if (!selectedObjectId) return;
+    const obj = sceneObjects.find(o => o.id === selectedObjectId);
+    if (!obj) return;
+
+    // Randomize Scale and Rotation
+    onUpdateSceneObject(obj.id, {
+      scale: [0.5 + Math.random() * 2, 0.5 + Math.random() * 2, 0.5 + Math.random() * 2] as any,
+      rotation: [Math.random() * 360, Math.random() * 360, Math.random() * 360] as any,
+    });
+    // Trigger visual effect
+    onRunAction('RANDOMIZE_EFFECT');
+  };
+
+  const handleMaterialUpdate = (key: string, value: any) => {
+    if (!selectedObjectId) return;
+    const obj = sceneObjects.find(o => o.id === selectedObjectId);
+    if (!obj) return;
+    onUpdateSceneObject(obj.id, {
+      material: { ...obj.material, [key]: value } as any
+    });
+  };
+
+  const handleAiAction = (action: string) => {
+    if (!selectedObjectId) return;
+    // Simulate AI "Thinking" via log
+    onRunAction(`AI_EXEC_${action}`);
+    // Simple mock logic for "Align" or "Ground"
+    if (action === 'GROUND') {
+      const obj = sceneObjects.find(o => o.id === selectedObjectId);
+      if (obj) onUpdateSceneObject(selectedObjectId, { position: [obj.position[0], 0, obj.position[2]] });
+    }
   };
 
   const handleAddPipeline = () => {
@@ -547,182 +584,216 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
         </div>
       )}
 
-      <div className="flex-1 flex overflow-hidden relative">
-        {(!isFullscreen) && (
-          <div className="w-64 bg-[#0a1222] border-r border-cyan-900/40 flex flex-col shrink-0 transition-all duration-300">
-            {renderSidebarContent()}
+      <div
+        className="flex-1 relative bg-[#000000]"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          try {
+            const data = JSON.parse(e.dataTransfer.getData('application/json'));
+            if (data.type === 'rsmv-model') {
+              onAddSceneObject({
+                name: data.name,
+                type: 'mesh',
+                position: [0, 0, 0], // Place at origin for now
+                rotation: [0, 0, 0],
+                scale: [1, 1, 1],
+                visible: true,
+                modelUrl: data.modelUrl
+              });
+            }
+          } catch (err) {
+            console.error("Failed to process drop:", err);
+          }
+        }}
+      >
+        {isFullscreen && (
+          <div className="absolute top-10 left-10 z-50 flex items-center space-x-6">
+            <button onClick={() => onRunAction('EXIT_PRESENTATION')} className="p-4 bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl text-white hover:bg-cyan-600 transition-all group">
+              <svg className="w-6 h-6 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">Presentation Active</span>
+              <span className="text-2xl font-black text-white uppercase tracking-widest drop-shadow-lg">Runtime: v{buildInfo.lastBuild ? 'Final' : 'Live'}</span>
+            </div>
           </div>
         )}
 
-        <div
-          className="flex-1 relative bg-[#000000]"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            try {
-              const data = JSON.parse(e.dataTransfer.getData('application/json'));
-              if (data.type === 'rsmv-model') {
-                onAddSceneObject({
-                  name: data.name,
-                  type: 'mesh',
-                  position: [0, 0, 0], // Place at origin for now
-                  rotation: [0, 0, 0],
-                  scale: [1, 1, 1],
-                  visible: true,
-                  modelUrl: data.modelUrl
-                });
-              }
-            } catch (err) {
-              console.error("Failed to process drop:", err);
-            }
-          }}
-        >
-          {isFullscreen && (
-            <div className="absolute top-10 left-10 z-50 flex items-center space-x-6">
-              <button onClick={() => onRunAction('EXIT_PRESENTATION')} className="p-4 bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl text-white hover:bg-cyan-600 transition-all group">
-                <svg className="w-6 h-6 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-              </button>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">Presentation Active</span>
-                <span className="text-2xl font-black text-white uppercase tracking-widest drop-shadow-lg">Runtime: v{buildInfo.lastBuild ? 'Final' : 'Live'}</span>
+        <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-500 animate-pulse uppercase text-xs font-black tracking-widest">Waking Runtime Engine...</div>}>
+          <button onClick={() => xrStore.enterVR()} className="absolute top-4 left-4 z-50 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg">Enter VR</button>
+          <button onClick={() => xrStore.enterAR()} className="absolute top-4 left-24 z-50 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg">Enter AR</button>
+          <Canvas
+            shadows
+            gl={{
+              antialias: true,
+              preserveDrawingBuffer: true,
+              powerPreference: "high-performance"
+            }}
+            dpr={[1, 2]}
+          >
+            <XR store={xrStore}>
+
+              <PerspectiveCamera makeDefault position={[15, 15, 15]} fov={45} />
+              <OrbitControls makeDefault enabled={!isAnnotating} />
+              <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+              <Sky sunPosition={[100, Math.max(0.01, worldConfig.atmosphereDensity) * 50, 100]} />
+              <Environment preset="night" />
+              <ambientLight intensity={0.5} />
+              <pointLight position={[10, 10, 10]} intensity={1} castShadow />
+
+              <SyntheticEnvironment envName={worldConfig.syntheticEnvironment || 'none'} />
+
+              {sceneObjects.map(obj => (
+                <LiveObject
+                  key={obj.id}
+                  obj={obj}
+                  isSelected={selectedObjectId === obj.id}
+                  onSelect={() => setSelectedObjectId(obj.id)}
+                  isPlaying={simulation.status === 'playing' || isFullscreen}
+                />
+              ))}
+
+              {!isFullscreen && <Grid renderOrder={-1} position={[0, -0.01, 0]} infiniteGrid cellSize={1} sectionSize={5} sectionColor="#00f2ff" cellColor="#0a1222" fadeDistance={50} />}
+
+              <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
+                <planeGeometry args={[200, 200]} />
+                <meshStandardMaterial color="#0a1222" roughness={1} metalness={0.1} />
+              </mesh>
+            </XR>
+          </Canvas>
+        </Suspense>
+
+        <div className={`absolute bottom-10 right-10 flex flex-col space-y-6 z-40 transition-opacity duration-500 ${isFullscreen ? 'opacity-30' : 'opacity-100'}`}>
+          {/* Bridge Connection Manager */}
+          <div className="bg-[#0a1222]/90 backdrop-blur-3xl p-6 rounded-[2rem] border border-cyan-500/20 shadow-2xl min-w-[360px] space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black uppercase text-cyan-600 tracking-widest">Neural Link</span>
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${ws?.readyState === 1 ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'}`}></div>
+                <span className="text-[9px] font-bold text-slate-400 uppercase">{ws?.readyState === 1 ? 'Connected' : 'Offline'}</span>
               </div>
             </div>
-          )}
-
-          <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-500 animate-pulse uppercase text-xs font-black tracking-widest">Waking Runtime Engine...</div>}>
-            <button onClick={() => xrStore.enterVR()} className="absolute top-4 left-4 z-50 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg">Enter VR</button>
-            <button onClick={() => xrStore.enterAR()} className="absolute top-4 left-24 z-50 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg">Enter AR</button>
-            <Canvas
-              shadows
-              gl={{
-                antialias: true,
-                preserveDrawingBuffer: true,
-                powerPreference: "high-performance"
-              }}
-              dpr={[1, 2]}
-            >
-              <XR store={xrStore}>
-
-                <PerspectiveCamera makeDefault position={[15, 15, 15]} fov={45} />
-                <OrbitControls makeDefault />
-                <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-                <Sky sunPosition={[100, Math.max(0.01, worldConfig.atmosphereDensity) * 50, 100]} />
-                <Environment preset="night" />
-                <ambientLight intensity={0.5} />
-                <pointLight position={[10, 10, 10]} intensity={1} castShadow />
-
-                <SyntheticEnvironment envName={worldConfig.syntheticEnvironment || 'none'} />
-
-                {sceneObjects.map(obj => (
-                  <LiveObject
-                    key={obj.id}
-                    obj={obj}
-                    isSelected={selectedObjectId === obj.id}
-                    onSelect={() => setSelectedObjectId(obj.id)}
-                    isPlaying={simulation.status === 'playing' || isFullscreen}
-                  />
-                ))}
-
-                {!isFullscreen && <Grid renderOrder={-1} position={[0, -0.01, 0]} infiniteGrid cellSize={1} sectionSize={5} sectionColor="#00f2ff" cellColor="#0a1222" fadeDistance={50} />}
-
-                <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
-                  <planeGeometry args={[200, 200]} />
-                  <meshStandardMaterial color="#0a1222" roughness={1} metalness={0.1} />
-                </mesh>
-              </XR>
-            </Canvas>
-          </Suspense>
-
-          <div className={`absolute bottom-10 right-10 flex flex-col space-y-6 z-40 transition-opacity duration-500 ${isFullscreen ? 'opacity-30' : 'opacity-100'}`}>
-            {/* Bridge Connection Manager */}
-            <div className="bg-[#0a1222]/90 backdrop-blur-3xl p-6 rounded-[2rem] border border-cyan-500/20 shadow-2xl min-w-[360px] space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase text-cyan-600 tracking-widest">Neural Link</span>
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${ws?.readyState === 1 ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'}`}></div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">{ws?.readyState === 1 ? 'Connected' : 'Offline'}</span>
-                </div>
-              </div>
-              <input
-                className="w-full bg-[#050a15] border border-slate-700 focus:border-cyan-500 rounded-lg px-3 py-2 text-[10px] text-cyan-400 font-mono outline-none transition-colors placeholder:text-slate-700"
-                placeholder="Enter Tunnel URL (e.g., https://xyz.trycloudflare.com)"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const url = e.currentTarget.value;
-                    if (url) {
-                      // Dynamic Import to avoid SSR issues if any
-                      import('../services/cloudflareService').then(({ setBridgeUrl }) => {
-                        setBridgeUrl(url);
-                        // Force reconnect logic here if setup
-                        const newWs = new WebSocket(url.replace('http', 'ws'));
-                        newWs.onopen = () => setWs(newWs);
-                      });
-                    }
+            <input
+              className="w-full bg-[#050a15] border border-slate-700 focus:border-cyan-500 rounded-lg px-3 py-2 text-[10px] text-cyan-400 font-mono outline-none transition-colors placeholder:text-slate-700"
+              placeholder="Enter Tunnel URL (e.g., https://xyz.trycloudflare.com)"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const url = e.currentTarget.value;
+                  if (url) {
+                    // Dynamic Import to avoid SSR issues if any
+                    import('../services/localBridgeService').then(({ setBridgeUrl }) => {
+                      setBridgeUrl(url);
+                      // Force reconnect logic here if setup
+                      const newWs = new WebSocket(url.replace('http', 'ws'));
+                      newWs.onopen = () => setWs(newWs);
+                    });
                   }
-                }}
-              />
-            </div>
+                }
+              }}
+            />
+          </div>
 
-            <div className="bg-[#0a1222]/90 backdrop-blur-3xl p-8 rounded-[2.5rem] border border-cyan-500/20 shadow-2xl min-w-[360px]">
-              <div className="flex justify-between items-end mb-8">
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase text-cyan-600 tracking-widest mb-1">PRO TELEMETRY</span>
-                  <span className="text-4xl font-black text-cyan-50 tabular-nums">{telemetry.fps.toFixed(0)} <span className="text-xs opacity-30">FPS</span></span>
-                </div>
-                <div className="h-10 w-32 flex items-end space-x-1">
-                  {telemetry.history.map((h, i) => (
-                    <div key={i} className="flex-1 bg-cyan-500/30 rounded-t-sm" style={{ height: `${(h / 144) * 100}%` }}></div>
-                  ))}
-                </div>
+          <div className="bg-[#0a1222]/90 backdrop-blur-3xl p-8 rounded-[2.5rem] border border-cyan-500/20 shadow-2xl min-w-[360px]">
+            <div className="flex justify-between items-end mb-8">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black uppercase text-cyan-600 tracking-widest mb-1">PRO TELEMETRY</span>
+                <span className="text-4xl font-black text-cyan-50 tabular-nums">{telemetry.fps.toFixed(0)} <span className="text-xs opacity-30">FPS</span></span>
               </div>
-              <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6 text-[9px] font-black uppercase text-slate-500 tracking-widest">
-                <div className="flex flex-col"><span className="opacity-40">Pipeline</span><span className="text-emerald-400">WebGPU / Live</span></div>
-                <div className="flex flex-col text-right"><span className="opacity-40">Memory</span><span className="text-cyan-400">0.4 GB</span></div>
+              <div className="h-10 w-32 flex items-end space-x-1">
+                {telemetry.history.map((h, i) => (
+                  <div key={i} className="flex-1 bg-cyan-500/30 rounded-t-sm" style={{ height: `${(h / 144) * 100}%` }}></div>
+                ))}
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6 text-[9px] font-black uppercase text-slate-500 tracking-widest">
+              <div className="flex flex-col"><span className="opacity-40">Pipeline</span><span className="text-emerald-400">WebGPU / Live</span></div>
+              <div className="flex flex-col text-right"><span className="opacity-40">Memory</span><span className="text-cyan-400">0.4 GB</span></div>
             </div>
           </div>
         </div>
-
-        {(!isFullscreen) && (
-          <div className="w-[420px] bg-[#0a1222] border-l border-cyan-900/40 p-10 space-y-10 shrink-0 overflow-y-auto no-scrollbar">
-            <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-50 border-b border-white/5 pb-8">Matrix Inspector</h3>
-            {selectedObjectId ? (
-              <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-                <div className="p-8 bg-[#050a15] rounded-[2rem] border border-cyan-500/10">
-                  <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest block mb-2">Selected Entity</span>
-                  <span className="text-lg font-black text-cyan-50 uppercase tracking-widest">{sceneObjects.find(o => o.id === selectedObjectId)?.name}</span>
-                </div>
-                {['position', 'rotation', 'scale'].map(prop => (
-                  <div key={prop} className="space-y-4">
-                    <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">{prop} Modulation</span>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[0, 1, 2].map(i => (
-                        <input
-                          key={i} type="number" step="0.1"
-                          value={((sceneObjects.find(o => o.id === selectedObjectId) as any)[prop])[i]}
-                          onChange={(e) => {
-                            const obj = sceneObjects.find(o => o.id === selectedObjectId);
-                            if (!obj) return;
-                            const next = [...(obj as any)[prop]];
-                            next[i] = parseFloat(e.target.value) || 0;
-                            onUpdateSceneObject(obj.id, { [prop]: next as any });
-                          }}
-                          className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-center text-xs font-mono text-cyan-400 outline-none focus:border-cyan-500"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full opacity-20 text-center space-y-6">
-                <svg className="w-12 h-12 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
-                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Awaiting Entity Handshake</p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
+
+      {(!isFullscreen) && (
+        <div className="w-[420px] bg-[#0a1222] border-l border-cyan-900/40 p-10 space-y-10 shrink-0 overflow-y-auto no-scrollbar">
+          <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-50 border-b border-white/5 pb-8">Matrix Inspector</h3>
+          {selectedObjectId ? (
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+              <div className="p-8 bg-[#050a15] rounded-[2rem] border border-cyan-500/10">
+                <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest block mb-2">Selected Entity</span>
+                <span className="text-lg font-black text-cyan-50 uppercase tracking-widest">{sceneObjects.find(o => o.id === selectedObjectId)?.name}</span>
+              </div>
+              {['position', 'rotation', 'scale'].map(prop => (
+                <div key={prop} className="space-y-4">
+                  <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">{prop} Modulation</span>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[0, 1, 2].map(i => (
+                      <input
+                        key={i} type="number" step="0.1"
+                        value={((sceneObjects.find(o => o.id === selectedObjectId) as any)[prop])[i]}
+                        onChange={(e) => {
+                          const obj = sceneObjects.find(o => o.id === selectedObjectId);
+                          if (!obj) return;
+                          const next = [...(obj as any)[prop]];
+                          next[i] = parseFloat(e.target.value) || 0;
+                          onUpdateSceneObject(obj.id, { [prop]: next as any });
+                        }}
+                        className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-center text-xs font-mono text-cyan-400 outline-none focus:border-cyan-500"
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Material Editor */}
+              <div className="space-y-4 pt-6 border-t border-cyan-900/30">
+                <div className="flex justify-between items-center">
+                  <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">Material Synthesis</span>
+                  <button onClick={() => handleMaterialUpdate('baseColor', '#' + Math.floor(Math.random() * 16777215).toString(16))} className="text-[8px] bg-cyan-900/40 hover:bg-cyan-500 hover:text-white px-2 py-1 rounded transition-all uppercase">RND Color</button>
+                </div>
+                <div className="flex space-x-2">
+                  <input type="color" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.baseColor || '#ffffff'} onChange={(e) => handleMaterialUpdate('baseColor', e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent border-none" />
+                  <div className="flex-1 space-y-2">
+                    <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.metallic || 0} onChange={(e) => handleMaterialUpdate('metallic', parseFloat(e.target.value))} className="w-full h-1 accent-cyan-500" title="Metallic" />
+                    <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.roughness || 0.5} onChange={(e) => handleMaterialUpdate('roughness', parseFloat(e.target.value))} className="w-full h-1 accent-emerald-500" title="Roughness" />
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Hot-Functions */}
+              <div className="space-y-4 pt-4">
+                <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">Neural Actions</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={handleRandomize} className="py-3 bg-cyan-900/30 hover:bg-cyan-600/30 border border-cyan-500/30 rounded-xl text-[9px] font-black uppercase text-cyan-400 transition-all flex items-center justify-center gap-2 group">
+                    <span className="group-hover:scale-110 transition-transform">🎲</span> Chaos
+                  </button>
+                  <button onClick={() => handleAiAction('GROUND')} className="py-3 bg-emerald-900/30 hover:bg-emerald-600/30 border border-emerald-500/30 rounded-xl text-[9px] font-black uppercase text-emerald-400 transition-all flex items-center justify-center gap-2 group">
+                    <span className="group-hover:scale-110 transition-transform">⬇️</span> Ground
+                  </button>
+                  <button onClick={() => setIsAnnotating(true)} className="col-span-2 py-3 bg-purple-900/30 hover:bg-purple-600/30 border border-purple-500/30 rounded-xl text-[9px] font-black uppercase text-purple-400 transition-all flex items-center justify-center gap-2 group">
+                    <span className="group-hover:scale-110 transition-transform">✏️</span> Annotate / Sketch
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full opacity-20 text-center space-y-6">
+              <svg className="w-12 h-12 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em]">Awaiting Entity Handshake</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <AnnotationOverlay
+        isActive={isAnnotating}
+        onClose={() => setIsAnnotating(false)}
+        onProcess={(img, mode) => {
+          onSendVisualFeedback?.(img);
+          onRunAction(`ANNOTATION_PROCESSED_${mode.toUpperCase()}`);
+        }}
+      />
     </div>
   );
 };
