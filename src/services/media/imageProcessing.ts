@@ -332,26 +332,54 @@ export function compositeLayers(layers: ImageLayer[], width: number, height: num
 }
 
 /**
- * Remove background using simple threshold (placeholder for AI)
+ * Remove background using AI
  */
 export async function removeBackground(imageData: ImageData): Promise<ImageData> {
-    // This is a simple placeholder
-    // In production, this would call an AI service
-    const data = new Uint8ClampedArray(imageData.data);
+    try {
+        // Try AI-powered background removal
+        const { removeBackgroundAI } = await import('../ai/imageAI');
+        return await removeBackgroundAI(imageData);
+    } catch (error) {
+        console.warn('[IMAGE_PROCESSING] AI background removal failed, using fallback:', error);
 
-    // Simple green screen removal as example
-    for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
+        // Fallback: Simple color-based removal
+        const data = new Uint8ClampedArray(imageData.data);
 
-        // If green is dominant, make transparent
-        if (g > r + 30 && g > b + 30) {
-            data[i + 3] = 0;
+        // Find dominant background color (from corners)
+        const corners = [
+            [0, 0],
+            [imageData.width - 1, 0],
+            [0, imageData.height - 1],
+            [imageData.width - 1, imageData.height - 1]
+        ];
+
+        let bgR = 0, bgG = 0, bgB = 0;
+        for (const [x, y] of corners) {
+            const idx = (y * imageData.width + x) * 4;
+            bgR += data[idx];
+            bgG += data[idx + 1];
+            bgB += data[idx + 2];
         }
-    }
+        bgR /= 4;
+        bgG /= 4;
+        bgB /= 4;
 
-    return new ImageData(data, imageData.width, imageData.height);
+        // Remove pixels similar to background color
+        const threshold = 30;
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB);
+
+            if (diff < threshold) {
+                data[i + 3] = 0; // Make transparent
+            }
+        }
+
+        return new ImageData(data, imageData.width, imageData.height);
+    }
 }
 
 /**
@@ -413,3 +441,54 @@ export async function loadImage(source: string | File): Promise<ImageData> {
         }
     });
 }
+
+/**
+ * Upscale image using AI (2x or 4x)
+ */
+export async function upscaleImage(imageData: ImageData, factor: 2 | 4 = 2): Promise<ImageData> {
+    try {
+        const { upscaleImageAI } = await import('../ai/imageAI');
+        return await upscaleImageAI(imageData, factor);
+    } catch (error) {
+        console.error('[IMAGE_PROCESSING] AI upscale failed:', error);
+        const canvas = document.createElement('canvas');
+        canvas.width = imageData.width * factor;
+        canvas.height = imageData.height * factor;
+        const ctx = canvas.getContext('2d')!;
+        const sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = imageData.width;
+        sourceCanvas.height = imageData.height;
+        sourceCanvas.getContext('2d')!.putImageData(imageData, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(sourceCanvas, 0, 0, canvas.width, canvas.height);
+        return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
+}
+
+/**
+ * Auto-enhance image using AI analysis
+ */
+export async function enhanceImage(imageData: ImageData): Promise<ImageData> {
+    try {
+        const { autoEnhanceImage } = await import('../ai/imageAI');
+        return await autoEnhanceImage(imageData);
+    } catch (error) {
+        console.error('[IMAGE_PROCESSING] AI enhance failed:', error);
+        return adjustBrightnessContrast(imageData, 10, 20);
+    }
+}
+
+/**
+ * Generate tags for image using AI
+ */
+export async function generateImageTags(imageData: ImageData): Promise<string[]> {
+    try {
+        const { suggestImageTags } = await import('../ai/imageAI');
+        return await suggestImageTags(imageData);
+    } catch (error) {
+        console.error('[IMAGE_PROCESSING] AI tag generation failed:', error);
+        return [];
+    }
+}
+
