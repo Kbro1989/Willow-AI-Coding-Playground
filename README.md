@@ -19,6 +19,7 @@ An AI-powered code editor and game development environment with advanced feature
 - **Audio Workshop**: Speech-to-Text & Text-to-Speech synthesis (Whisper/MeloTTS)
 - **Video Studio**: Cinematic text-to-video generation (Stable Video Diffusion)
 - **Model Studio**: Code-to-3D asset generation
+- **Code Library**: Reusable snippet management with injection API
 
 ### AI Integration
 - **Multi-Provider Support**: Gemini, Cloudflare AI, Local Ollama models

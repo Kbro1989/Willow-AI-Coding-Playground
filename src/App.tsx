@@ -23,9 +23,10 @@ import ModelStudio from './components/media/ModelStudio';
 import ImageStudio from './components/media/ImageStudio';
 import { VideoStudio } from './components/media/VideoStudio';
 import { CodeLibrary } from './components/media/CodeLibrary';
+import { CollaborativeCanvas } from './components/media/CollaborativeCanvas';
 
 // Simple active view state for development
-type ActiveView = 'dashboard' | 'forge' | 'chat' | 'knowledge' | 'media' | 'image-studio' | 'audio-workshop' | 'model-studio' | 'video-studio' | 'code-library';
+type ActiveView = 'dashboard' | 'forge' | 'chat' | 'knowledge' | 'media' | 'image-studio' | 'audio-workshop' | 'model-studio' | 'video-studio' | 'code-library' | 'collaborative-canvas';
 
 import RSMVBrowser from './components/RSMVBrowser';
 import DiagnosticsPanel from './components/DiagnosticsPanel';
@@ -109,7 +110,7 @@ const App: React.FC = () => {
     { id: 'a2', name: 'Overwatch_LUT', type: 'texture', status: 'optimized' },
   ]);
 
-  const [bottomPanel, setBottomPanel] = useState<'terminal' | 'chat' | 'dashboard' | 'diagnostics' | 'forge' | 'pipeline' | 'behavior' | 'rsmv' | 'shader' | 'copywriter' | 'audio-workshop' | 'model-studio' | 'video-studio' | 'code-library'>('chat');
+  const [bottomPanel, setBottomPanel] = useState<'terminal' | 'chat' | 'dashboard' | 'diagnostics' | 'forge' | 'pipeline' | 'behavior' | 'rsmv' | 'shader' | 'copywriter' | 'audio-workshop' | 'model-studio' | 'video-studio' | 'code-library' | 'collaborative-canvas'>('chat');
   const chatRef = useRef<ChatHandle>(null);
   const lastSimTimeRef = useRef<number>(Date.now());
   const saveTimeoutRef = useRef<number | null>(null);
@@ -537,6 +538,7 @@ const App: React.FC = () => {
             {activeView === 'model-studio' && <ModelStudio />}
             {activeView === 'video-studio' && <VideoStudio />}
             {activeView === 'code-library' && <CodeLibrary />}
+            {activeView === 'collaborative-canvas' && <CollaborativeCanvas />}
             {/* GameDashboard is now hoisted out to the root layer for persistence */}
           </div>
 
@@ -552,9 +554,9 @@ const App: React.FC = () => {
               )}
               <div className="flex items-center justify-between px-6 h-12 border-b border-cyan-900/20 bg-[#050a15]/60 backdrop-blur-3xl shrink-0">
                 <div className="flex items-center space-x-1">
-                  {['chat', 'dashboard', 'terminal', 'diagnostics', 'forge', 'pipeline', 'behavior', 'rsmv', 'shader', 'copywriter', 'audio-workshop', 'model-studio', 'video-studio', 'code-library'].map(tab => {
-                    const icons: Record<string, string> = { chat: '💬', dashboard: '🎮', terminal: '⚡', diagnostics: '🔍', forge: '🔨', pipeline: '🔄', behavior: '🧠', rsmv: '🎭', shader: '✨', copywriter: '✍️', 'audio-workshop': '🎙️', 'model-studio': '📦', 'video-studio': '🎥', 'code-library': '📚' };
-                    const labels: Record<string, string> = { chat: 'Neural Director', dashboard: 'Matrix', terminal: 'Console', diagnostics: 'Audit', forge: 'Forge', pipeline: 'Pipeline', behavior: 'Behavioral', rsmv: 'RSMV', shader: 'Shader', copywriter: 'Copywriter', 'audio-workshop': 'Audio', 'model-studio': 'Models', 'video-studio': 'Cinema', 'code-library': 'Library' };
+                  {['chat', 'dashboard', 'terminal', 'diagnostics', 'forge', 'pipeline', 'behavior', 'rsmv', 'shader', 'copywriter', 'audio-workshop', 'model-studio', 'video-studio', 'code-library', 'collaborative-canvas'].map(tab => {
+                    const icons: Record<string, string> = { chat: '💬', dashboard: '🎮', terminal: '⚡', diagnostics: '🔍', forge: '🔨', pipeline: '🔄', behavior: '🧠', rsmv: '🎭', shader: '✨', copywriter: '✍️', 'audio-workshop': '🎙️', 'model-studio': '📦', 'video-studio': '🎥', 'code-library': '📚', 'collaborative-canvas': '🎨' };
+                    const labels: Record<string, string> = { chat: 'Neural Director', dashboard: 'Matrix', terminal: 'Console', diagnostics: 'Audit', forge: 'Forge', pipeline: 'Pipeline', behavior: 'Behavioral', rsmv: 'RSMV', shader: 'Shader', copywriter: 'Copywriter', 'audio-workshop': 'Audio', 'model-studio': 'Models', 'video-studio': 'Cinema', 'code-library': 'Library', 'collaborative-canvas': 'Canvas' };
                     return (
                       <button key={tab} onClick={() => { setBottomPanel(tab as any); setIsBottomCollapsed(false); }} className={`px-3 py-2 text-xs font-black rounded-lg transition-all group relative ${bottomPanel === tab ? 'bg-cyan-600 text-white' : 'text-slate-500 hover:text-cyan-400 hover:bg-slate-800'}`} title={labels[tab]}>
                         <span className="text-base">{icons[tab]}</span>
@@ -580,6 +582,7 @@ const App: React.FC = () => {
                   {bottomPanel === 'model-studio' && <ModelStudio />}
                   {bottomPanel === 'video-studio' && <VideoStudio />}
                   {bottomPanel === 'code-library' && <CodeLibrary />}
+                  {bottomPanel === 'collaborative-canvas' && <CollaborativeCanvas />}
                   {bottomPanel === 'chat' && (
                     <Chat
                       ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
