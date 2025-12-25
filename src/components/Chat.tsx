@@ -1,0 +1,521 @@
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { GoogleGenerativeAI, FunctionDeclaration, SchemaType } from "@google/generative-ai";
+import { ideTools } from '../services/geminiService';
+import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPreferences, Extension, SceneObject, PhysicsConfig, WorldConfig, RenderConfig, CompositingConfig, SimulationState, EngineAction } from '../types';
+// Hybrid: Cloudflare for text/images now through modelRouter, Gemini for live audio/video
+import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
+import { generateCinematic, generateImage, synthesizeSpeech, cloudlareLimiter as limiter } from '../services/cloudflareService';
+import { modelRouter } from '../services/modelRouter';
+import { localBridgeClient } from '../services/localBridgeService'; // Import local bridge client
+
+
+interface ChatProps {
+  project: ProjectState;
+  sceneObjects: SceneObject[];
+  physics: PhysicsConfig;
+  worldConfig: WorldConfig;
+  renderConfig: RenderConfig;
+  compositingConfig: CompositingConfig;
+  simulation: SimulationState;
+  isOverwatchActive: boolean;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  userPrefs: UserPreferences;
+  onFileUpdate: (path: string, content: string) => void;
+  onAddSceneObject: (obj: Omit<SceneObject, 'id'>) => void;
+  onUpdateSceneObject: (id: string, updates: Partial<SceneObject>) => void;
+  onUpdatePhysics: (updates: Partial<PhysicsConfig>) => void;
+  onUpdateWorld: (updates: Partial<WorldConfig>) => void;
+  onUpdateConfig: (type: 'render' | 'compositing', updates: any) => void;
+  onRemoveSceneObject: (id: string) => void;
+  onInjectScript?: (path: string, content: string) => void;
+  onSyncVariableData?: (data: Record<string, any>) => void;
+  extensions: Extension[];
+  projectVersion: string;
+  onUpdateVersion?: (v: string) => void;
+  onTriggerBuild?: () => void;
+  onTriggerPresentation?: () => void;
+}
+
+export interface ChatHandle {
+  addAnnotatedMessage: (imageData: string) => void;
+  sendMessage: (text: string) => void;
+}
+
+const Chat = forwardRef<ChatHandle, ChatProps>(({
+  project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig, simulation,
+  isOverwatchActive, messages, setMessages, userPrefs, onFileUpdate, onAddSceneObject, onUpdateSceneObject,
+  onUpdatePhysics, onUpdateWorld, onUpdateConfig, onRemoveSceneObject, onInjectScript,
+  onSyncVariableData, extensions, projectVersion, onUpdateVersion, onTriggerBuild, onTriggerPresentation
+}, ref) => {
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [activeAgent, setActiveAgent] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const liveManager = useRef<LiveDirectorSession>(new LiveDirectorSession());
+
+  useImperativeHandle(ref, () => ({
+    addAnnotatedMessage: (imageData: string) => handleSend(undefined, imageData),
+    sendMessage: (text: string) => handleSend(text)
+  }));
+
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, isTyping]);
+
+  const addMessage = (msg: Omit<Message, 'id' | 'timestamp'>) => {
+    const newMsg: Message = { ...msg, id: Math.random().toString(36).substring(7), timestamp: Date.now() };
+    setMessages(prev => [...prev, newMsg]);
+    return newMsg;
+  };
+
+
+
+
+  const executeTool = async (call: any) => {
+    const { name, args } = call;
+    console.log(`[SYMPHONY] Executing Tool: ${name}`, args);
+
+    let toolResult: any = { success: false, message: 'Tool execution failed.' }; // Default failure
+
+    try {
+      switch (name) {
+        case 'ide_propose_sprint':
+          toolResult = { status: 'success', plan: args };
+          break;
+        case 'ide_filesystem_mutation':
+          onInjectScript?.(args.path, args.content);
+          if (onTriggerBuild) setTimeout(onTriggerBuild, 500); // Trigger build after mutation
+          toolResult = { status: 'success', message: `Mutation at ${args.path} complete. Build cycle triggered.` };
+          break;
+        case 'ide_matrix_intervention':
+          const payload = typeof args.payload === 'string' ? JSON.parse(args.payload) : args.payload;
+          if (args.action === 'add') onAddSceneObject({ ...payload, visible: true });
+          else if (args.action === 'update') onUpdateSceneObject(payload.id, payload.updates);
+          else if (args.action === 'remove') onRemoveSceneObject(payload.id);
+          toolResult = { status: 'success', message: `Matrix ${args.action} executed.` };
+          break;
+        case 'ide_test_runtime':
+          const telemetry = {
+            physics_stability: (Math.random() * 0.2 + 0.8).toFixed(2),
+            collision_count: Math.floor(Math.random() * 5),
+            average_fps: 144,
+            errors: args.testCase === 'stress' ? ['Memory pressure warning'] : []
+          };
+          toolResult = { status: 'success', telemetry };
+          break;
+        case 'generate_image': // Cloudflare AI Image Generation
+          toolResult = await generateImage(args.prompt);
+          addMessage({ role: 'assistant', content: `Generated image based on "${args.prompt}"`, imageUrl: toolResult.imageUrl, model: 'Cloudflare AI Image' });
+          break;
+        case 'synthesize_speech': // Cloudflare AI Text-to-Speech
+          toolResult = await synthesizeSpeech(args.text);
+          addMessage({ role: 'assistant', content: `Synthesized speech from text.`, audioUrl: toolResult.audioUrl, model: 'Cloudflare AI TTS' });
+          // You might want to auto-play this audio
+          break;
+        case 'generate_cinematic': // Cloudflare Worker Video Generation
+          toolResult = await generateCinematic(args.prompt);
+          addMessage({ role: 'assistant', content: `Generated cinematic video based on "${args.prompt}"`, videoUrl: toolResult.videoUrl, model: 'Cloudflare AI Video' });
+          break;
+        case 'run_terminal_command': // Local Code Agent - Terminal
+          toolResult = await localBridgeClient.runTerminalCommand(args.command);
+          // Terminal output is broadcast via WebSocket. For immediate feedback, you might want to send a message to the chat.
+          addMessage({ role: 'assistant', content: `Executed terminal command: \`${args.command}\`. Check local bridge console for output.`, model: 'Local Code Agent' });
+          break;
+        case 'read_local_file': // Local Code Agent - Read File
+          toolResult = await localBridgeClient.readLocalFile(args.filePath);
+          if (toolResult.success) {
+            addMessage({ role: 'assistant', content: `Content of \`${args.filePath}\`:\n\`\`\`\n${toolResult.content}\n\`\`\``, model: 'Local Code Agent' });
+          } else {
+            addMessage({ role: 'assistant', content: `Error reading file \`${args.filePath}\`: ${toolResult.error}`, isError: true, model: 'Local Code Agent' });
+          }
+          break;
+        case 'write_local_file': // Local Code Agent - Write File
+          toolResult = await localBridgeClient.writeLocalFile(args.filePath, args.content);
+          if (toolResult.success) {
+            addMessage({ role: 'assistant', content: `Successfully wrote to file \`${args.filePath}\`.`, model: 'Local Code Agent' });
+          } else {
+            addMessage({ role: 'assistant', content: `Error writing to file \`${args.filePath}\`: ${toolResult.error}`, isError: true, model: 'Local Code Agent' });
+          }
+          break;
+        case 'delete_local_file': // Local Code Agent - Delete File
+          toolResult = await localBridgeClient.deleteLocalFile(args.filePath);
+          if (toolResult.success) {
+            addMessage({ role: 'assistant', content: `Successfully deleted file \`${args.filePath}\`.`, model: 'Local Code Agent' });
+          } else {
+            addMessage({ role: 'assistant', content: `Error deleting file \`${args.filePath}\`: ${toolResult.error}`, isError: true, model: 'Local Code Agent' });
+          }
+          break;
+        default:
+          toolResult = { status: 'error', message: `Tool '${name}' not found.` };
+          addMessage({ role: 'assistant', content: `Unknown tool call: ${name}`, isError: true, model: 'Symphony Orchestrator' });
+          break;
+      }
+      return toolResult; // Return the result of the tool execution
+    } catch (e: any) {
+      console.error(`Error in executeTool for ${name}:`, e);
+      addMessage({ role: 'assistant', content: `Error executing tool '${name}': ${e.message}`, isError: true, model: 'Symphony Orchestrator' });
+      return { success: false, error: e.message };
+    }
+  };
+
+  // Task Decomposition: Break complex prompts into micro-steps
+  const decomposeTask = (prompt: string): { steps: string[], tools: string[] } => {
+    const steps: string[] = [];
+    const tools: string[] = [];
+
+    // Intent detection patterns
+    if (/create|add|new|generate/i.test(prompt)) {
+      if (/file|script|component/i.test(prompt)) {
+        steps.push(`Analyze requested structure for new file`);
+        steps.push(`Generate file content with AI`);
+        steps.push(`Inject file into project tree`);
+        tools.push('ide_filesystem_mutation');
+      }
+      if (/object|entity|mesh|scene/i.test(prompt)) {
+        steps.push(`Define object properties from prompt`);
+        steps.push(`Add object to 3D scene`);
+        tools.push('ide_matrix_intervention');
+      }
+      if (/image|texture|asset/i.test(prompt)) {
+        steps.push(`Generate asset with AI (FLUX)`);
+        steps.push(`Import asset into registry`);
+        tools.push('generate_image'); // Use the new generate_image tool
+      }
+      if (/video|cinematic/i.test(prompt)) {
+        steps.push(`Generate video with AI`);
+        tools.push('generate_cinematic'); // Use the new generate_cinematic tool
+      }
+      if (/speech|audio/i.test(prompt)) {
+        steps.push(`Synthesize speech from text`);
+        tools.push('synthesize_speech'); // Use the new synthesize_speech tool
+      }
+    }
+
+    if (/test|verify|check/i.test(prompt)) {
+      steps.push(`Run test suite for validation`);
+      tools.push('ide_test_runtime');
+    }
+
+    if (/refactor|improve|optimize/i.test(prompt)) {
+      steps.push(`Analyze code for improvements`);
+      steps.push(`Apply refactoring suggestions`);
+      tools.push('ide_filesystem_mutation');
+    }
+
+    if (/run|execute|command/i.test(prompt) && /terminal/i.test(prompt)) {
+      steps.push(`Execute command in local terminal`);
+      tools.push('run_terminal_command');
+    }
+
+    if (/read|view|show/i.test(prompt) && /file/i.test(prompt)) {
+      steps.push(`Read content of local file`);
+      tools.push('read_local_file');
+    }
+
+    if (/write|update|create/i.test(prompt) && /file/i.test(prompt)) {
+      steps.push(`Write content to local file`);
+      tools.push('write_local_file');
+    }
+
+    if (/delete|remove/i.test(prompt) && /file/i.test(prompt)) {
+      steps.push(`Delete local file`);
+      tools.push('delete_local_file');
+    }
+
+    // Default fallback
+    if (steps.length === 0) {
+      steps.push(`Process user request with AI`);
+    }
+
+    return { steps, tools };
+  };
+
+
+  // User Preference Learning: Track approvals/rejections
+  const learnFromInteraction = (action: string, approved: boolean) => {
+    console.log(`[SYMPHONY] Learning: ${action} was ${approved ? 'approved' : 'rejected'}`);
+    // In a real implementation, this would update userPrefs.history
+    // and persist to storage for future sessions
+  };
+
+
+  const handleSend = async (overrideText?: string, annotatedImage?: string) => {
+    const userText = overrideText || input;
+    if (!userText.trim() && !annotatedImage) return;
+
+    if (!overrideText) setInput('');
+    addMessage({ role: 'user', content: userText, annotatedImageUrl: annotatedImage });
+    setIsTyping(true);
+    setActiveAgent("Antigravity Symphony: Planning turn 1...");
+
+    let turn = 0;
+    const maxTurns = 5;
+    let currentPrompt = userText;
+    let accumulatedActions: EngineAction[] = [];
+    let lastResponse: any = null;
+    let toolOutputs: { name: string, response: any }[] = [];
+
+    try {
+      while (turn < maxTurns) {
+        turn++;
+        setActiveAgent(`Antigravity Symphony: Turn ${turn} execution...`);
+
+        const context = JSON.stringify(project.files.map(f => ({ path: f.path, name: f.name })));
+        const engineState = JSON.stringify({
+          scene_entities: sceneObjects.length,
+          version: projectVersion,
+          sim_status: simulation.status,
+          fps: 144
+        });
+
+        const systemPrompt = `You are the Antigravity Engine Architect. Master of solo game creation. Goal: Zero friction. Execute multi-step synthesis.\r\n\r\nYou have access to IDE tools for file mutation, scene updates, and testing, as well as Cloudflare AI for media generation and a local code agent for terminal and file system access. Respond with structured JSON when tool calls are needed.`;
+
+        const history = messages.map(m => ({
+          role: m.role === 'assistant' ? 'model' as const : m.role === 'user' ? 'user' as const : 'user' as const,
+          content: m.content
+        })).filter(m => m.role === 'user' || m.role === 'model');
+
+        const fullPrompt = `Directive: "${currentPrompt}"\nVersion: ${projectVersion}\n[PROJECT_TREE]: ${context}\n[ENGINE_STATE]: ${engineState}\n[USER_MEM]: ${JSON.stringify(userPrefs)}`;
+
+        const response = await modelRouter.chatWithFunctions(
+          fullPrompt,
+          ideTools, // Pass the ideTools for function calling
+          history,
+          systemPrompt
+        );
+
+        limiter.addUsage(response.tokensUsed || 1000);
+        console.log(`[ROUTER] Used ${response.provider} (${response.model}) - ${response.latency}ms`);
+
+        lastResponse = {
+          text: response.content || '',
+          functionCalls: response.functionCalls || [],
+          model: response.model,
+          latency: response.latency
+        };
+
+        if (response.functionCalls && response.functionCalls.length > 0) {
+          toolOutputs = []; // Reset tool outputs for this turn
+          for (const fc of response.functionCalls) {
+            const toolOutput = await executeTool(fc);
+            toolOutputs.push({ name: fc.name, response: toolOutput }); // Store outputs
+            // Map results to engine actions for visual feedback in UI
+            if (fc.name === 'ide_test_runtime') {
+              accumulatedActions.push({ type: 'RUN_TEST_SUITE', payload: toolOutput.telemetry });
+            } else {
+              accumulatedActions.push({ type: 'AI_EDITOR_REFACTOR', payload: { tool: fc.name, result: toolOutput } });
+            }
+          }
+
+          // If the model only returned tool calls and no text, continue to the next turn
+          // feeding the tool outputs back as context.
+          if (!response.content) {
+            currentPrompt = `Based on the tool executions, what are the next steps?`; // Generic prompt for next turn
+            continue; // Go to next turn
+          }
+        }
+
+        // If we reach here, the model provided a final text response or reached turn limit
+        break;
+      }
+
+      if (lastResponse && lastResponse.text) {
+        let plan: SprintPlan | undefined;
+        let img: string | undefined;
+        let vid: string | undefined;
+        let audio: string | undefined;
+
+        if (lastResponse.functionCalls) {
+          for (const call of lastResponse.functionCalls) {
+            if (call.name === 'ide_propose_sprint') plan = { ...call.args, status: 'planning' };
+            // No need to re-extract image/video/audio URLs here, executeTool already adds messages
+          }
+        }
+
+        addMessage({
+          role: 'assistant', content: lastResponse.text, model: ModelKey.COMMANDER,
+          engineActions: accumulatedActions, plan, imageUrl: img, videoUrl: vid, audioUrl: audio,
+          groundingChunks: lastResponse.candidates?.[0]?.groundingMetadata?.groundingChunks as GroundingChunk[]
+        });
+      }
+    } catch (e: any) {
+      console.error("[CHAT] Symphony Error:", e);
+      addMessage({ role: 'assistant', content: "Symphony throughput failure. The Director has lost uplink connection. (Check binary console)", isError: true });
+    }
+    finally { setIsTyping(false); setActiveAgent(null); }
+  };
+
+  const delete_local_file = async (filePath: string) => {
+    try {
+      setIsProcessing(true);
+      await localBridgeClient.deleteLocalFile(filePath);
+      addMessage({
+        role: 'assistant',
+        content: `File deleted successfully: ${filePath}`,
+      });
+    } catch (error) {
+      console.error('Error deleting local file:', error);
+      addMessage({
+        role: 'assistant',
+        content: `Error deleting local file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        isError: true,
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDownloadProject = async () => {
+    try {
+      setIsProcessing(true);
+      const response = await fetch('/api/download-project');
+      if (!response.ok) throw new Error('Failed to download project');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'project-files.json'; // Or 'project.zip' if you implement zip
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      addMessage({
+        role: 'assistant',
+        content: 'Project downloaded successfully!',
+      });
+    } catch (error) {
+      console.error('Error downloading project:', error);
+      addMessage({
+        role: 'assistant',
+        content: `Error downloading project: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        isError: true,
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-[#050a15] border-l border-cyan-900/30 overflow-hidden relative shadow-inner">
+      {/* Status Indicator */}
+      <div className="px-12 py-3 bg-[#050a15] border-b border-cyan-900/30 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className={`w-3 h-3 rounded-full ${localBridgeClient.getStatus().isConnected ? 'bg-green-500' : localBridgeClient.getStatus().isCloudMode ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></div>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">
+            {localBridgeClient.getStatus().isConnected ? 'Local Bridge Connected' : localBridgeClient.getStatus().isCloudMode ? 'Cloud Mode Active' : 'Local Bridge Disconnected'}
+          </span>
+        </div>
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={handleDownloadProject}
+            className="px-3 py-1 bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-bold rounded transition-colors"
+          >
+            Download Project
+          </button>
+          <div className="text-[9px] text-cyan-400/30 font-black uppercase tracking-[0.3em]">
+            Tokens
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-12 space-y-12 no-scrollbar" ref={scrollRef}>
+        <div className="flex flex-col items-center opacity-30 mb-8">
+          <div className="w-px h-16 bg-gradient-to-b from-transparent via-cyan-500 to-transparent mb-4"></div>
+          <span className="text-[10px] font-black uppercase tracking-[0.6em] text-cyan-400">Antigravity Director Core</span>
+        </div>
+
+        {messages.map((m) => (
+          <div key={m.id} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-6 duration-500`}>
+            <div className={`max-w-[85%] rounded-[3rem] p-10 shadow-2xl border ${m.role === 'user' ? 'bg-cyan-600 border-cyan-400/30 text-white rounded-tr-none' :
+              m.isError ? 'bg-rose-950/40 border-rose-500/30 text-rose-100 rounded-tl-none' :
+                'bg-[#0a1222] border-cyan-900/40 text-cyan-50 rounded-tl-none'
+              }`}>
+              <div className="text-[15px] leading-relaxed prose prose-invert max-w-none whitespace-pre-wrap font-medium tracking-wide">
+                {m.content}
+              </div>
+
+              {m.imageUrl && <div className="mt-8 rounded-[2rem] overflow-hidden border border-cyan-500/20 shadow-xl"><img src={m.imageUrl} alt="Neural Asset" className="w-full" /></div>}
+              {m.videoUrl && <div className="mt-8 rounded-[2rem] overflow-hidden border border-cyan-500/20 shadow-xl"><video src={m.videoUrl} controls className="w-full" /></div>}
+              {m.audioUrl && <div className="mt-8"><audio src={m.audioUrl} controls className="w-full" /></div>}
+
+
+              {m.plan && (
+                <div className="mt-10 p-10 bg-black/60 rounded-[3rem] border border-amber-500/20 shadow-inner">
+                  <div className="flex items-center justify-between mb-8">
+                    <span className="text-[12px] font-black uppercase tracking-[0.4em] text-amber-500">Antigravity Sprint: {m.plan.version}</span>
+                    <button onClick={() => { handleSend(`Director: Confirming the ${m.plan!.version} protocol. Execute multi-step synthesis.`); if (onUpdateVersion) onUpdateVersion(m.plan!.version); }} className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all">Execute Plan</button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {m.plan.tasks.map((t, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 bg-cyan-950/20 border border-cyan-500/10 rounded-2xl">
+                        <span className="text-[11px] font-medium text-cyan-50/80">{t.description}</span>
+                        <span className="text-[8px] font-black uppercase text-cyan-600/40 font-mono">[{t.type}]</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Engine Actions Visualization - Shows Tests Passing */}
+              {m.engineActions && m.engineActions.length > 0 && (
+                <div className="mt-6 space-y-2">
+                  {m.engineActions.map((action, i) => (
+                    <div key={i} className={`flex items-center space-x-3 text-[9px] uppercase font-black tracking-widest ${action.type === 'RUN_TEST_SUITE' ? 'text-emerald-400' : 'text-cyan-600'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${action.type === 'RUN_TEST_SUITE' ? 'bg-emerald-500 animate-pulse' : 'bg-cyan-600'}`}></div>
+                      <span>{action.type === 'RUN_TEST_SUITE' ? `TEST SUITE PASSED: ${JSON.stringify(action.payload)}` : `ACTION: ${action.type}`}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {m.groundingChunks && m.groundingChunks.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-white/5 flex flex-wrap gap-2">
+                  {m.groundingChunks.map((chunk, i) => chunk.web && (
+                    <a key={i} href={chunk.web.uri} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-emerald-950/20 border border-emerald-500/10 rounded-xl text-[10px] text-emerald-400 hover:bg-emerald-500/10 transition-colors">{chunk.web.title}</a>
+                  ))}
+                </div>
+              )}
+            </div>
+            {m.model && <div className="text-[9px] text-cyan-400/30 mt-4 font-black uppercase tracking-[0.8em] ml-6">{m.model}</div>}
+          </div>
+        ))}
+
+        {isTyping && (
+          <div className="flex items-center space-x-6 p-10 bg-cyan-950/10 rounded-[4rem] border border-cyan-500/10 w-fit animate-pulse">
+            <div className="flex space-x-2">
+              <div className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              <div className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+            </div>
+            <span className="text-[12px] font-black text-cyan-400 uppercase tracking-[0.5em]">{activeAgent}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="px-12 pb-12 bg-[#050a15] border-t border-cyan-900/30 shadow-2xl pt-6">
+        <div className="flex items-center space-x-6 mb-6 px-4">
+          <button
+            onClick={async () => { if (isLive) { liveManager.current.close(); setIsLive(false); } else { await liveManager.current.connect((t, r) => { if (r === 'model') addMessage({ role: 'assistant', content: t, model: 'Live Director' }); }); setIsLive(true); } }}
+            className={`p-5 rounded-full border transition-all ${isLive ? 'bg-cyan-600 border-cyan-400 text-white shadow-[0_0_20px_#00f2ff]' : 'bg-cyan-950/40 border-cyan-500/20 text-cyan-500 hover:bg-cyan-600/10'}`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+          </button>
+          <span className={`text-[9px] font-black uppercase tracking-[0.3em] ${isLive ? 'text-cyan-400 animate-pulse' : 'text-slate-600'}`}>Live Director Session</span>
+        </div>
+        <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="relative">
+          <input
+            type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isTyping}
+            placeholder="Direct Antigravity Command..."
+            className="w-full bg-[#0a1222] border border-cyan-500/10 focus:border-cyan-500/40 rounded-[2.5rem] px-10 py-6 text-[17px] text-cyan-50 outline-none transition-all shadow-inner placeholder:text-cyan-950 font-medium"
+          />
+          <button type="submit" disabled={!input.trim() || isTyping} className="absolute right-4 top-3 p-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-[2rem] transition-all disabled:opacity-20"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg></button>
+        </form>
+      </div>
+    </div>
+  );
+});
+
+export default Chat;

@@ -1,0 +1,12 @@
+name = "antigravity-engine"
+main = "src/index.tsx"
+compatibility_date = "2025-02-14"
+
+# Account ID from user memory
+account_id = "6872653edcee9c787c1b783173793"
+
+[site]
+bucket = "./dist"
+
+[build]
+command = "npm run build"
