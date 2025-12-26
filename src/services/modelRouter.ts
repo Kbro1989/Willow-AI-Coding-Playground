@@ -227,19 +227,17 @@ async function routeToCloudflare(request: ModelRequest): Promise<Omit<ModelRespo
       }
     }
 
-  }
-
     case 'video': {
-    const response = await cloudflareProvider.generateVideo(request.prompt);
-    return {
-      imageUrl: response.videoUrl, // Storing in imageUrl for compatibility or generic 'content'
-      model: response.model
-    };
-  }
+      const response = await cloudflareProvider.generateVideo(request.prompt);
+      return {
+        imageUrl: response.videoUrl, // Storing in imageUrl for compatibility or generic 'content'
+        model: response.model
+      };
+    }
 
     default:
-  throw new Error(`Unsupported model type: ${request.type}`);
-}
+      throw new Error(`Unsupported model type: ${request.type}`);
+  }
 }
 
 /**

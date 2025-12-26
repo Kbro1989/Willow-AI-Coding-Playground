@@ -10,8 +10,14 @@
         "start": "vite",
         "dev": "vite",
         "build": "vite build",
+        "build:worker": "node buildScripts/buildWorker.js",
+        "build:assets": "node buildScripts/copyAssets.js",
+        "build:all": "npm run build && npm run build:worker && npm run build:assets",
         "preview": "vite preview",
-        "lint:css": "stylelint \"./index.css\" \"./src/**/*.{css,tsx}\""
+        "lint:css": "stylelint \"./index.css\" \"./src/**/*.{css,tsx}\"",
+        "deploy": "npm run build:all && wrangler deploy",
+        "deploy:staging": "npm run build:all && wrangler deploy --env staging",
+        "deploy:production": "npm run build:all && wrangler deploy --env production"
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
