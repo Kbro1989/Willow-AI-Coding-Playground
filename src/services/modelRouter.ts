@@ -5,6 +5,7 @@
 
 import geminiProvider, { GeminiTextRequest, GeminiImageRequest, GeminiCodeRequest } from './geminiProvider';
 import cloudflareProvider from './cloudflareProvider';
+import aiUsageService from './gameData/aiUsageService';
 
 export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning';
 
@@ -36,47 +37,83 @@ export interface ModelResponse {
  * Route model request to best available provider
  * Strategy: "Cloudflare First" (Cost Optimization)
  */
+
+
 export async function route(request: ModelRequest): Promise<ModelResponse> {
   const startTime = Date.now();
   const tier = request.tier || 'standard';
+  let response: ModelResponse | undefined;
 
-
-  // capabilities restricted to Gemini (Premium)
-  // Video is still Gemini-exclusive (unless we implement SVD here, but usually that's a separate 2-step process)
-  // Video is handled by Cloudflare SVD
-  const isGeminiExclusive = false;
-
-  // 1. Premium Route (Explicit or Exclusive)
-  if (tier === 'premium' || isGeminiExclusive) {
-    if (geminiProvider.isAvailable()) {
-      console.log(`[ROUTER] Routing to Gemini (Premium/Exclusive) for ${request.type}...`);
-      try {
-        const result = await routeToGemini(request);
-        return { ...result, provider: 'gemini', latency: Date.now() - startTime };
-      } catch (error) {
-        if (isGeminiExclusive) throw error; // No fallback for exclusive features
-        console.warn('[ROUTER] Gemini failed, attempting fallback to Cloudflare...', error);
-        // Fall through to Cloudflare
-      }
-    } else if (isGeminiExclusive) {
-      throw new Error(`${request.type} requires Gemini API key`);
-    }
-  }
-
-
-  // 2. Standard Route (Cloudflare)
-  console.log(`[ROUTER] Routing to Cloudflare (Standard) for ${request.type}...`);
   try {
-    const result = await routeToCloudflare(request);
-    return { ...result, provider: 'cloudflare', latency: Date.now() - startTime };
-  } catch (error) {
-    console.error('[ROUTER] Cloudflare failed:', error);
-    // 3. Last Resort: Try Gemini if we haven't already
-    if (tier !== 'premium' && geminiProvider.isAvailable()) {
-      console.warn('[ROUTER] Cloudflare failed, falling back to Gemini (Rescue)...');
-      const result = await routeToGemini(request);
-      return { ...result, provider: 'gemini', latency: Date.now() - startTime };
+    // capabilities restricted to Gemini (Premium)
+    const isGeminiExclusive = false;
+
+    // 1. Premium Route (Explicit or Exclusive)
+    if (tier === 'premium' || isGeminiExclusive) {
+      // ... (existing logic)
+      if (geminiProvider.isAvailable()) {
+        console.log(`[ROUTER] Routing to Gemini (Premium/Exclusive) for ${request.type}...`);
+        const result = await routeToGemini(request);
+        response = { ...result, provider: 'gemini', latency: Date.now() - startTime };
+      } else if (isGeminiExclusive) {
+        throw new Error(`${request.type} requires Gemini API key`);
+      }
     }
+
+    if (!response) {
+      // 2. Standard Route (Cloudflare)
+      console.log(`[ROUTER] Routing to Cloudflare (Standard) for ${request.type}...`);
+      try {
+        const result = await routeToCloudflare(request);
+        response = { ...result, provider: 'cloudflare', latency: Date.now() - startTime };
+      } catch (error) {
+        console.error('[ROUTER] Cloudflare failed:', error);
+        // 3. Last Resort: Try Gemini if we haven't already
+        if (tier !== 'premium' && geminiProvider.isAvailable()) {
+          console.warn('[ROUTER] Cloudflare failed, falling back to Gemini (Rescue)...');
+          const result = await routeToGemini(request);
+          response = { ...result, provider: 'gemini', latency: Date.now() - startTime };
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    // Log usage to InstantDB
+    if (response) {
+      const cost = aiUsageService.calculateCost(
+        response.provider,
+        response.model,
+        request.prompt.length / 4, // Approx input tokens
+        response.tokensUsed || (response.content?.length || 0) / 4 // Approx output tokens
+      );
+
+      // Fire and forget logging
+      aiUsageService.logAIUsage({
+        model: response.model,
+        provider: response.provider,
+        taskType: request.type as any,
+        inputTokens: Math.ceil(request.prompt.length / 4),
+        outputTokens: response.tokensUsed || Math.ceil((response.content?.length || 0) / 4),
+        cost,
+        duration: response.latency,
+        success: true
+      }).catch(err => console.error('[ROUTER] Failed to log usage:', err));
+    }
+
+    return response!;
+
+  } catch (error) {
+    // Log failure
+    aiUsageService.logAIUsage({
+      model: 'unknown',
+      provider: 'unknown',
+      taskType: request.type as any,
+      inputTokens: Math.ceil(request.prompt.length / 4),
+      outputTokens: 0,
+      success: false
+    }).catch(e => console.error('[ROUTER] Failed to log error usage:', e));
+
     throw error;
   }
 }

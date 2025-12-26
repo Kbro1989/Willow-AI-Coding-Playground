@@ -40,6 +40,8 @@
  * ```
  */
 
+export { default as aiUsageService } from './aiUsageService';
+
 // Export types for use in components
 export type {
     Character,
