@@ -5,6 +5,8 @@
 
 import type { MediaAsset, MediaOperation } from '../../types/media';
 
+export type FilterType = 'grayscale' | 'sepia' | 'invert' | 'blur' | 'sharpen';
+
 export interface ImageLayer {
     id: string;
     name: string;

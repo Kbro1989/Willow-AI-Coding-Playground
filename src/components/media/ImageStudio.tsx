@@ -32,7 +32,7 @@ interface ImageStudioProps {
 }
 
 type Tool = 'select' | 'brush' | 'eraser' | 'crop' | 'text';
-type FilterType = 'grayscale' | 'sepia' | 'invert' | 'blur' | 'sharpen';
+
 
 export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);

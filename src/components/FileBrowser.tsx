@@ -143,7 +143,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
         });
     };
 
-    const renderNode = (node: FileNode, depth: number = 0): JSX.Element => {
+    const renderNode = (node: FileNode, depth: number = 0): React.ReactElement => {
         const isExpanded = expandedDirs.has(node.path);
         const isActive = activeFile === node.path;
         const isRenaming = renaming === node.path;
