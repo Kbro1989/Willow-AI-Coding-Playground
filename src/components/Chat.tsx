@@ -5,7 +5,7 @@ import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPrefer
 // Hybrid: Cloudflare for text/images now through modelRouter, Gemini for live audio/video
 import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
 import { generateCinematic, generateImage, synthesizeSpeech, cloudlareLimiter as limiter } from '../services/cloudflareService';
-import { modelRouter } from '../services/modelRouter';
+import { modelRouter, ModelResponse } from '../services/modelRouter';
 import { localBridgeClient } from '../services/localBridgeService'; // Import local bridge client
 
 
@@ -300,7 +300,7 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           ideTools, // Pass the ideTools for function calling
           history,
           systemPrompt
-        );
+        ) as ModelResponse;
 
         limiter.addUsage(response.tokensUsed || 1000);
         console.log(`[ROUTER] Used ${response.provider} (${response.model}) - ${response.latency}ms`);
@@ -405,7 +405,7 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
         prompt,
         [], // history (empty for this isolated summarization task)
         "You are a context compression engine. Output only the summary." // systemPrompt
-      );
+      ) as ModelResponse;
 
       const summary = summaryResponse.content;
 
