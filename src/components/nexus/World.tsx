@@ -46,8 +46,8 @@ const World: React.FC<WorldProps> = ({ worldConfig, onUpdateWorld }) => {
             <div className="flex-1 grid grid-cols-4 overflow-hidden">
                 <div className="col-span-3 border-r border-white/5">
                     <ShaderGraph
-                        onCompile={(code) => console.log('Compiling Shader:', code)}
-                        onApplyToObjects={() => console.log('Applying to World Objects')}
+                        onCompile={(code) => onUpdateWorld({ globalShader: code })}
+                        onApplyToObjects={(matId) => console.log('Applying shader to:', matId)}
                     />
                 </div>
                 <div className="p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
@@ -65,27 +65,45 @@ const World: React.FC<WorldProps> = ({ worldConfig, onUpdateWorld }) => {
                                     <span>Atmosphere Density</span>
                                     <span>{worldConfig.atmosphereDensity.toFixed(2)}</span>
                                 </div>
-                                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${worldConfig.atmosphereDensity * 100}%` }}></div>
-                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.01"
+                                    value={worldConfig.atmosphereDensity}
+                                    onChange={(e) => onUpdateWorld({ atmosphereDensity: parseFloat(e.target.value) })}
+                                    className="w-full accent-emerald-500 nexus-btn"
+                                />
                             </div>
                             <div className="space-y-1.5">
                                 <div className="flex justify-between text-[10px] uppercase font-bold text-slate-400">
                                     <span>Water Level</span>
                                     <span>{worldConfig.waterLevel.toFixed(2)}</span>
                                 </div>
-                                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                                    <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${worldConfig.waterLevel * 100}%` }}></div>
-                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.01"
+                                    value={worldConfig.waterLevel}
+                                    onChange={(e) => onUpdateWorld({ waterLevel: parseFloat(e.target.value) })}
+                                    className="w-full accent-blue-500 nexus-btn"
+                                />
                             </div>
                             <div className="space-y-1.5">
                                 <div className="flex justify-between text-[10px] uppercase font-bold text-slate-400">
                                     <span>Veg Density</span>
                                     <span>{worldConfig.vegetationDensity.toFixed(2)}</span>
                                 </div>
-                                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                                    <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${worldConfig.vegetationDensity * 100}%` }}></div>
-                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.01"
+                                    value={worldConfig.vegetationDensity}
+                                    onChange={(e) => onUpdateWorld({ vegetationDensity: parseFloat(e.target.value) })}
+                                    className="w-full accent-green-500 nexus-btn"
+                                />
                             </div>
                         </div>
                     </div>

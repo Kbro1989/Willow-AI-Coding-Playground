@@ -8,6 +8,7 @@ const Matrix: React.FC = () => {
     const [selectedEntity, setSelectedEntity] = useState<any>(null);
     const [isGeneratingMat, setIsGeneratingMat] = useState(false);
     const [matPrompt, setMatPrompt] = useState('');
+    const [activeInspectorTab, setActiveInspectorTab] = useState<'Scene' | 'Physics' | 'Lighting' | 'XR'>('Scene');
 
     useEffect(() => {
         directorMemory.addMemory('Matrix Scene Active: Monitoring WebGL telemetry.', 'session', 0.8, ['matrix', 'status']);
@@ -42,8 +43,15 @@ const Matrix: React.FC = () => {
             {/* 3D Viewport (Main) */}
             <div className="flex-1 flex flex-col relative overflow-hidden group">
                 <div className="absolute top-4 left-4 z-10 flex gap-2">
-                    {['Scene', 'Physics', 'Lighting', 'XR', 'Debug', 'Playback'].map(tab => (
-                        <button key={tab} className="px-4 py-1.5 bg-black/60 backdrop-blur-md border border-cyan-500/30 text-[10px] font-black uppercase text-cyan-400 rounded-full hover:bg-cyan-500 hover:text-white transition-all">
+                    {['Scene', 'Physics', 'Lighting', 'XR'].map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveInspectorTab(tab as any)}
+                            className={`px-4 py-1.5 backdrop-blur-md border text-[10px] font-black uppercase rounded-full transition-all nexus-btn ${activeInspectorTab === tab
+                                ? 'bg-cyan-500 text-white border-cyan-400 shadow-[0_0_15px_rgba(0,242,255,0.4)]'
+                                : 'bg-black/60 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
+                                }`}
+                        >
                             {tab}
                         </button>
                     ))}
@@ -118,17 +126,37 @@ const Matrix: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                                    <Layers className="w-3 h-3" />
-                                    Transform
-                                </h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <TransformInput label="X" value={selectedEntity.pos[0]} />
-                                    <TransformInput label="Y" value={selectedEntity.pos[1]} />
-                                    <TransformInput label="Z" value={selectedEntity.pos[2]} />
+                            {activeInspectorTab === 'Physics' && (
+                                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                                        <Zap className="w-3 h-3 text-amber-400" />
+                                        Physics Overrides
+                                    </h3>
+                                    <div className="p-4 bg-amber-950/10 border border-amber-500/20 rounded-2xl space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[9px] text-amber-500 font-bold uppercase">Gravity Link</span>
+                                            <div className="w-12 h-1 bg-amber-500/20 rounded-full overflow-hidden">
+                                                <div className="w-full h-full bg-amber-500 shadow-[0_0_8px_#f59e0b]"></div>
+                                            </div>
+                                        </div>
+                                        <button className="w-full py-2 bg-amber-600/20 border border-amber-500/30 text-amber-400 rounded-xl text-[9px] font-black uppercase tracking-widest nexus-btn hover:bg-amber-600 hover:text-white">Recalculate Bounds</button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {activeInspectorTab === 'Scene' && (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                                        <Layers className="w-3 h-3" />
+                                        Transform
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <TransformInput label="X" value={selectedEntity.pos[0]} />
+                                        <TransformInput label="Y" value={selectedEntity.pos[1]} />
+                                        <TransformInput label="Z" value={selectedEntity.pos[2]} />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-center opacity-30 gap-4">

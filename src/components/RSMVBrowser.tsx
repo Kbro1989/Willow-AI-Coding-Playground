@@ -174,6 +174,8 @@ const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean 
 // MAIN COMPONENT
 // =============================================================================
 
+import { getRsmvModels } from '../services/rsmvService';
+
 const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   onSelectModel,
   onImportModel,
@@ -186,23 +188,57 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   const [selectedModel, setSelectedModel] = useState<RSMVModelEntry | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [models, setModels] = useState<RSMVModelEntry[]>([]);
   const [wireframe, setWireframe] = useState(false);
   const controlsRef = useRef<any>(null);
 
-  // Get models for current game source
-  const models = useMemo(() => ALL_MODELS[gameSource] || [], [gameSource]);
+  // Fetch models whenever source or category changes
+  useEffect(() => {
+    let isMounted = true;
+    const fetchModels = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await getRsmvModels(gameSource, category);
+        if (isMounted) {
+          // If no live data, fallback to mocks for demonstration if needed, 
+          // but for Phase 24 we prioritize live data.
+          setModels(data.length > 0 ? data : ALL_MODELS[gameSource] || []);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to sync with Nexus Registry');
+          setModels(ALL_MODELS[gameSource] || []); // Fallback on error
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
 
-  // Filter models
-  const filteredModels = useMemo(() => {
-    return models.filter(m => {
-      const matchesCategory = m.category === category;
+    fetchModels();
+    return () => { isMounted = false; };
+  }, [gameSource, category]);
+
+
+  const ITEMS_PER_PAGE = 40;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Filter and Paginate models
+  const { paginatedModels, totalPages } = useMemo(() => {
+    const filtered = models.filter(m => {
       const matchesSearch = !searchQuery ||
         m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.id.toString().includes(searchQuery) ||
         m.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesCategory && matchesSearch;
+      return matchesSearch;
     });
-  }, [models, category, searchQuery]);
+
+    const total = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    return { paginatedModels: paginated, totalPages: total };
+  }, [models, searchQuery, currentPage]);
 
   const handleSelectModel = (model: RSMVModelEntry) => {
     setSelectedModel(model);
@@ -246,7 +282,7 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
             {GAME_SOURCES.map(gs => (
               <button
                 key={gs.key}
-                onClick={() => { setGameSource(gs.key); setSelectedModel(null); }}
+                onClick={() => { setGameSource(gs.key); setSelectedModel(null); setCurrentPage(1); }}
                 className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${gameSource === gs.key
                   ? `bg-${gs.color}-600 text-white shadow-lg`
                   : 'bg-cyan-950/30 text-slate-500 hover:text-cyan-400 hover:bg-cyan-950/50'
@@ -269,7 +305,7 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               placeholder="Search by name, ID, or tag..."
               className="w-full bg-[#0a1222] border border-cyan-900/40 rounded-xl px-4 py-3 text-xs text-cyan-50 placeholder-slate-600 outline-none focus:border-cyan-500 transition-all"
             />
@@ -285,7 +321,7 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
           {categories.map(cat => (
             <button
               key={cat.key}
-              onClick={() => setCategory(cat.key)}
+              onClick={() => { setCategory(cat.key); setCurrentPage(1); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${category === cat.key
                 ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20'
                 : 'bg-cyan-950/30 text-slate-400 hover:bg-cyan-950/50 hover:text-cyan-400'
@@ -294,17 +330,17 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
               <span className="text-lg">{cat.icon}</span>
               <span className="text-xs font-bold uppercase tracking-wider">{cat.label}</span>
               <span className="ml-auto text-[9px] bg-black/30 px-2 py-1 rounded-full">
-                {models.filter(m => m.category === cat.key).length}
+                {models.filter(m => m.category === cat.key).length || 0}
               </span>
             </button>
           ))}
         </div>
 
         {/* Model List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar border-t border-cyan-900/30">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar border-t border-cyan-900/30 flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-              Results ({filteredModels.length})
+              {isLoading ? 'Syncing...' : `Results (${models.length})`}
             </h3>
             <div className="flex gap-1">
               <button
@@ -322,60 +358,108 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
             </div>
           </div>
 
-          {viewMode === 'grid' ? (
-            <div className="grid grid-cols-2 gap-2">
-              {filteredModels.map(model => (
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-2">
+            {isLoading ? (
+              <div className="space-y-2 py-10 flex flex-col items-center justify-center opacity-50">
+                <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
+                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400 animate-pulse">Syncing Cache</div>
+              </div>
+            ) : error ? (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+                <div className="text-red-400 text-[10px] font-bold uppercase">{error}</div>
                 <button
-                  key={`${model.category}-${model.id}`}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/json', JSON.stringify({
-                      type: 'rsmv-model',
-                      id: model.id,
-                      name: model.name,
-                      category: model.category,
-                      modelUrl: model.modelUrl
-                    }));
-                  }}
-                  onClick={() => handleSelectModel(model)}
-                  className={`p-3 rounded-xl text-left transition-all border ${selectedModel?.id === model.id && selectedModel?.category === model.category
-                    ? 'border-cyan-500 bg-cyan-950/50 shadow-lg shadow-cyan-500/10'
-                    : 'border-cyan-900/30 bg-cyan-950/20 hover:border-cyan-700/50'
-                    }`}
+                  onClick={() => setModels(ALL_MODELS[gameSource])}
+                  className="mt-2 text-[9px] text-red-300 underline font-black uppercase"
                 >
-                  <div className="text-[9px] text-cyan-600 font-mono mb-1">#{model.id}</div>
-                  <div className="text-[10px] font-bold text-cyan-50 truncate">{model.name}</div>
+                  Use Offline Registry
                 </button>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filteredModels.map(model => (
-                <button
-                  key={`${model.category}-${model.id}`}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/json', JSON.stringify({
-                      type: 'rsmv-model',
-                      id: model.id,
-                      name: model.name,
-                      category: model.category,
-                      modelUrl: model.modelUrl
-                    }));
-                  }}
-                  onClick={() => handleSelectModel(model)}
-                  className={`w-full p-3 rounded-xl text-left transition-all flex items-center gap-3 border ${selectedModel?.id === model.id && selectedModel?.category === model.category
-                    ? 'border-cyan-500 bg-cyan-950/50'
-                    : 'border-transparent hover:bg-cyan-950/30'
-                    }`}
-                >
-                  <div className="text-[9px] text-cyan-600 font-mono w-12">#{model.id}</div>
-                  <div className="text-[10px] font-bold text-cyan-50 flex-1 truncate">{model.name}</div>
-                  <div className="text-[8px] text-slate-500">{model.vertexCount}v</div>
-                </button>
-              ))}
-            </div>
-          )}
+              </div>
+            ) : paginatedModels.length > 0 ? (
+              <>
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {paginatedModels.map(model => (
+                      <button
+                        key={`${model.category}-${model.id}`}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify({
+                            type: 'rsmv-model',
+                            id: model.id,
+                            name: model.name,
+                            category: model.category,
+                            modelUrl: model.modelUrl
+                          }));
+                        }}
+                        onClick={() => handleSelectModel(model)}
+                        className={`p-3 rounded-xl text-left transition-all border ${selectedModel?.id === model.id && selectedModel?.category === model.category
+                          ? 'border-cyan-500 bg-cyan-950/50 shadow-lg shadow-cyan-500/10'
+                          : 'border-cyan-900/30 bg-cyan-950/20 hover:border-cyan-700/50'
+                          }`}
+                      >
+                        <div className="text-[9px] text-cyan-600 font-mono mb-1">#{model.id}</div>
+                        <div className="text-[10px] font-bold text-cyan-50 truncate">{model.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {paginatedModels.map(model => (
+                      <button
+                        key={`${model.category}-${model.id}`}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify({
+                            type: 'rsmv-model',
+                            id: model.id,
+                            name: model.name,
+                            category: model.category,
+                            modelUrl: model.modelUrl
+                          }));
+                        }}
+                        onClick={() => handleSelectModel(model)}
+                        className={`w-full p-3 rounded-xl text-left transition-all flex items-center gap-3 border ${selectedModel?.id === model.id && selectedModel?.category === model.category
+                          ? 'border-cyan-500 bg-cyan-950/50'
+                          : 'border-transparent hover:bg-cyan-950/30'
+                          }`}
+                      >
+                        <div className="text-[9px] text-cyan-600 font-mono w-12">#{model.id}</div>
+                        <div className="text-[10px] font-bold text-cyan-50 flex-1 truncate">{model.name}</div>
+                        <div className="text-[8px] text-slate-500">{model.vertexCount}v</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="pt-4 border-t border-cyan-900/30 flex items-center justify-between gap-2">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className="p-2 bg-cyan-950 rounded-lg text-cyan-400 disabled:opacity-20 hover:bg-cyan-600 hover:text-white transition-all"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <div className="text-[10px] font-black font-mono text-cyan-700">
+                      PAGE {currentPage} / {totalPages}
+                    </div>
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className="p-2 bg-cyan-950 rounded-lg text-cyan-400 disabled:opacity-20 hover:bg-cyan-600 hover:text-white transition-all"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="py-20 text-center opacity-20">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">No Entities Found</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

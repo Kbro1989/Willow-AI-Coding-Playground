@@ -38,7 +38,7 @@ export const PrimaryNav: React.FC<PrimaryNavProps> = ({ activeView, setActiveVie
                 <button
                     key={item.id}
                     onClick={() => setActiveView(item.id)}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all group relative ${activeView === item.id ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-600 hover:text-white hover:bg-white/5'}`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all group relative nexus-btn ${activeView === item.id ? 'bg-cyan-500/10 text-cyan-400 nexus-nav-active' : 'text-slate-600 hover:text-white hover:bg-white/5'}`}
                     title={item.label}
                 >
                     <item.icon className="w-5 h-5" />

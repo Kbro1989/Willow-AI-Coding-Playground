@@ -80,6 +80,17 @@ export const routeNexus = async (request: ModelRequest): Promise<NexusResponse |
     // 5. Remote Routing (Default Fallback)
     console.log(`[NEXUS_ROUTER] Proxying ${request.type} request to Model Router for ${taskId}...`);
 
+    // Grounding with Google Search
+    if (request.grounding) {
+        const { googleSearch } = await import('../services/googleService');
+        const searchResults = await googleSearch(request.prompt);
+        if (searchResults.length > 0) {
+            const groundingBlock = `\n\n[GROUNDING CONTEXT: GOOGLE SEARCH]\n${searchResults.map(r => `- ${r.title}: ${r.snippet} (${r.link})`).join('\n')}\n[END GROUNDING]\n`;
+            request.systemPrompt = (request.systemPrompt || '') + groundingBlock;
+            await logTask({ taskId, step: 'GROUNDING', status: 'success', metadata: { results: searchResults.length }, timestamp: Date.now() });
+        }
+    }
+
     // Inject Director Memory Context
     const contextStr = directorMemory.getContextSummary();
     if (contextStr) {

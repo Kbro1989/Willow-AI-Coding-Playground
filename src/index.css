@@ -41,6 +41,23 @@ body {
     @apply bg-[#070d19] border-cyan-500/10 shadow-2xl;
   }
 
+  /* Interaction Tokens */
+  .nexus-btn {
+    @apply transition-all duration-200 active:scale-95 cursor-pointer;
+  }
+
+  .nexus-btn-glow:hover {
+    @apply shadow-[0_0_20px_rgba(0,242,255,0.3)] border-cyan-500/50;
+  }
+
+  .nexus-nav-active {
+    @apply text-cyan-400 bg-cyan-500/5 shadow-[inset_0_0_15px_rgba(0,242,255,0.05)];
+  }
+
+  .nexus-interactive-item:hover {
+    @apply bg-white/5;
+  }
+
   /* Optimized Dense Scrollbars */
   ::-webkit-scrollbar {
     width: 4px;

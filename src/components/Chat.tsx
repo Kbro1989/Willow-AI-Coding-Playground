@@ -6,7 +6,8 @@ import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPrefer
 import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
 import { cloudlareLimiter as limiter } from '../services/cloudflareService';
 import { modelRouter, ModelResponse, generate3D, generateImage, generateCinematic, synthesizeSpeech } from '../services/modelRouter';
-import { localBridgeClient } from '../services/localBridgeService'; // Import local bridge client
+import { localBridgeClient } from '../services/localBridgeService';
+import { behaviorBridge } from '../services/logic/behaviorBridge';
 
 
 interface ChatProps {
@@ -51,6 +52,7 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
 }, ref) => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isGrounded, setIsGrounded] = useState(false);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -130,6 +132,31 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
             errors: args.testCase === 'stress' ? ['Memory pressure warning'] : []
           };
           toolResult = { status: 'success', telemetry };
+          break;
+        case 'ide_presentation_mode':
+          onTriggerPresentation?.();
+          toolResult = { status: 'success', message: 'Presentation mode toggled.' };
+          break;
+        case 'ide_update_physics':
+          onUpdatePhysics(args);
+          toolResult = { status: 'success', message: 'Physics parameters updated.', updates: args };
+          break;
+        case 'ide_update_world':
+          onUpdateWorld(args);
+          toolResult = { status: 'success', message: 'World configuration updated.', updates: args };
+          break;
+        case 'ide_update_render_config':
+          onUpdateConfig('render', args);
+          toolResult = { status: 'success', message: 'Rendering configuration updated.', updates: args };
+          break;
+        case 'ide_sync_variables':
+          const varData = typeof args.data === 'string' ? JSON.parse(args.data) : args.data;
+          onSyncVariableData?.(varData);
+          toolResult = { status: 'success', message: 'Variable store synchronized.', data: varData };
+          break;
+        case 'ide_generate_behavior':
+          behaviorBridge.registerBehavior(args.entityId, args.behaviorJson);
+          toolResult = { status: 'success', message: 'Behavior logic registered and active.', entityId: args.entityId };
           break;
         case 'generate_image': // Cloudflare AI Image Generation
           toolResult = await generateImage(args.prompt);
@@ -233,6 +260,26 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
       tools.push('ide_test_runtime');
     }
 
+    if (/physics|gravity|friction/i.test(prompt)) {
+      steps.push(`Calculate physical constant adjustments`);
+      tools.push('ide_update_physics');
+    }
+
+    if (/world|environment|lighting|sky/i.test(prompt)) {
+      steps.push(`Configure world environment parameters`);
+      tools.push('ide_update_world');
+    }
+
+    if (/variable|state|sync|data/i.test(prompt)) {
+      steps.push(`Synchronize variable data store`);
+      tools.push('ide_sync_variables');
+    }
+
+    if (/behavior|logic|intelligence|npc/i.test(prompt)) {
+      steps.push(`Synthesize autonomous logic tree`);
+      tools.push('ide_generate_behavior');
+    }
+
     if (/refactor|improve|optimize/i.test(prompt)) {
       steps.push(`Analyze code for improvements`);
       steps.push(`Apply refactoring suggestions`);
@@ -318,7 +365,9 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           fullPrompt,
           ideTools, // Pass the ideTools for function calling
           history,
-          systemPrompt
+          systemPrompt,
+          false, // stream
+          isGrounded // grounding
         ) as ModelResponse;
 
         limiter.addUsage(response.tokensUsed || 1000);
@@ -599,6 +648,17 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
           </button>
           <span className={`text-[9px] font-black uppercase tracking-[0.3em] ${isLive ? 'text-cyan-400 animate-pulse' : 'text-slate-600'}`}>Live Director Session</span>
+
+          <div className="flex-1"></div>
+
+          <button
+            type="button"
+            onClick={() => setIsGrounded(!isGrounded)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${isGrounded ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'bg-white/5 border-white/10 text-slate-500 hover:text-white'}`}
+          >
+            <div className={`w-2 h-2 rounded-full ${isGrounded ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`}></div>
+            <span className="text-[10px] font-black uppercase tracking-widest">Neural Grounding</span>
+          </button>
         </div>
         <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="relative">
           <input

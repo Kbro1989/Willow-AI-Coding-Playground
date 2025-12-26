@@ -100,6 +100,76 @@ export const ideTools: FunctionDeclaration[] = [
     }
   },
   {
+    name: 'ide_update_physics',
+    description: 'Update the engine physics simulation parameters.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        gravity: { type: SchemaType.NUMBER, description: 'Gravity scalar (default: -9.81)' },
+        friction: { type: SchemaType.NUMBER, description: 'Global friction coefficient' },
+        timeStep: { type: SchemaType.NUMBER, description: 'Simulation timestep' }
+      }
+    }
+  },
+  {
+    name: 'ide_update_world',
+    description: 'Update global world settings like environment and shaders.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        envName: { type: SchemaType.STRING, description: 'Name of the environment preset' },
+        globalShader: { type: SchemaType.STRING, description: 'Compiled GLSL code for the global shader' },
+        timeScale: { type: SchemaType.NUMBER, description: 'Speed of the world simulation' }
+      }
+    }
+  },
+  {
+    name: 'ide_update_render_config',
+    description: 'Update post-processing and rendering configurations.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        bloom: { type: SchemaType.BOOLEAN },
+        ssr: { type: SchemaType.BOOLEAN },
+        ao: { type: SchemaType.BOOLEAN }
+      }
+    }
+  },
+  {
+    name: 'ide_sync_variables',
+    description: 'Sync arbitrary data into the engine variable store.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        data: { type: SchemaType.STRING, description: 'JSON string of key-value pairs to sync' }
+      },
+      required: ['data']
+    }
+  },
+  {
+    name: 'generate_3d_asset',
+    description: 'Generate a 3D GLB model based on a text prompt using Cloudflare AI.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        prompt: { type: SchemaType.STRING, description: 'The text prompt to generate the 3D asset from.' },
+      },
+      required: ['prompt']
+    }
+  },
+  {
+    name: 'ide_generate_behavior',
+    description: 'Generate a behavior tree logic structure for an entity.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        entityId: { type: SchemaType.STRING },
+        behaviorJson: { type: SchemaType.STRING, description: 'JSON structure defining the behavior tree logic' }
+      },
+      required: ['entityId', 'behaviorJson']
+    }
+  },
+  {
     name: 'generate_image',
     description: 'Generate an image based on a text prompt using Cloudflare AI.',
     parameters: {

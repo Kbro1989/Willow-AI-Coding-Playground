@@ -75,6 +75,7 @@ export interface WorldConfig {
   brushStrength: number;
   activeTool: 'raise' | 'lower' | 'smooth' | 'none';
   syntheticEnvironment?: 'living_room' | 'music_room' | 'meeting_room' | 'office_large' | 'office_small' | 'none';
+  globalShader?: string;
 }
 
 export interface EngineAction {

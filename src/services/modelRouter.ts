@@ -20,6 +20,7 @@ export interface ModelRequest {
   context?: string;
   options?: any;
   tier?: 'standard' | 'premium'; // default: 'standard' (Cloudflare)
+  grounding?: boolean;
 }
 
 export interface ModelResponse {
@@ -356,13 +357,15 @@ export async function chat(
   prompt: string,
   history?: Array<{ role: 'user' | 'model'; content: string }>,
   systemPrompt?: string,
-  stream: boolean = false
+  stream: boolean = false,
+  grounding: boolean = false
 ): Promise<ModelResponse | ReadableStream> {
   return route({
     type: 'text',
     prompt,
     history,
     systemPrompt,
+    grounding,
     options: { stream }
   });
 }
@@ -374,14 +377,17 @@ export async function chatWithFunctions(
   prompt: string,
   functionDeclarations: any[],
   history?: Array<{ role: 'user' | 'model'; content: string }>,
-  systemPrompt?: string
+  systemPrompt?: string,
+  stream: boolean = false,
+  grounding: boolean = false
 ): Promise<ModelResponse | ReadableStream> {
   return route({
     type: 'function_calling',
     prompt,
     history,
     systemPrompt,
-    functionDeclarations
+    functionDeclarations,
+    grounding
   });
 }
 

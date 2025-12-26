@@ -298,7 +298,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             key={tab}
             onClick={() => setActiveTab(tab as any)}
             title={getTabTitle(tab)}
-            className={`flex-1 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === tab ? 'text-cyan-400 bg-cyan-500/5' : 'text-slate-600 hover:text-cyan-300'}`}
+            className={`flex-1 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all relative nexus-btn ${activeTab === tab ? 'text-cyan-400 bg-cyan-500/5 nexus-nav-active' : 'text-slate-600 hover:text-cyan-300'}`}
           >
             {tab}
             {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-500 shadow-[0_0_10px_#00f2ff]"></div>}

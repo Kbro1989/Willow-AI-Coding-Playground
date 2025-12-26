@@ -55,6 +55,44 @@ interface GameDashboardProps {
 // Create XR store for VR/AR sessions
 const xrStore = createXRStore();
 
+const ShaderMaterialWrapper: React.FC<{ fragmentShader: string, time: number }> = ({ fragmentShader, time }) => {
+  const matRef = useRef<THREE.ShaderMaterial>(null);
+  const { viewport } = useThree();
+
+  useFrame((state) => {
+    if (matRef.current) {
+      matRef.current.uniforms.u_time.value = state.clock.elapsedTime;
+    }
+  });
+
+  const uniforms = useMemo(() => ({
+    u_time: { value: 0 },
+    u_resolution: { value: new THREE.Vector2(viewport.width * 100, viewport.height * 100) },
+    u_mainTexture: { value: new THREE.Texture() }
+  }), [viewport.width, viewport.height]);
+
+  return (
+    <shaderMaterial
+      ref={matRef}
+      key={fragmentShader}
+      vertexShader={`
+        varying vec2 v_uv;
+        varying vec3 v_normal;
+        varying vec3 v_viewPosition;
+        void main() {
+          v_uv = uv;
+          v_normal = normalize(normalMatrix * normal);
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          v_viewPosition = -mvPosition.xyz;
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `}
+      fragmentShader={fragmentShader}
+      uniforms={uniforms}
+    />
+  );
+};
+
 const SyntheticEnvironment: React.FC<{ envName: string }> = ({ envName }) => {
   const [data, setData] = useState<any>(null);
 
@@ -744,9 +782,17 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
 
               {!isFullscreen && <Grid renderOrder={-1} position={[0, -0.01, 0]} infiniteGrid cellSize={1} sectionSize={5} sectionColor="#00f2ff" cellColor="#0a1222" fadeDistance={50} />}
 
+              {/* Procedural Ground Plane with Global Shader */}
               <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
                 <planeGeometry args={[200, 200]} />
-                <meshStandardMaterial color="#0a1222" roughness={1} metalness={0.1} />
+                {worldConfig.globalShader ? (
+                  <ShaderMaterialWrapper
+                    fragmentShader={worldConfig.globalShader}
+                    time={simulation.time}
+                  />
+                ) : (
+                  <meshStandardMaterial color="#0a1222" roughness={1} metalness={0.1} />
+                )}
               </mesh>
             </XR>
           </Canvas>

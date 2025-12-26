@@ -89,7 +89,9 @@ const Director: React.FC = () => {
                             <Database className="w-3 h-3" />
                             Nexus Memory Registry
                         </h2>
-                        <span className="text-[9px] text-slate-500 uppercase">Context Injection: ON</span>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[9px] text-slate-500 uppercase">Context Injection: ON</span>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
