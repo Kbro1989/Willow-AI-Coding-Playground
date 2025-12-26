@@ -4,9 +4,11 @@
  */
 
 import { NodeType, getNodeDefinition } from './nodeDefinitions';
-import { modelRouter } from '../../services/modelRouter';
+import { modelRouter, ModelResponse } from '../../services/modelRouter';
 import { createFile, executeCommand } from '../../services/bridgeService';
 import { orchestrate } from '../../services/agents/orchestratorAgent';
+import { nexusBus } from '../../services/nexusCommandBus';
+import { logTask } from '../../services/loggingService';
 
 export interface WorkflowNode {
   id: string;
@@ -49,32 +51,51 @@ export class WorkflowEngine {
    * Execute entire workflow
    */
   async execute(workflow: Workflow): Promise<{ success: boolean; outputs: Record<string, any>; error?: string }> {
+    const startTime = Date.now();
     console.log(`[WORKFLOW] Executing: ${workflow.name}`);
+
+    const abortController = new AbortController();
+    const jobId = `wf-${workflow.id}-${Math.random().toString(36).slice(2, 7)}`;
+
+    nexusBus.registerJob({
+      id: jobId,
+      type: 'workflow',
+      description: `Workflow: ${workflow.name}`,
+      abortController
+    });
 
     try {
       // Reset context
       this.context.variables.clear();
       this.context.nodeOutputs.clear();
 
+      await logTask({ taskId: jobId, step: 'START', status: 'pending', timestamp: Date.now() });
+
       // Build execution order (topological sort)
       const executionOrder = this.topologicalSort(workflow);
 
       // Execute nodes in order
       for (const nodeId of executionOrder) {
+        if (abortController.signal.aborted) throw new Error('Workflow aborted by user');
+
         const node = workflow.nodes.find(n => n.id === nodeId);
         if (!node) continue;
 
         console.log(`[WORKFLOW] Executing node: ${node.id} (${node.type})`);
+        await logTask({ taskId: jobId, step: `NODE_${node.id}`, status: 'pending', metadata: { type: node.type }, timestamp: Date.now() });
 
         // Get inputs for this node
         const inputs = this.getNodeInputs(node, workflow);
 
         // Execute node
-        const output = await this.executeNode(node, inputs);
+        const output = await this.executeNode(node, inputs, abortController.signal);
 
         // Store output
         this.context.nodeOutputs.set(node.id, output);
+        await logTask({ taskId: jobId, step: `NODE_${node.id}`, status: 'success', timestamp: Date.now() });
       }
+
+      await logTask({ taskId: jobId, step: 'COMPLETE', status: 'success', duration: Date.now() - startTime, timestamp: Date.now() });
 
       return {
         success: true,
@@ -82,11 +103,14 @@ export class WorkflowEngine {
       };
     } catch (error) {
       console.error('[WORKFLOW] Execution failed:', error);
+      await logTask({ taskId: jobId, step: 'ERROR', status: 'failure', metadata: { error: String(error) }, timestamp: Date.now() });
       return {
         success: false,
         outputs: {},
         error: String(error)
       };
+    } finally {
+      nexusBus.completeJob(jobId);
     }
   }
 
@@ -112,7 +136,7 @@ export class WorkflowEngine {
   /**
    * Execute a single node
    */
-  private async executeNode(node: WorkflowNode, inputs: Record<string, any>): Promise<any> {
+  private async executeNode(node: WorkflowNode, inputs: Record<string, any>, signal?: AbortSignal): Promise<any> {
     const def = getNodeDefinition(node.type);
 
     switch (node.type) {
@@ -121,33 +145,60 @@ export class WorkflowEngine {
         return { data: node.parameters.value || node.parameters.text };
 
       case 'ai_text':
-        const textResponse = await modelRouter.chat(
-          inputs.prompt || node.parameters.prompt || '',
-          [],
-          'You are a helpful AI assistant.'
-        );
+        const textResponse = (await modelRouter.route({
+          type: 'text',
+          prompt: inputs.prompt || node.parameters.prompt || '',
+          systemPrompt: 'You are a helpful AI assistant.',
+          options: { signal }
+        })) as ModelResponse;
         return { text: textResponse.content };
 
       case 'ai_image':
-        const imageResponse = await modelRouter.generateImage(
-          inputs.prompt || node.parameters.prompt || ''
-        );
+        const imageResponse = (await modelRouter.route({
+          type: 'image',
+          prompt: inputs.prompt || node.parameters.prompt || '',
+          options: { signal }
+        })) as ModelResponse;
         return { imageUrl: imageResponse.imageUrl };
 
       case 'ai_code':
-        const codeResponse = await modelRouter.completeCode(
-          inputs.prompt || node.parameters.prompt || '',
-          node.parameters.language || 'typescript'
-        );
+        const codeResponse = (await modelRouter.route({
+          type: 'code',
+          prompt: inputs.prompt || node.parameters.prompt || '',
+          language: node.parameters.language || 'typescript',
+          options: { signal }
+        })) as ModelResponse;
         return { code: codeResponse.code };
 
       case 'ai_reasoning':
-        const reasoningResponse = await modelRouter.chat(
+        const reasoningResponse = (await modelRouter.chat(
           `Think step-by-step:\n\n${inputs.problem || ''}`,
           [],
           'You are a reasoning AI. Break down complex problems.'
-        );
+        )) as ModelResponse;
         return { solution: reasoningResponse.content };
+
+      case 'ai_video':
+        const videoResponse = (await modelRouter.generateVideo(
+          inputs.prompt || node.parameters.prompt || ''
+        )) as ModelResponse;
+        return { videoUrl: videoResponse.imageUrl }; // modelRouter maps video to imageUrl for generic compat
+
+      case 'ai_audio':
+        const audioMode = node.parameters.mode || 'tts';
+        const audioResponse = (await modelRouter.processAudio(
+          inputs.input || node.parameters.input || '',
+          audioMode
+        )) as ModelResponse;
+        return { output: audioResponse.content };
+
+      case 'ai_logic_refactor':
+        const { behaviorSynthesis } = await import('../../services/behaviorSynthesisService');
+        const refactorResult = await behaviorSynthesis.refactorTree(
+          inputs.tree || [],
+          inputs.goal || node.parameters.goal || 'Refactor for better performance'
+        );
+        return { result: refactorResult };
 
       case 'file_writer':
         const writeResult = await createFile(

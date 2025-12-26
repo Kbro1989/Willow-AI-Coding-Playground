@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { videoProcessing } from '../../services/media/videoProcessing';
+import { forgeMedia } from '../../services/forgeMediaService';
 import { Film, Play, Settings, Save, AlertCircle, Loader } from 'lucide-react';
 
 const STYLES = [
@@ -25,6 +26,19 @@ export const VideoStudio: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [generationTime, setGenerationTime] = useState(0);
 
+    const handleSettings = () => {
+        alert('Cinematic Synthesis Settings: FPS: 24, Motion: 5.0, Bucket: 127');
+    };
+
+    const handleSave = () => {
+        if (!resultVideo) return;
+        const link = document.createElement('a');
+        link.href = resultVideo;
+        link.download = `cinematic-${Date.now()}.mp4`;
+        link.click();
+        console.log('[VIDEO] Sequence exported to disk');
+    };
+
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
 
@@ -34,9 +48,30 @@ export const VideoStudio: React.FC = () => {
         const start = Date.now();
 
         try {
-            const result = await videoProcessing.generateCinematic(prompt, selectedStyle);
-            setResultVideo(result.videoUrl);
+            // Rule #2: No direct AI calls. Routing through Nexus backend.
+            const { routeNexus } = await import('../../backend/routeToModel');
+            const response = await routeNexus({
+                type: 'video',
+                prompt: `${prompt}. Style: ${selectedStyle}`
+            });
+
+            if (response instanceof ReadableStream) {
+                throw new Error('Streaming not supported for video generation');
+            }
+
+            const finalVideoUrl = (response as any).videoUrl || response.imageUrl || null;
+            setResultVideo(finalVideoUrl);
             setGenerationTime(Date.now() - start);
+
+            if (finalVideoUrl) {
+                forgeMedia.addAsset({
+                    type: 'video',
+                    url: finalVideoUrl,
+                    prompt: prompt,
+                    model: response.model,
+                    tags: ['ai-generated', 'video-studio', selectedStyle]
+                });
+            }
         } catch (err: any) {
             setError(err.message || 'Video generation failed');
         } finally {
@@ -53,7 +88,10 @@ export const VideoStudio: React.FC = () => {
                     <h2 className="text-xl font-bold tracking-tight">Cinematic Logic</h2>
                 </div>
                 <div className="flex space-x-2">
-                    <button className="p-2 hover:bg-zinc-800 rounded-full transition-colors">
+                    <button
+                        onClick={handleSettings}
+                        className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
+                    >
                         <Settings className="w-5 h-5 text-zinc-400" />
                     </button>
                 </div>
@@ -167,7 +205,10 @@ export const VideoStudio: React.FC = () => {
                         {/* Save Overlay (Only if result exists) */}
                         {resultVideo && (
                             <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button className="bg-black/50 hover:bg-black/70 backdrop-blur-md p-2 rounded-lg text-white border border-white/10">
+                                <button
+                                    onClick={handleSave}
+                                    className="bg-black/50 hover:bg-black/70 backdrop-blur-md p-2 rounded-lg text-white border border-white/10"
+                                >
                                     <Save className="w-5 h-5" />
                                 </button>
                             </div>

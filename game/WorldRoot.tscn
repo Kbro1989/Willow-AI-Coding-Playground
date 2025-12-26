@@ -1,0 +1,14 @@
+[gd_scene load_steps=1 format=3 uid="uid://nexus-world-root"]
+
+[node name="WorldRoot" type="Node3D"]
+
+[node name="Environment" type="Node3D" parent="."]
+
+[node name="Locations" type="Node3D" parent="."]
+# NEXUS Placeholder: Location nodes will be dynamically injected here
+
+[node name="Portals" type="Node3D" parent="."]
+# NEXUS Placeholder: Portal definitions for traversal
+
+[node name="Player" parent="." instance=ExtResource("res://Player.tscn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

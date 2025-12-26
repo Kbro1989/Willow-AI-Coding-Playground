@@ -47,23 +47,27 @@ class CloudflareProvider {
   }
 
   /**
-   * Chat using Llama 3.1 70B (PRIMARY for general conversation)
-   * Model: @cf/meta/llama-3.1-70b-instruct
+   * Chat using Llama 3.3 70B (PRIMARY for general conversation)
+   * Model: @cf/meta/llama-3.3-70b-instruct-fp8-fast
    */
   async chatWithLlama(
     prompt: string,
     history: Array<{ role: 'user' | 'model'; content: string }> = [],
-    systemPrompt?: string
-  ): Promise<CloudflareTextResponse> {
+    systemPrompt?: string,
+    stream: boolean = false,
+    signal?: AbortSignal
+  ): Promise<CloudflareTextResponse | ReadableStream> {
     try {
       const response = await fetch(`${this.workerUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal,
         body: JSON.stringify({
           message: prompt,
           history,
           systemPrompt,
-          model: '@cf/meta/llama-3.1-70b-instruct'
+          model: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+          stream
         })
       });
 
@@ -71,11 +75,15 @@ class CloudflareProvider {
         throw new Error(`Cloudflare API error: ${response.status}`);
       }
 
+      if (stream) {
+        return response.body!;
+      }
+
       const data = await response.json() as any;
 
       return {
         content: data.response || data.text,
-        model: '@cf/meta/llama-3.1-70b-instruct',
+        model: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
         tokensUsed: data.tokensUsed || data.usage?.total_tokens
       };
     } catch (error) {
@@ -90,12 +98,14 @@ class CloudflareProvider {
    */
   async codeWithQwen(
     prompt: string,
-    language: string = 'typescript'
+    language: string = 'typescript',
+    signal?: AbortSignal
   ): Promise<{ code: string; model: string }> {
     try {
       const response = await fetch(`${this.workerUrl}/api/code-complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal,
         body: JSON.stringify({
           prompt,
           language,
@@ -206,10 +216,12 @@ class CloudflareProvider {
         throw new Error(`Cloudflare API error: ${response.status}`);
       }
 
-      const data = await response.json() as any;
+      // Handle binary response (pattern from text-to-image-template)
+      const blob = await response.blob();
+      const imageUrl = URL.createObjectURL(blob);
 
       return {
-        imageUrl: data.imageUrl || data.url || data.image,
+        imageUrl,
         model: '@cf/stabilityai/stable-diffusion-xl-base-1.0'
       };
     } catch (error) {
@@ -222,11 +234,12 @@ class CloudflareProvider {
    * Fast image generation using Flux Schnell (FAST alternative)
    * Model: @cf/black-forest-labs/flux-1-schnell
    */
-  async imageWithFlux(prompt: string): Promise<{ imageUrl: string; model: string }> {
+  async imageWithFlux(prompt: string, signal?: AbortSignal): Promise<{ imageUrl: string; model: string }> {
     try {
       const response = await fetch(`${this.workerUrl}/api/generate-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal,
         body: JSON.stringify({
           prompt,
           model: '@cf/black-forest-labs/flux-1-schnell'
@@ -237,51 +250,16 @@ class CloudflareProvider {
         throw new Error(`Cloudflare API error: ${response.status}`);
       }
 
-      const data = await response.json() as any;
+      // Handle binary response
+      const blob = await response.blob();
+      const imageUrl = URL.createObjectURL(blob);
 
       return {
-        imageUrl: data.imageUrl || data.url || data.image,
+        imageUrl,
         model: '@cf/black-forest-labs/flux-1-schnell'
       };
     } catch (error) {
       console.error('[CF/FLUX] Image generation error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Translation using M2M100 (for multilingual support)
-   * Model: @cf/meta/m2m100-1.2b
-   */
-  async translate(
-    text: string,
-    sourceLang: string = 'en',
-    targetLang: string = 'es'
-  ): Promise<{ translation: string; model: string }> {
-    try {
-      const response = await fetch(`${this.workerUrl}/api/translate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          sourceLang,
-          targetLang,
-          model: '@cf/meta/m2m100-1.2b'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Cloudflare API error: ${response.status}`);
-      }
-
-      const data = await response.json() as any;
-
-      return {
-        translation: data.translation || data.text,
-        model: '@cf/meta/m2m100-1.2b'
-      };
-    } catch (error) {
-      console.error('[CF/M2M100] Translation error:', error);
       throw error;
     }
   }
@@ -383,17 +361,117 @@ class CloudflareProvider {
     }
   }
 
-  // Legacy methods for compatibility
-  async textChat(request: CloudflareTextRequest): Promise<CloudflareTextResponse> {
-    return this.chatWithLlama(request.prompt, request.history, request.systemPrompt);
+  // --- Specialized Task Methods ---
+
+  /**
+   * Summarize long text using BART
+   * @cf/facebook/bart-large-cnn
+   */
+  async summarize(text: string, maxLength: number = 512): Promise<{ summary: string }> {
+    const response = await fetch(`${this.workerUrl}/api/summarize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, maxLength })
+    });
+    if (!response.ok) throw new Error(`Summarization failed: ${response.status}`);
+    return await response.json();
   }
 
-  async generateImage(request: CloudflareImageRequest): Promise<{ imageUrl: string; model: string }> {
-    return this.imageWithSDXL(request.prompt, request.negativePrompt);
+  /**
+   * Translate text using M2M-100
+   * @cf/meta/m2m100-1.2b
+   */
+  async translate(text: string, targetLang: string, sourceLang?: string): Promise<{ translated_text: string }> {
+    const response = await fetch(`${this.workerUrl}/api/translate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, targetLang, sourceLang })
+    });
+    if (!response.ok) throw new Error(`Translation failed: ${response.status}`);
+    return await response.json();
   }
 
-  async codeCompletion(request: CloudflareCodeRequest): Promise<{ code: string; model: string }> {
-    return this.codeWithQwen(request.prompt, request.language);
+  /**
+   * Object Detection (Vision) using DETR
+   * @cf/google/detr-resnet-50
+   */
+  async analyzeImage(image: string | Blob): Promise<Array<{ label: string; score: number; box: any }>> {
+    let imageData = image;
+    if (image instanceof Blob) {
+      imageData = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(image);
+      });
+    }
+
+    const response = await fetch(`${this.workerUrl}/api/analyze-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageData })
+    });
+    if (!response.ok) throw new Error(`Image analysis failed: ${response.status}`);
+    return await response.json();
+  }
+
+  /**
+   * Sentiment Analysis using DistilBERT
+   * @cf/huggingface/distilbert-base-uncased-finetuned-sst-2-english
+   */
+  async classifyText(text: string): Promise<Array<{ label: string; score: number }>> {
+    const response = await fetch(`${this.workerUrl}/api/classify-text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    if (!response.ok) throw new Error(`Text classification failed: ${response.status}`);
+    return await response.json();
+  }
+
+  /**
+   * Chat with enforced JSON response format (Tooling simulation)
+   */
+  async structuredChat<T = any>(
+    prompt: string,
+    history: any[] = [],
+    systemPrompt?: string
+  ): Promise<T> {
+    const response = await fetch(`${this.workerUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: prompt,
+        history,
+        systemPrompt,
+        responseFormat: 'json',
+        stream: false
+      })
+    });
+
+    if (!response.ok) throw new Error(`Structured chat failed: ${response.status}`);
+    const data = await response.json();
+
+    try {
+      // Clean possible markdown code blocks if the model ignored system instructions
+      let content = data.response || data.text;
+      content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(content) as T;
+    } catch (e) {
+      console.error('[CF/STRUCTURED] Failed to parse JSON response:', e);
+      throw new Error('AI failed to return valid JSON');
+    }
+  }
+
+  async textChat(request: CloudflareTextRequest, stream: boolean = false, signal?: AbortSignal): Promise<CloudflareTextResponse | ReadableStream> {
+    return this.chatWithLlama(request.prompt, request.history, request.systemPrompt, stream, signal);
+  }
+
+  async generateImage(request: CloudflareImageRequest, signal?: AbortSignal): Promise<{ imageUrl: string; model: string }> {
+    return this.imageWithFlux(request.prompt, signal);
+  }
+
+  async codeCompletion(request: CloudflareCodeRequest, signal?: AbortSignal): Promise<{ code: string; model: string }> {
+    return this.codeWithQwen(request.prompt, request.language, signal);
   }
   /**
    * Generate video from text or image using Stable Video Diffusion

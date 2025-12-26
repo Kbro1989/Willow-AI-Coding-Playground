@@ -6,27 +6,54 @@
   --background: #050a15;
   --foreground: #e5e7eb;
   --panel: #0a1222;
-  --border: #1e293b;
+  --border: rgba(0, 242, 255, 0.15);
   --cyan: #00f2ff;
   --purple: #a855f7;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
+  margin: 0;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Custom utility classes */
 @layer utilities {
-  .scrollbar-thin {
-    scrollbar-width: thin;
+  .nexus-glass {
+    @apply bg-[#0a1222]/80 backdrop-blur-xl border border-white/5;
   }
   
   .glow-cyan {
-    box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
   }
   
   .text-glow-cyan {
     text-shadow: 0 0 10px rgba(0, 242, 255, 0.6);
+  }
+
+  .neural-border {
+    border: 1px solid var(--border);
+  }
+
+  .command-panel {
+    @apply bg-[#070d19] border-cyan-500/10 shadow-2xl;
+  }
+
+  /* Optimized Dense Scrollbars */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 242, 255, 0.1);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 242, 255, 0.3);
   }
 }

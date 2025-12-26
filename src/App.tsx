@@ -7,17 +7,46 @@ import {
   WorldConfig, SculptPoint, EngineAction, EngineLog, NeuralNode, NeuralEdge,
   Workspace, Message, UserPreferences, Extension
 } from './types';
+
+// Lucide Icons for the Command Spine and Sidebars
+import {
+  LayoutDashboard, Brain, Code2, Box, Hammer, Blocks,
+  Bot, Library, Globe, Database, Users, Activity,
+  Ship, Settings, Search, Undo2, Redo2, Bell,
+  Cpu, ShieldAlert, ChevronDown, Zap
+} from 'lucide-react';
+
+// Common Components
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
 import Terminal from './components/Terminal';
 import Chat, { ChatHandle } from './components/Chat';
 import GameDashboard from './components/GameDashboard';
-import Forge from './components/Forge';
 import PipelineBuilder from './components/PipelineBuilder';
 import BehaviorTreeEditor from './components/BehaviorTreeEditor';
 import ShaderGraph from './components/ShaderGraph';
-import Copywriter from './components/Copywriter'; // Add Import
+import Copywriter from './components/Copywriter';
+import RSMVBrowser from './components/RSMVBrowser';
+import DiagnosticsPanel from './components/DiagnosticsPanel';
+import ApiKeyManager from './components/ApiKeyManager';
+import ErrorBoundary from './components/ErrorBoundary';
+import SignIn from './components/auth/SignIn';
+import N8NWorkflow from './components/N8NWorkflow';
 
+// Nexus Specialized Components (Phase 1 Scaffolding)
+import Director from './components/nexus/Director';
+import Matrix from './components/nexus/Matrix';
+import Forge from './components/nexus/Forge';
+import Behavior from './components/nexus/Behavior';
+
+// Services
+import { initialFiles } from './constants';
+import { cloudlareLimiter as limiter } from './services/cloudflareService';
+import { db } from './lib/db';
+import { initializeAgentAPI } from './services/agentAPI';
+import { nexusBus } from './services/nexusCommandBus';
+
+// Media components (Forge migration targets)
 import AudioWorkshop from './components/media/AudioWorkshop';
 import ModelStudio from './components/media/ModelStudio';
 import ImageStudio from './components/media/ImageStudio';
@@ -25,246 +54,117 @@ import { VideoStudio } from './components/media/VideoStudio';
 import { CodeLibrary } from './components/media/CodeLibrary';
 import { CollaborativeCanvas } from './components/media/CollaborativeCanvas';
 
-// Simple active view state for development
-type ActiveView = 'dashboard' | 'forge' | 'chat' | 'knowledge' | 'media' | 'image-studio' | 'audio-workshop' | 'model-studio' | 'video-studio' | 'code-library' | 'collaborative-canvas';
+// Configuration Constants
+const DEFAULT_WORKSPACE_NAME = 'Antigravity Studio PRO v4.2';
+const STORAGE_KEY = 'antigravity_pro_workspace_v2';
+const initialExtensions: Extension[] = []; // In a real app, populate or load from FS
 
-import RSMVBrowser from './components/RSMVBrowser';
-import DiagnosticsPanel from './components/DiagnosticsPanel';
-import ApiKeyManager from './components/ApiKeyManager';
-import ErrorBoundary from './components/ErrorBoundary';
-import { initialFiles } from './constants';
-import { cloudlareLimiter as limiter } from './services/cloudflareService';
-import { db } from './lib/db';
-import SignIn from './components/auth/SignIn';
-import N8NWorkflow from './components/N8NWorkflow';
+// UI Types
+type ActiveView =
+  | 'dashboard' | 'director' | 'editor' | 'matrix' | 'forge'
+  | 'pipelines' | 'behavior' | 'assets' | 'world' | 'data'
+  | 'collab' | 'diagnostics' | 'deploy' | 'settings';
 
-import { initializeAgentAPI } from './services/agentAPI';
-
-const DEFAULT_WORKSPACE_NAME = 'Willow Studio Professional';
-const STORAGE_KEY = 'antigravity_pro_workspace_v1';
-
-const initialExtensions: Extension[] = [
-  { "identifier": { "id": "github.vscode-pull-request-github", "uuid": "69ddd764-339a-4ecc-97c1-9c4ece58e36d" }, "version": "0.118.2", "location": { "path": "/c:/Users/Destiny/.antigravity/extensions/github.vscode-pull-request-github-0.118.2-universal", "scheme": "file" }, "relativeLocation": "github.vscode-pull-request-github-0.118.2-universal", "metadata": { "installedTimestamp": 1763713687525, "pinned": false, "source": "gallery", "id": "69ddd764-339a-4ecc-97c1-9c4ece58e36d", "publisherId": "7c1c19cd-78eb-4dfb-8999-99caf7679002", "publisherDisplayName": "GitHub", "targetPlatform": "universal", "updated": false, "private": false, "isPreReleaseVersion": false, "hasPreReleaseVersion": false } },
-  { "identifier": { "id": "slevesque.vscode-3dviewer", "uuid": "22074919-af0e-4e0c-928d-7149d7a68ede" }, "version": "0.2.2", "location": { "path": "/c:/Users/Destiny/.antigravity/extensions/slevesque.vscode-3dviewer-0.2.2-universal", "scheme": "file" }, "relativeLocation": "slevesque.vscode-3dviewer-0.2.2-universal", "metadata": { "installedTimestamp": 1763713800388, "pinned": false, "source": "gallery", "id": "22074919-af0e-4e0c-928d-7149d7a68ede", "publisherId": "30cbfd41-b05d-4739-9271-f782deb68b9e", "publisherDisplayName": "slevesque", "targetPlatform": "universal", "updated": false, "private": false, "isPreReleaseVersion": false, "hasPreReleaseVersion": false } },
-  { "identifier": { "id": "ms-vscode.powershell", "uuid": "40d39ce9-c381-47a0-80c8-a6661f731eab" }, "version": "2025.4.0", "location": { "path": "/c:/Users/Destiny/.antigravity/extensions/ms-vscode.powershell-2025.4.0-universal", "scheme": "file" }, "relativeLocation": "ms-vscode.powershell-2025.4.0-universal", "metadata": { "installedTimestamp": 1763842466701, "source": "gallery", "id": "40d39ce9-c381-47a0-80c8-a6661f731eab", "publisherId": "5f5636e7-69ed-4afe-b5d6-8d231fb3d3ee", "publisherDisplayName": "ms-vscode", "targetPlatform": "universal", "updated": false, "private": false, "isPreReleaseVersion": false, "hasPreReleaseVersion": false } }
-];
+type AIModelMode = 'assist' | 'co-pilot' | 'autonomous' | 'read-only';
+type ProjectEnv = 'dev' | 'staging' | 'prod' | 'local';
 
 const App: React.FC = () => {
+  // --- Authentication ---
   const { isLoading, user, error } = db.useAuth();
-  const [userPrefs, setUserPrefs] = useState<UserPreferences>({
-    codingStyle: ['Functional React', 'TailwindCSS'],
-    forbiddenPatterns: ['placeholders', 'TODO comments', 'entire file rewrites'],
-    architecturalDecisions: ['Micro-component architecture'],
-    lastLearningUpdate: Date.now()
-  });
 
+  // --- Nexus Control Plane State ---
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
-  const [isWorkspaceSwitcherOpen, setIsWorkspaceSwitcherOpen] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(360);
-  const [bottomHeight, setBottomHeight] = useState(480);
-  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
-  const [isResizingBottom, setIsResizingBottom] = useState(false);
-  const [lastSaved, setLastSaved] = useState<number>(Date.now());
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isPresenting, setIsPresenting] = useState(false);
+  const [aiMode, setAiMode] = useState<AIModelMode>('assist');
+  const [projectEnv, setProjectEnv] = useState<ProjectEnv>('dev');
+  const [isPanic, setIsPanic] = useState(false);
+  const [showPerformanceHUD, setShowPerformanceHUD] = useState(false);
+  const [showApiKeyManager, setShowApiKeyManager] = useState(false);
 
+  // --- Core Engine State (World State) ---
   const [project, setProject] = useState<ProjectState>({ id: 'init', name: 'Init', files: initialFiles, activeFile: 'src/App.tsx' });
-  const [simulation, setSimulation] = useState<SimulationState>({ status: 'playing', time: 0, activeBehaviors: [] });
   const [sceneObjects, setSceneObjects] = useState<SceneObject[]>([]);
   const [physics, setPhysics] = useState<PhysicsConfig>({ gravity: -9.81, friction: 0.6, atmosphere: 'normal', timeScale: 1.0 });
-  const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [worldConfig, setWorldConfig] = useState<WorldConfig>({ seed: 999, terrainScale: 1.0, biome: 'cyber', vegetationDensity: 0.8, waterLevel: 0.1, atmosphereDensity: 0.2, brushSize: 20.0, brushStrength: 0.7, activeTool: 'none', syntheticEnvironment: 'none' });
   const [renderConfig, setRenderConfig] = useState<RenderConfig>({ engine: 'WebGPU', resolution: '4K', samples: 128, denoising: true, shadowMapRes: 2048 });
   const [compositingConfig, setCompositingConfig] = useState<CompositingConfig>({ bloom: 2.0, exposure: 1.2, vignette: 0.6, chromaticAberration: 0.15, tonemapping: 'ACES' });
+  const [simulation, setSimulation] = useState<SimulationState>({ status: 'stopped', time: 0, activeBehaviors: [] });
+  const [engineLogs, setEngineLogs] = useState<EngineLog[]>([]);
+  const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([]);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [sculptHistory, setSculptHistory] = useState<SculptPoint[]>([]);
+  const [assets, setAssets] = useState<GameAsset[]>([]);
   const [nodes, setNodes] = useState<NeuralNode[]>([]);
   const [edges, setEdges] = useState<NeuralEdge[]>([]);
-  const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([]);
   const [tasks, setTasks] = useState<TodoTask[]>([]);
   const [stagedFiles, setStagedFiles] = useState<string[]>([]);
   const [commitHistory, setCommitHistory] = useState<GitCommit[]>([]);
-  const [engineLogs, setEngineLogs] = useState<EngineLog[]>([]);
-  const [sculptHistory, setSculptHistory] = useState<SculptPoint[]>([]);
-  const [chatMessages, setChatMessages] = useState<Message[]>([
-    {
-      id: 'init-1',
-      role: 'assistant',
-      content: "All systems nominal. Neural Overwatch is active and listening.\n\nI'm ready to architect your game. Just tell me what you want to build—I'll handle the files, the code, and the logic.",
-      timestamp: Date.now(),
-      model: 'Director Core'
-    }
-  ]);
   const [variableData, setVariableData] = useState<Record<string, any>>({});
   const [extensions, setExtensions] = useState<Extension[]>(initialExtensions);
-  const [projectVersion, setProjectVersion] = useState<string>('v1.0');
-  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
-  const [pipelines, setPipelines] = useState<PipelineConfig[]>([
-    { id: 'p1', name: 'Willow_Hyper_Relay', provider: 'Cloudflare', status: 'online', endpoints: ['/relay/willow-high'], latency: 1 },
-    { id: 'p2', name: 'Neural_Runtime_Engine', provider: 'Custom', status: 'online', endpoints: ['/compute/live'], latency: 4 },
-  ]);
+  const [projectVersion, setProjectVersion] = useState<string>('v4.2.0');
 
-  const [isOverwatchActive, setIsOverwatchActive] = useState(true);
-  const [tokenMetrics, setTokenMetrics] = useState<TokenMetrics>(limiter.getMetrics());
+  // --- UI/UX State ---
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [isPresenting, setIsPresenting] = useState(false);
+  const [lastSaved, setLastSaved] = useState<number>(Date.now());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [buildInfo, setBuildInfo] = useState<BuildInfo>({ status: 'idle', progress: 0 });
-  const [assets, setAssets] = useState<GameAsset[]>([
-    { id: 'a1', name: 'Neural_Geometry_Core', type: 'mesh', status: 'optimized' },
-    { id: 'a2', name: 'Overwatch_LUT', type: 'texture', status: 'optimized' },
-  ]);
+  const [userPrefs, setUserPrefs] = useState<UserPreferences>({
+    codingStyle: ['Functional React', 'TailwindCSS'],
+    forbiddenPatterns: ['placeholders', 'TODO comments', 'entire file rewrites'],
+    architecturalDecisions: ['Nexus Execution Doctrine v1', 'Strict Global Command Plane'],
+    lastLearningUpdate: Date.now(),
+  });
 
-  const [bottomPanel, setBottomPanel] = useState<'terminal' | 'chat' | 'dashboard' | 'diagnostics' | 'forge' | 'pipeline' | 'behavior' | 'rsmv' | 'shader' | 'copywriter' | 'audio-workshop' | 'model-studio' | 'video-studio' | 'code-library' | 'collaborative-canvas'>('chat');
   const chatRef = useRef<ChatHandle>(null);
   const lastSimTimeRef = useRef<number>(Date.now());
-  const saveTimeoutRef = useRef<number | null>(null);
 
-  // Auto-Save Aggressive Logic
-  const performAutoSave = useCallback(() => {
-    if (!activeWorkspaceId) return;
-    setIsSyncing(true);
-    const currentWorkspace: Workspace = {
-      id: activeWorkspaceId,
-      name: workspaces.find(ws => ws.id === activeWorkspaceId)?.name || DEFAULT_WORKSPACE_NAME,
-      project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig,
-      simulation, nodes, edges, terminalHistory, tasks, stagedFiles, commitHistory, engineLogs,
-      messages: chatMessages, sculptHistory, variableData, extensions, projectVersion
-    };
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentWorkspace));
-    setLastSaved(Date.now());
-    setTimeout(() => setIsSyncing(false), 800);
-  }, [activeWorkspaceId, workspaces, project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig, simulation, nodes, edges, terminalHistory, tasks, stagedFiles, commitHistory, engineLogs, chatMessages, sculptHistory, variableData, extensions, projectVersion]);
-
-  useEffect(() => {
-    if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = window.setTimeout(performAutoSave, 2000); // Debounce save every 2 seconds of change
-    return () => { if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current); };
-  }, [project, sceneObjects, worldConfig, tasks, chatMessages, performAutoSave]);
-
-  useEffect(() => {
-    const createInitialWorkspace = () => {
-      // Recovery logic
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        try {
-          const recovered = JSON.parse(saved) as Workspace;
-          setWorkspaces([recovered]);
-          setActiveWorkspaceId(recovered.id);
-          loadWorkspace(recovered);
-          addLog("Neural session recovered from local buffer.", "success", "Persistence");
-          return;
-        } catch (e) {
-          console.error("Persistence recovery fault:", e);
-        }
-      }
-
-      const id = Math.random().toString(36).substring(7);
-      const newWs: Workspace = {
-        id,
-        name: DEFAULT_WORKSPACE_NAME,
-        project: { id: `proj-${id}`, name: DEFAULT_WORKSPACE_NAME, files: initialFiles, activeFile: 'src/App.tsx' },
-        sceneObjects: [
-          { id: 'cam-master', name: 'Willow_Director_Cam', type: 'camera', position: [0, 25, 50], rotation: [-0.6, 0, 0], scale: [1, 1, 1], visible: true, behaviors: [] },
-          { id: 'sun-master', name: 'Neural_Global_Source', type: 'light', position: [60, 100, 60], rotation: [1.1, 0.8, 0], scale: [1, 1, 1], visible: true, behaviors: [] },
-          { id: 'floor-master', name: 'Runtime_Base_Plane', type: 'mesh', position: [0, -1, 0], rotation: [0, 0, 0], scale: [150, 1, 150], visible: true, behaviors: [], material: { baseColor: '#0a1222', metallic: 1.0, roughness: 0.05, emissive: 0.08 } },
-        ],
-        physics: { gravity: -9.81, friction: 0.6, atmosphere: 'normal', timeScale: 1.0 },
-        worldConfig: { seed: 999, terrainScale: 1.0, biome: 'cyber', vegetationDensity: 0.8, waterLevel: 0.1, atmosphereDensity: 0.2, brushSize: 20.0, brushStrength: 0.7, activeTool: 'none', syntheticEnvironment: 'none' },
-        renderConfig: { engine: 'WebGPU', resolution: '4K', samples: 128, denoising: true, shadowMapRes: 2048 },
-        compositingConfig: { bloom: 2.0, exposure: 1.2, vignette: 0.6, chromaticAberration: 0.15, tonemapping: 'ACES' },
-        simulation: { status: 'stopped', time: 0, activeBehaviors: [] },
-        nodes: [], edges: [],
-        terminalHistory: [{ text: 'Willow Workspace Initialized.', type: 'system', timestamp: Date.now() }],
-        tasks: [], stagedFiles: [], commitHistory: [], engineLogs: [], messages: [], sculptHistory: [], variableData: {},
-        extensions: initialExtensions,
-        projectVersion: 'v1.0'
-      };
-      setWorkspaces([newWs]);
-      setActiveWorkspaceId(id);
-      loadWorkspace(newWs);
-    };
-    if (workspaces.length === 0) createInitialWorkspace();
+  // --- Logging Utility ---
+  const addLog = useCallback((message: string, type: EngineLog['type'] = 'info', source: string = 'Nexus') => {
+    const log: EngineLog = { id: Math.random().toString(36), message, type, timestamp: Date.now(), source };
+    setEngineLogs(prev => [...prev.slice(-199), log]);
+    setTerminalHistory(prev => [...prev.slice(-499), { text: `[${source}] ${message}`, type: type === 'error' ? 'error' : 'output', timestamp: Date.now() }]);
   }, []);
 
-  const loadWorkspace = (ws: Workspace) => {
-    setProject(ws.project);
-    setSceneObjects(ws.sceneObjects);
-    setPhysics(ws.physics);
-    setWorldConfig(ws.worldConfig);
-    setRenderConfig(ws.renderConfig);
-    setCompositingConfig(ws.compositingConfig);
-    setSimulation(ws.simulation);
-    setNodes(ws.nodes);
-    setEdges(ws.edges);
-    setTerminalHistory(ws.terminalHistory);
-    setTasks(ws.tasks);
-    setStagedFiles(ws.stagedFiles);
-    setCommitHistory(ws.commitHistory);
-    setEngineLogs(ws.engineLogs);
-    setChatMessages(ws.messages.length > 0 ? ws.messages : [
-      {
-        id: 'init-1',
-        role: 'assistant',
-        content: "All systems nominal. Neural Overwatch is active and listening.\n\nI'm ready to architect your game. Just tell me what you want to build—I'll handle the files, the code, and the logic.",
-        timestamp: Date.now(),
-        model: 'Director Core'
-      }
-    ]);
-    setSculptHistory(ws.sculptHistory);
-    setVariableData(ws.variableData || {});
-    setExtensions(ws.extensions || initialExtensions);
-    setProjectVersion(ws.projectVersion || 'v1.0');
-  };
+  // --- Nexus Command Handlers ---
+  const handlePanic = useCallback(() => {
+    setIsPanic(true);
+    nexusBus.panic();
+    addLog('Global Panic Triggered: All jobs terminated.', 'error', 'Control');
+  }, [addLog]);
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isResizingSidebar) setSidebarWidth(Math.max(200, Math.min(800, e.clientX)));
-      if (isResizingBottom) setBottomHeight(Math.max(200, Math.min(window.innerHeight - 100, window.innerHeight - e.clientY)));
-    };
-    const handleMouseUp = () => { setIsResizingSidebar(false); setIsResizingBottom(false); };
-    if (isResizingSidebar || isResizingBottom) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizingSidebar, isResizingBottom]);
+  const handleImportAsset = useCallback((a: GameAsset) => {
+    setAssets(prev => [...prev.slice(-99), a]);
+    addLog(`Asset Bound: ${a.name}`, 'success', 'Registry');
+  }, [addLog]);
 
-  useEffect(() => {
-    if (worldConfig.syntheticEnvironment && worldConfig.syntheticEnvironment !== 'none') {
-      import('./services/environmentService').then(({ environmentService }) => {
-        environmentService.loadEnvironment(worldConfig.syntheticEnvironment!);
-      });
-    }
-  }, [worldConfig.syntheticEnvironment]);
+  const handleBuild = useCallback((prompt?: string) => {
+    if (buildInfo.status === 'building') return;
+    setBuildInfo({ status: 'building', progress: 0, buildPrompt: prompt });
+    addLog(`Deploy Phase Initiated: ${prompt || 'Manual Trigger'}`, 'info', 'Ship');
 
+    let prog = 0;
+    const interval = setInterval(() => {
+      prog += 10;
+      if (prog >= 100) {
+        clearInterval(interval);
+        setBuildInfo({ status: 'success', progress: 100, lastBuild: Date.now(), buildPrompt: prompt });
+        addLog('Build Cluster Optimized.', 'success', 'Ship');
+      } else setBuildInfo(prev => ({ ...prev, progress: prog }));
+    }, 30);
+  }, [buildInfo.status, addLog]);
 
-  useEffect(() => {
-    let frameId: number;
-    const loop = () => {
-      if (simulation.status === 'playing') {
-        const now = Date.now();
-        let dt = (now - lastSimTimeRef.current) / 1000;
+  // --- Global Actions ---
+  const handleAddSceneObject = useCallback((o: Omit<SceneObject, 'id'>) => {
+    const newObj: SceneObject = { ...o, id: `obj-${Math.random().toString(36).slice(2, 8)}` } as SceneObject;
+    setSceneObjects(prev => [...prev, newObj]);
+    addLog(`Entity Spawned: ${newObj.name}`, 'info', 'Matrix');
+  }, [addLog]);
 
-        // Safety: Clamp dt to prevent massive jumps when tab is backgrounded
-        // and ensure it's not NaN
-        if (isNaN(dt) || dt > 0.1) dt = 0.016;
-
-        lastSimTimeRef.current = now;
-
-        setSimulation(prev => {
-          const nextTime = prev.time + dt * (physics.timeScale || 1);
-          return isNaN(nextTime) ? prev : { ...prev, time: nextTime };
-        });
-      } else {
-        lastSimTimeRef.current = Date.now();
-      }
-      frameId = requestAnimationFrame(loop);
-    };
-    frameId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frameId);
-  }, [simulation.status, physics.timeScale]);
+  const handleUpdateSceneObject = useCallback((id: string, updates: Partial<SceneObject>) => {
+    setSceneObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...updates } : obj));
+  }, []);
 
   const handleFileChange = useCallback((newContent: string) => {
     if (!project.activeFile) return;
@@ -276,35 +176,14 @@ const App: React.FC = () => {
     setProject(prev => ({ ...prev, files: updateFiles(prev.files) }));
   }, [project.activeFile]);
 
-  const addLog = (message: string, type: EngineLog['type'] = 'info', source: string = 'Engine') => {
-    const log: EngineLog = { id: Math.random().toString(36), message, type, timestamp: Date.now(), source };
-    setEngineLogs(prev => [...prev.slice(-199), log]);
-    setTerminalHistory(prev => [...prev, { text: `[${source}] ${message}`, type: type === 'error' ? 'error' : 'output', timestamp: Date.now() }]);
-  };
-
-  const handleUpdateSceneObject = useCallback((id: string, updates: Partial<SceneObject>) => {
-    setSceneObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...updates } : obj));
-  }, []);
-
-  const handleAddSceneObject = useCallback((o: Omit<SceneObject, 'id'>) => {
-    const newObj: SceneObject = {
-      id: `obj-${Math.random().toString(36).slice(2, 8)}`,
-      name: o.name || 'New Object',
-      type: o.type || 'mesh',
-      position: o.position || [0, 0, 0],
-      rotation: o.rotation || [0, 0, 0],
-      scale: o.scale || [1, 1, 1],
-      visible: o.visible !== undefined ? o.visible : true,
-      modelUrl: o.modelUrl,
-      material: o.material,
-      behaviors: o.behaviors
+  const handleCreateNode = useCallback((parentPath: string | null, name: string, type: 'file' | 'dir') => {
+    const newNodePath = parentPath ? `${parentPath}/${name}` : name;
+    const newNode: FileNode = { name, type, path: newNodePath, ...(type === 'file' ? { content: '// Antigravity Binary' } : { children: [] }) };
+    const insertNode = (nodes: FileNode[]): FileNode[] => {
+      if (parentPath === null) return [...nodes, newNode];
+      return nodes.map(node => (node.path === parentPath && node.type === 'dir') ? { ...node, children: [...(node.children || []), newNode] } : node.children ? { ...node, children: insertNode(node.children) } : node);
     };
-    setSceneObjects(prev => [...prev, newObj]);
-  }, []);
-
-  const handleImportAsset = useCallback((a: GameAsset) => {
-    setAssets(prev => [...prev.slice(-49), a]);
-    addLog(`Linked Asset: ${a.name}`, 'success', 'Registry');
+    setProject(prev => ({ ...prev, files: insertNode(prev.files), activeFile: type === 'file' ? newNodePath : prev.activeFile }));
   }, []);
 
   const handleNeuralUpdate = useCallback((payload: { nodes?: NeuralNode[], edges?: NeuralEdge[] }) => {
@@ -312,286 +191,185 @@ const App: React.FC = () => {
     if (payload.edges) setEdges(payload.edges);
   }, []);
 
-  const handleCreateNode = useCallback((parentPath: string | null, name: string, type: 'file' | 'dir') => {
-    const newNodePath = parentPath ? `${parentPath}/${name}` : name;
-    const newNode: FileNode = {
-      name,
-      type,
-      path: newNodePath,
-      ...(type === 'file' ? { content: `// Binary Source: ${name}` } : { children: [] })
-    };
-    const insertNode = (nodes: FileNode[]): FileNode[] => {
-      if (parentPath === null) return [...nodes, newNode];
-      return nodes.map(node => {
-        if (node.path === parentPath && node.type === 'dir') {
-          return { ...node, children: [...(node.children || []), newNode] };
-        }
-        if (node.children) {
-          return { ...node, children: insertNode(node.children) };
-        }
-        return node;
-      });
-    };
-    setProject(prev => ({
-      ...prev,
-      files: insertNode(prev.files),
-      activeFile: type === 'file' ? newNodePath : prev.activeFile
-    }));
-    addLog(`Node manifest updated: ${newNodePath} synthesized.`, 'success', 'Kernel');
-  }, [project.files, addLog]);
-
-  const handleInjectScript = useCallback((path: string, content: string) => {
-    addLog(`Neural File Mutation: ${path}`, 'success', 'Kernel');
-    setProject(prev => {
-      const pathParts = path.split('/');
-      const fileName = pathParts.pop() || 'untitled.ts';
-      const updateTree = (nodes: FileNode[], parts: string[]): FileNode[] => {
-        if (parts.length === 0) {
-          const existingFile = nodes.find(n => n.name === fileName && n.type === 'file');
-          return existingFile ? nodes.map(n => n === existingFile ? { ...n, content } : n) : [...nodes, { name: fileName, type: 'file', path: path, content }];
-        }
-        const [head, ...tail] = parts;
-        return nodes.map(node => {
-          if (node.name === head && node.type === 'dir') {
-            return { ...node, children: updateTree(node.children || [], tail) };
-          }
-          return node;
-        });
-      };
-      return { ...prev, files: updateTree(prev.files, pathParts) };
-    });
-  }, [addLog]);
-
-
   const handleSyncVariableData = useCallback((data: Record<string, any>) => {
     setVariableData(prev => ({ ...prev, ...data }));
-    addLog(`Logic Sync: ${Object.keys(data).join(', ')}`, 'success', 'Genesis');
   }, []);
 
-  const handleBuild = useCallback((prompt?: string) => {
-    if (buildInfo.status === 'building') return;
-    setBuildInfo({ status: 'building', progress: 0, buildPrompt: prompt });
-    addLog('Relay Provisioning...', 'info', 'Overwatch');
-
-    // Switch to dashboard view if not already
-    if (!isPresenting) setBottomPanel('dashboard');
-
-    let prog = 0;
-    const interval = setInterval(() => {
-      prog += 25;
-      if (prog >= 100) {
-        clearInterval(interval);
-        setBuildInfo({ status: 'success', progress: 100, lastBuild: Date.now(), buildPrompt: prompt });
-        addLog('Runtime Optimized.', 'success', 'Director');
-      } else setBuildInfo(prev => ({ ...prev, progress: prog }));
-    }, 50);
-  }, [buildInfo.status, isPresenting]);
+  const handleInjectScript = useCallback((path: string, content: string) => {
+    addLog(`Script Injected: ${path}`, 'success', 'Kernel');
+    // Logic to update file content would go here
+  }, [addLog]);
 
   const handleUninstallExtension = (id: string) => {
     setExtensions(prev => prev.filter(e => e.identifier.id !== id));
-    addLog(`Extension De-provisioned: ${id}`, 'warn', 'Registry');
   };
 
-  const activeFileNode = project.activeFile ? (function findFile(nodes: FileNode[], path: string): FileNode | undefined {
-    for (const node of nodes) {
-      if (node.path === path) return node;
-      if (node.children) { const found = findFile(node.children, path); if (found) return found; }
-    }
-    return undefined;
-  })(project.files, project.activeFile) : null;
-
-  const activeFileContent = activeFileNode?.content || '';
-
-  // Creative Control API - Expose internals to Window for Agents/Console
+  // --- Persistence & Initialization ---
   useEffect(() => {
-    // Initialize Agent API
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const ws = JSON.parse(saved) as Workspace;
+        setProject(ws.project);
+        setSceneObjects(ws.sceneObjects);
+        setPhysics(ws.physics);
+        setWorldConfig(ws.worldConfig);
+        setRenderConfig(ws.renderConfig);
+        setCompositingConfig(ws.compositingConfig);
+        setSimulation(ws.simulation || { status: 'stopped', time: 0 });
+        setChatMessages(ws.messages || []);
+        setSculptHistory(ws.sculptHistory || []);
+        setAssets(ws.assets || []);
+        setEngineLogs(ws.engineLogs || []);
+        setTerminalHistory(ws.terminalHistory || []);
+        setTasks(ws.tasks || []);
+        setStagedFiles(ws.stagedFiles || []);
+        setCommitHistory(ws.commitHistory || []);
+        setVariableData(ws.variableData || {});
+        setProjectVersion(ws.projectVersion || 'v4.2.0');
+        setActiveWorkspaceId(ws.id);
+      } catch (e) {
+        console.error('Failed to load workspace:', e);
+      }
+    } else {
+      setActiveWorkspaceId('default-pro');
+    }
     initializeAgentAPI();
+  }, []);
 
-    window.antigravity = {
-      setTab: (tab) => setBottomPanel(tab),
-      importAsset: (asset) => handleImportAsset(asset),
-      runAction: (action) => {
-        if (action.type === 'ADD_OBJECT') handleAddSceneObject(action.payload);
-        else if (action.type === 'UPDATE_OBJECT') handleUpdateSceneObject(action.payload.id, action.payload);
-        else console.log('Agent Action:', action);
-      },
-      toggleSidebar: () => setSidebarWidth(prev => prev === 0 ? 360 : 0),
-      build: (reason) => handleBuild(reason),
-      getState: () => ({ project, sceneObjects, worldConfig })
-    };
-    return () => {
-      // @ts-ignore
-      delete window.antigravity;
-      // @ts-ignore
-      delete window.agentAPI;
-    };
-  }, [handleImportAsset, handleBuild, project, sceneObjects, worldConfig]);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (activeWorkspaceId) {
+        const ws: Workspace = {
+          id: activeWorkspaceId,
+          name: DEFAULT_WORKSPACE_NAME,
+          project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig,
+          simulation, nodes, edges, terminalHistory, tasks, stagedFiles, commitHistory, engineLogs,
+          messages: chatMessages, sculptHistory, variableData, extensions, projectVersion, assets
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(ws));
+        setLastSaved(Date.now());
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig, simulation, nodes, edges, terminalHistory, tasks, stagedFiles, commitHistory, engineLogs, chatMessages, sculptHistory, variableData, extensions, projectVersion, assets, activeWorkspaceId]);
 
-  // Determine dashboard visibility and styling for persistence
-  const showDashboard = bottomPanel === 'dashboard' || isPresenting;
-  const dashboardStyle: React.CSSProperties = isPresenting
-    ? { position: 'fixed', inset: 0, zIndex: 50, width: '100vw', height: '100vh' }
-    : { position: 'absolute', bottom: 0, right: 0, left: `${sidebarWidth}px`, height: `${bottomHeight - 64}px`, zIndex: 15 };
+  // --- Layout Components ---
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a1222] text-cyan-400 font-mono">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin"></div>
-          <div className="animate-pulse tracking-[0.2em] uppercase text-[10px] font-black">Syncing Neural Link...</div>
+  const CommandSpine = () => (
+    <div className="h-14 bg-[#0a1222] border-b border-cyan-500/20 flex items-center justify-between px-4 shrink-0 z-50 shadow-2xl">
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 px-3 py-1.5 bg-black/40 border border-white/5 rounded-xl cursor-not-allowed group">
+          <Blocks className="w-4 h-4 text-cyan-400" />
+          <div className="flex flex-col">
+            <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest leading-none">Nexus Cluster</span>
+            <span className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors">ANTIGRAVITY v4.2 PRO</span>
+          </div>
+          <ChevronDown className="w-3 h-3 text-slate-600" />
+        </div>
+        <div className="h-8 w-px bg-white/5" />
+        <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
+          {(['dev', 'prod'] as ProjectEnv[]).map(env => (
+            <button key={env} onClick={() => setProjectEnv(env)} className={`px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${projectEnv === env ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(0,242,255,0.4)]' : 'text-slate-500 hover:text-white'}`}>
+              {env}
+            </button>
+          ))}
+        </div>
+        <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
+          {(['assist', 'co-pilot', 'autonomous'] as AIModelMode[]).map(mode => (
+            <button key={mode} onClick={() => setAiMode(mode)} className={`px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${aiMode === mode ? 'bg-purple-500 text-white' : 'text-slate-500 hover:text-white'}`}>
+              {mode}
+            </button>
+          ))}
         </div>
       </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a1222] text-rose-500 font-mono p-10">
-        <div className="max-w-md text-center space-y-4">
-          <div className="text-4xl font-black uppercase tracking-widest mb-2">Neural Desync</div>
-          <div className="text-xs opacity-60 uppercase tracking-widest border-t border-rose-500/20 pt-4">Error Diagnostics</div>
-          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[10px]">{error.message}</div>
-          <button onClick={() => window.location.reload()} className="px-8 py-3 bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 border border-rose-500/50 rounded-xl transition-all uppercase tracking-widest text-[10px] font-black">Reinitialize Link</button>
+      <div className="flex items-center gap-4">
+        <div className="relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+          <input type="text" placeholder="CMD+K SEARCH" className="bg-black/40 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-[10px] font-black tracking-widest text-white focus:outline-none focus:border-cyan-500/50" />
         </div>
+        <div className="flex gap-2">
+          <Undo2 className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer" />
+          <Redo2 className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer" />
+        </div>
+        <div className="h-8 w-px bg-white/5" />
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowPerformanceHUD(!showPerformanceHUD)} className={`p-2 rounded-xl transition-all ${showPerformanceHUD ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-500 hover:bg-white/5'}`}>
+            <Cpu className="w-4 h-4" />
+          </button>
+          <Bell className="w-4 h-4 text-slate-500 hover:text-white" />
+          <button onClick={handlePanic} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isPanic ? 'bg-red-500 text-white animate-bounce' : 'bg-red-900/20 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white'}`}>
+            PANIC (KILL)
+          </button>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-purple-600 border border-white/10 flex items-center justify-center text-[10px] font-black text-white">OP</div>
+      </div>
+    </div>
+  );
+
+  const PrimaryNav = () => {
+    const navItems: { id: ActiveView; label: string; icon: any; category: string }[] = [
+      { id: 'dashboard', label: 'SYSTEM Overview', icon: LayoutDashboard, category: 'Main' },
+      { id: 'director', label: 'AI DIRECTOR', icon: Brain, category: 'Main' },
+      { id: 'editor', label: 'SOURCE EDITOR', icon: Code2, category: 'Main' },
+      { id: 'matrix', label: 'MATRIX RUNTIME', icon: Box, category: 'Main' },
+      { id: 'forge', label: 'NEURAL FORGE', icon: Hammer, category: 'Creative' },
+      { id: 'pipelines', label: 'AUTOMATION', icon: Blocks, category: 'Creative' },
+      { id: 'behavior', label: 'LOGIC TREES', icon: Bot, category: 'Creative' },
+      { id: 'assets', label: 'REGISTRY', icon: Library, category: 'Assets' },
+      { id: 'world', label: 'WORLD GEN', icon: Globe, category: 'Assets' },
+      { id: 'data', label: 'PERSISTENCE', icon: Database, category: 'Data' },
+      { id: 'collab', label: 'MULTI-LINK', icon: Users, category: 'Collab' },
+      { id: 'diagnostics', label: 'TRACING', icon: Activity, category: 'Audit' },
+      { id: 'deploy', label: 'SHIPPER', icon: Ship, category: 'Audit' },
+      { id: 'settings', label: 'CONFIG', icon: Settings, category: 'Config' },
+    ];
+
+    return (
+      <div className="w-16 bg-[#0a1222] border-r border-cyan-500/10 flex flex-col items-center py-4 gap-4 shrink-0 z-40">
+        <Zap className="w-6 h-6 text-cyan-400 mb-4 animate-pulse" fill="currentColor" />
+        {navItems.map(item => (
+          <button key={item.id} onClick={() => setActiveView(item.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all group relative ${activeView === item.id ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-600 hover:text-white hover:bg-white/5'}`}>
+            <item.icon className="w-5 h-5" />
+            {activeView === item.id && <div className="absolute left-0 w-1 h-6 bg-cyan-500 rounded-r-full shadow-[0_0_10px_#00f2ff]"></div>}
+            <div className="absolute left-full ml-4 px-2 py-1 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded opacity-0 group-hover:opacity-100 pointer-events-none z-50 whitespace-nowrap">{item.label}</div>
+          </button>
+        ))}
       </div>
     );
-  }
+  };
 
-  if (!user) {
-    return <SignIn />;
-  }
+  // --- Main Rendering ---
+  if (isLoading) return <div className="h-screen bg-[#050a15] flex items-center justify-center text-cyan-400 font-mono text-[10px] tracking-[0.5em] uppercase animate-pulse">Neural Handshake...</div>;
+  if (error) return <div className="h-screen bg-black flex items-center justify-center text-red-500 p-20 font-black uppercase text-center">{error.message}</div>;
+  if (!user) return <SignIn />;
+
+  const activeFileContent = (function findFile(nodes: FileNode[], path: string): string {
+    for (const node of nodes) {
+      if (node.path === path) return node.content || '';
+      if (node.children) { const res = findFile(node.children, path); if (res) return res; }
+    }
+    return '';
+  })(project.files, project.activeFile || '');
 
   return (
     <ErrorBoundary>
-      <div className={`flex h-screen w-full bg-[#050a15] text-white/90 overflow-hidden font-sans transition-all duration-700 ${isPresenting ? 'presentation-active' : ''}`}>
-        {!isPresenting && (
-          <div style={{ width: `${sidebarWidth}px` }} className="flex flex-col z-20 relative shrink-0 transition-transform duration-500">
-            <Sidebar
-              isOpen={true} setIsOpen={() => { }} files={project.files} activeFile={project.activeFile}
-              onSelectFile={(p) => setProject(prev => ({ ...prev, activeFile: p }))}
-              onCreateNode={handleCreateNode}
-              stagedFiles={stagedFiles} onStage={(p) => setStagedFiles(prev => [...prev, p])} onUnstage={(p) => setStagedFiles(prev => prev.filter(f => f !== p))}
-              onCommit={(m) => setCommitHistory(prev => [{ id: Date.now().toString(), message: m, author: 'Willow Master', timestamp: Date.now() }, ...prev])}
-              commitHistory={commitHistory} tasks={tasks}
-              onToggleTask={(id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))}
-              onAddTasks={(nt) => setTasks(prev => [...prev, ...nt.map(t => ({ ...t, id: Math.random().toString(36), completed: false }))])}
-              tokenMetrics={tokenMetrics} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions} onUninstallExtension={handleUninstallExtension}
-            />
-            <div onMouseDown={() => setIsResizingSidebar(true)} className="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-50 group">
-              <div className="w-px h-full bg-cyan-500/10 group-hover:bg-cyan-400 transition-colors mx-auto shadow-[0_0_10px_#00f2ff]"></div>
-            </div>
-          </div>
-        )}
-
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-          {!isPresenting && (
-            <header className="h-20 bg-[#0a1222] border-b border-cyan-900/30 flex items-center justify-between px-10 shrink-0 z-20 shadow-[0_10px_50px_rgba(0,0,0,0.5)]">
-              <div className="flex items-center space-x-6">
-                <div>
-                  <h1 className="text-2xl font-black uppercase tracking-[0.3em] text-cyan-50" style={{ textShadow: '0 0 20px rgba(0,242,255,0.5)' }}>Willow Symphony</h1>
-                  <p className="text-[9px] uppercase tracking-[0.3em] text-slate-600 mt-0.5">Neural Game Director</p>
-                </div>
-                <div className="h-12 w-px bg-cyan-900/40" />
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2 bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20">
-                    <div className="w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_15px_#00f2ff] animate-pulse"></div>
-                    <span className="text-[10px] font-black uppercase text-emerald-400 tracking-widest">Agent Active</span>
-                  </div>
-                  {/* API Key Manager Button */}
-                  <button
-                    onClick={() => setShowApiKeyManager(true)}
-                    className="p-2 bg-slate-800/50 hover:bg-cyan-600/20 border border-slate-700 hover:border-cyan-500/50 rounded-lg transition-all group"
-                    title="API Key Manager"
-                  >
-                    <svg className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 text-[11px]">
-                  <span className="text-slate-600 uppercase tracking-widest font-black">v{projectVersion}</span>
-                  <div className={`w-2 h-2 rounded-full ${buildInfo.status === 'building' ? 'bg-yellow-500 animate-pulse' : buildInfo.status === 'success' ? 'bg-emerald-500' : buildInfo.status === 'error' ? 'bg-red-500' : 'bg-slate-600'}`}></div>
-                </div>
-                <div className="h-12 w-px bg-cyan-900/40" />
-                <div className="flex items-center space-x-3">
-                  <div className="flex flex-col items-end">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-[9px] uppercase tracking-widest text-slate-600 font-black">Diagnostic</span>
-                      <div className="w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_15px_#00f2ff] animate-pulse"></div>
-                    </div>
-                  </div>
-                </div>
-                <button onClick={() => handleBuild()} className="relative overflow-hidden group px-12 py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl text-[13px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(0,242,255,0.4)]">Push & Hot-Swap</button>
-              </div>
-            </header>
-          )}
-
-          {/* API Key Manager Modal */}
-          {showApiKeyManager && (
-            <ApiKeyManager onClose={() => setShowApiKeyManager(false)} />
-          )}
-
-          <div className={`flex-1 relative overflow-hidden bg-[#050a15] ${isPresenting ? 'isPresenting' : ''}`}>
-            {!isPresenting && (
-              <Editor content={activeFileContent} onChange={handleFileChange} filename={project.activeFile || ''} lastSaved={lastSaved} isSyncing={isSyncing} />
-            )}
-            {activeView === 'image-studio' && <ImageStudio />}
-            {activeView === 'audio-workshop' && <AudioWorkshop />}
-            {activeView === 'model-studio' && <ModelStudio />}
-            {activeView === 'video-studio' && <VideoStudio />}
-            {activeView === 'code-library' && <CodeLibrary />}
-            {activeView === 'collaborative-canvas' && <CollaborativeCanvas />}
-            {/* GameDashboard is now hoisted out to the root layer for persistence */}
-          </div>
-
-          {!isPresenting && (
-            <div
-              style={{ height: isBottomCollapsed ? '48px' : `${bottomHeight}px` }}
-              className="border-t border-cyan-900/30 flex flex-col bg-[#0a1222] z-10 relative shrink-0 shadow-[0_-10px_50px_rgba(0,0,0,0.8)] transition-all duration-300"
-            >
-              {!isBottomCollapsed && (
-                <div onMouseDown={() => setIsResizingBottom(true)} className="absolute -top-1 left-0 w-full h-2 cursor-row-resize z-50 group">
-                  <div className="h-px w-full bg-cyan-500/10 group-hover:bg-cyan-400 transition-colors my-auto shadow-[0_0_10px_#00f2ff]"></div>
-                </div>
-              )}
-              <div className="flex items-center justify-between px-6 h-12 border-b border-cyan-900/20 bg-[#050a15]/60 backdrop-blur-3xl shrink-0">
-                <div className="flex items-center space-x-1">
-                  {['chat', 'dashboard', 'terminal', 'diagnostics', 'forge', 'pipeline', 'behavior', 'rsmv', 'shader', 'copywriter', 'audio-workshop', 'model-studio', 'video-studio', 'code-library', 'collaborative-canvas'].map(tab => {
-                    const icons: Record<string, string> = { chat: '💬', dashboard: '🎮', terminal: '⚡', diagnostics: '🔍', forge: '🔨', pipeline: '🔄', behavior: '🧠', rsmv: '🎭', shader: '✨', copywriter: '✍️', 'audio-workshop': '🎙️', 'model-studio': '📦', 'video-studio': '🎥', 'code-library': '📚', 'collaborative-canvas': '🎨' };
-                    const labels: Record<string, string> = { chat: 'Neural Director', dashboard: 'Matrix', terminal: 'Console', diagnostics: 'Audit', forge: 'Forge', pipeline: 'Pipeline', behavior: 'Behavioral', rsmv: 'RSMV', shader: 'Shader', copywriter: 'Copywriter', 'audio-workshop': 'Audio', 'model-studio': 'Models', 'video-studio': 'Cinema', 'code-library': 'Library', 'collaborative-canvas': 'Canvas' };
-                    return (
-                      <button key={tab} onClick={() => { setBottomPanel(tab as any); setIsBottomCollapsed(false); }} className={`px-3 py-2 text-xs font-black rounded-lg transition-all group relative ${bottomPanel === tab ? 'bg-cyan-600 text-white' : 'text-slate-500 hover:text-cyan-400 hover:bg-slate-800'}`} title={labels[tab]}>
-                        <span className="text-base">{icons[tab]}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <button onClick={() => setIsBottomCollapsed(!isBottomCollapsed)} className="p-2 hover:bg-cyan-600/20 rounded-lg transition-all group" title={isBottomCollapsed ? 'Expand Panel' : 'Collapse Panel'}>
-                  <svg className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-transform" style={{ transform: isBottomCollapsed ? 'rotate(180deg)' : 'rotate(0deg)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </button>
-              </div>
-              {!isBottomCollapsed && (
-                <div className="flex-1 overflow-hidden relative bg-[#050a15]">
-                  {bottomPanel === 'terminal' && <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />}
-                  {bottomPanel === 'diagnostics' && <DiagnosticsPanel />}
-                  {bottomPanel === 'forge' && <Forge onClose={() => setBottomPanel('chat')} />}
-                  {bottomPanel === 'pipeline' && <div className="h-full w-full relative"><N8NWorkflow /></div>}
-                  {bottomPanel === 'behavior' && <BehaviorTreeEditor onSave={(tree) => addLog(`Behavior Sync: ${tree.length} nodes saved`, 'success', 'Neural')} onDebug={(id) => addLog(`Debugging node: ${id}`, 'info', 'Runtime')} />}
-                  {bottomPanel === 'rsmv' && <RSMVBrowser onImportModel={(m) => handleImportAsset({ id: `rsmv-${m.id}`, name: m.name, type: 'mesh', url: '', status: 'raw' })} />}
-                  {bottomPanel === 'shader' && <ShaderGraph onCompile={(glsl) => addLog(`Shader Compiled: ${glsl.length} chars`, 'success', 'GPU')} onApplyToObjects={(id) => addLog(`Mat Applied: ${id}`, 'info', 'Render')} />}
-                  {bottomPanel === 'copywriter' && <Copywriter />}
-                  {bottomPanel === 'audio-workshop' && <AudioWorkshop />}
-                  {bottomPanel === 'model-studio' && <ModelStudio />}
-                  {bottomPanel === 'video-studio' && <VideoStudio />}
-                  {bottomPanel === 'code-library' && <CodeLibrary />}
-                  {bottomPanel === 'collaborative-canvas' && <CollaborativeCanvas />}
-                  {bottomPanel === 'chat' && (
+      <div className="h-screen w-full flex flex-col bg-[#050a15] text-white/90 overflow-hidden select-none">
+        <CommandSpine />
+        <div className="flex-1 flex overflow-hidden">
+          <PrimaryNav />
+          <main className="flex-1 relative overflow-hidden flex flex-col min-w-0">
+            {/* Tab Content Cluster */}
+            <div className="flex-1 relative overflow-hidden">
+              {activeView === 'dashboard' && <DiagnosticsPanel />}
+              {activeView === 'director' && (
+                <div className="h-full flex flex-col">
+                  <Director />
+                  <div className="h-1/3 border-t border-cyan-900/20">
                     <Chat
                       ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
                       renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
-                      isOverwatchActive={isOverwatchActive} messages={chatMessages} setMessages={setChatMessages}
+                      isOverwatchActive={true} messages={chatMessages} setMessages={setChatMessages}
                       userPrefs={userPrefs} onFileUpdate={handleFileChange}
                       onAddSceneObject={handleAddSceneObject}
                       onUpdateSceneObject={handleUpdateSceneObject} onUpdatePhysics={(u) => setPhysics(p => ({ ...p, ...u }))}
@@ -604,43 +382,95 @@ const App: React.FC = () => {
                       onTriggerPresentation={() => setIsPresenting(true)}
                       engineLogs={engineLogs}
                     />
-                  )}
-                  {/* GameDashboard is NOT rendered here conditionally to avoid unmounting. It's handled by the persistent layer below. */}
+                  </div>
                 </div>
               )}
-            </div>
-          )}
-        </div>
+              {activeView === 'editor' && (
+                <div className="flex h-full">
+                  <div style={{ width: `${sidebarWidth}px` }} className="relative shrink-0 flex flex-col border-r border-cyan-900/10">
+                    <Sidebar
+                      isOpen={true} setIsOpen={() => { }} files={project.files} activeFile={project.activeFile}
+                      onSelectFile={(p) => setProject(prev => ({ ...prev, activeFile: p }))}
+                      onCreateNode={handleCreateNode}
+                      stagedFiles={stagedFiles} onStage={(p) => setStagedFiles(prev => [...prev, p])} onUnstage={(p) => setStagedFiles(prev => prev.filter(f => f !== p))}
+                      onCommit={(m) => setCommitHistory(prev => [{ id: Date.now().toString(), message: m, author: 'Nexus Dev', timestamp: Date.now() }, ...prev])}
+                      commitHistory={commitHistory} tasks={tasks}
+                      onToggleTask={(id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))}
+                      onAddTasks={(nt) => setTasks(prev => [...prev, ...nt.map(t => ({ ...t, id: Math.random().toString(36), completed: false }))])}
+                      tokenMetrics={limiter.getMetrics()} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions} onUninstallExtension={handleUninstallExtension}
+                    />
+                    <div onMouseDown={() => setIsResizingSidebar(true)} className="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-50 group">
+                      <div className="w-px h-full bg-cyan-500/10 group-hover:bg-cyan-500 mx-auto transition-colors"></div>
+                    </div>
+                  </div>
+                  <div className="flex-1 flex flex-col relative min-w-0">
+                    <Editor content={activeFileContent} onChange={handleFileChange} filename={project.activeFile || ''} lastSaved={lastSaved} isSyncing={isSyncing} />
+                    <div className="h-64 border-t border-cyan-500/10 bg-black/40">
+                      <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Persistent Matrix Implementation to prevent WebGL Context Loss */}
+              <div className={`absolute inset-0 z-0 transition-opacity duration-300 ${activeView === 'matrix' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                <GameDashboard
+                  onBuild={handleBuild} buildInfo={buildInfo} assets={assets} physics={physics} worldConfig={worldConfig} sceneObjects={sceneObjects}
+                  pipelines={[]} renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
+                  onUpdatePhysics={(u) => setPhysics(prev => ({ ...prev, ...u }))} onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
+                  onImportAsset={handleImportAsset} onUpdateSceneObject={handleUpdateSceneObject}
+                  onAddSceneObject={handleAddSceneObject}
+                  onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
+                  onRunAction={(c) => addLog(`Matrix Action: ${c}`, 'info', 'Control')}
+                  onSendVisualFeedback={(img) => chatRef.current?.addAnnotatedMessage(img)}
+                  sculptHistory={sculptHistory} redoStack={[]} onSculptTerrain={(p) => setSculptHistory(prev => [...prev, { ...p, brushSize: worldConfig.brushSize, brushStrength: worldConfig.brushStrength }])}
+                  onUndoSculpt={() => setSculptHistory(prev => prev.slice(0, -1))} onRedoSculpt={() => { }} onClearSculpt={() => setSculptHistory([])}
+                  nodes={nodes} edges={edges} onNeuralUpdate={handleNeuralUpdate} variableData={variableData} engineLogs={engineLogs}
+                  onAddAsset={(newAsset) => setAssets(prev => [...prev, newAsset])}
+                  isFullscreen={isPresenting}
+                />
+              </div>
 
-        {/* Persistent GameDashboard Layer - Never unmounts to preserve WebGL Context */}
-        <div
-          className={`transition-all duration-500 ease-in-out bg-black ${showDashboard ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none delay-200'}`}
-          style={dashboardStyle}
-        >
-          <GameDashboard
-            onBuild={handleBuild} buildInfo={buildInfo} assets={assets} physics={physics} worldConfig={worldConfig} sceneObjects={sceneObjects}
-            pipelines={pipelines} renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
-            onUpdatePhysics={(u) => setPhysics(prev => ({ ...prev, ...u }))} onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
-            onImportAsset={(a) => addLog(`Linked: ${a.name}`, 'success', 'Neural')} onUpdateSceneObject={handleUpdateSceneObject}
-            onAddSceneObject={handleAddSceneObject}
-            onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
-            onRunAction={(c) => {
-              if (c === 'PRESENT_BUILD') setIsPresenting(true);
-              else if (c === 'EXIT_PRESENTATION') setIsPresenting(false);
-              else if (c === 'RUN_TEST_SUITE') {
-                setBottomPanel('chat');
-                chatRef.current?.sendMessage("Director, initiate full runtime test suite.");
-                addLog(`Command: ${c}`, 'info', 'Director');
-              }
-              else addLog(`Event: ${c}`, 'info', 'Director');
-            }}
-            onSendVisualFeedback={(img) => { setBottomPanel('chat'); chatRef.current?.addAnnotatedMessage(img); }}
-            sculptHistory={sculptHistory} redoStack={[]} onSculptTerrain={(p) => setSculptHistory(prev => [...prev, { ...p, brushSize: worldConfig.brushSize, brushStrength: worldConfig.brushStrength }])}
-            onUndoSculpt={() => setSculptHistory(prev => prev.slice(0, -1))} onRedoSculpt={() => { }} onClearSculpt={() => setSculptHistory([])}
-            nodes={nodes} edges={edges} onNeuralUpdate={handleNeuralUpdate} variableData={variableData} engineLogs={engineLogs}
-            onAddAsset={(newAsset) => setAssets(prev => [...prev, newAsset])}
-            isFullscreen={isPresenting}
-          />
+              {activeView === 'forge' && <Forge />}
+              {activeView === 'pipelines' && <N8NWorkflow />}
+              {activeView === 'behavior' && <Behavior />}
+              {activeView === 'diagnostics' && <DiagnosticsPanel />}
+            </div>
+
+            {/* Modals & Overlays */}
+            {showApiKeyManager && <ApiKeyManager onClose={() => setShowApiKeyManager(false)} />}
+            {isPanic && (
+              <div className="absolute inset-0 z-[100] bg-red-950/90 backdrop-blur-3xl flex items-center justify-center flex-col p-20 shadow-[inset_0_0_100px_rgba(255,0,0,0.5)] animate-in fade-in zoom-in duration-500">
+                <ShieldAlert className="w-48 h-48 text-red-500 mb-8 animate-bounce" />
+                <h1 className="text-8xl font-black text-white uppercase tracking-tighter mb-4" style={{ textShadow: '0 0 50px rgba(255,0,0,0.8)' }}>CORE TERMINATED</h1>
+                <p className="text-red-400 font-mono text-xl mb-12 uppercase tracking-widest">Global Job Registry Purged. All Neural Links Closed.</p>
+                <button onClick={() => setIsPanic(false)} className="px-16 py-6 bg-white text-red-600 font-black rounded-3xl text-2xl hover:scale-105 active:scale-95 transition-all shadow-2xl">RE-AUTHORIZE SYSTEMS</button>
+              </div>
+            )}
+            {showPerformanceHUD && (
+              <div className="absolute top-4 right-4 w-64 bg-black/80 backdrop-blur-2xl border border-white/5 p-4 rounded-2xl z-50 pointer-events-none animate-in slide-in-from-right duration-300">
+                <div className="text-[10px] font-black text-cyan-500 uppercase tracking-widest mb-3 border-b border-cyan-500/20 pb-2 flex justify-between">
+                  <span>Telemetry Engine</span>
+                  <span className="text-white">PRO</span>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-[10px] font-bold">
+                    <span className="text-slate-500">VRAM LOAD</span>
+                    <span className="text-white">2.4 GB / 12 GB</span>
+                  </div>
+                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-cyan-500 w-[20%] shadow-[0_0_10px_#00f2ff]"></div>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold">
+                    <span className="text-slate-500">TOKENS BURN</span>
+                    <span className="text-white">4.2k / min</span>
+                  </div>
+                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-purple-500 w-[60%] shadow-[0_0_10px_#a855f7]"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
         </div>
       </div>
     </ErrorBoundary>

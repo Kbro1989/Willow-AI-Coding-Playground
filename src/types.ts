@@ -275,6 +275,7 @@ export interface Workspace {
   commitHistory: GitCommit[];
   sculptHistory: SculptPoint[];
   savedPipelines?: any[]; // Workflow[] from n8n
+  assets: GameAsset[];
 }
 
 export enum ModelKey {

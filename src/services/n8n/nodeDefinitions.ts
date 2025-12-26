@@ -5,7 +5,7 @@
 
 export type NodeType =
   | 'input' | 'prompt' | 'image_upload' | 'file_input' | 'variable'
-  | 'ai_text' | 'ai_image' | 'ai_code' | 'ai_reasoning'
+  | 'ai_text' | 'ai_image' | 'ai_code' | 'ai_reasoning' | 'ai_video' | 'ai_audio' | 'ai_logic_refactor'
   | 'transform' | 'filter' | 'loop' | 'merge'
   | 'file_writer' | '3d_export' | 'git_commit' | 'deploy'
   | 'cloudflare' | 'github' | 'discord' | 'http';
@@ -204,6 +204,56 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
         default: 'deepseek-r1'
       }
     ]
+  },
+
+  ai_video: {
+    type: 'ai_video',
+    category: 'ai',
+    label: 'AI Video',
+    icon: '🎬',
+    description: 'Generate cinematic video',
+    inputs: [{ name: 'prompt', type: 'string', required: true }, { name: 'image', type: 'string', required: false }],
+    outputs: [{ name: 'videoUrl', type: 'string', required: true }],
+    parameters: [
+      {
+        name: 'model', type: 'select', label: 'Model',
+        options: [
+          { label: 'SVD-XT (Stable Video Diffusion)', value: 'svd' }
+        ],
+        default: 'svd'
+      }
+    ]
+  },
+
+  ai_audio: {
+    type: 'ai_audio',
+    category: 'ai',
+    label: 'AI Audio',
+    icon: '🔊',
+    description: 'Speech-to-Text or Text-to-Speech',
+    inputs: [{ name: 'input', type: 'any', required: true }],
+    outputs: [{ name: 'output', type: 'any', required: true }],
+    parameters: [
+      {
+        name: 'mode', type: 'select', label: 'Mode',
+        options: [
+          { label: 'Text-to-Speech (MeloTTS)', value: 'tts' },
+          { label: 'Speech-to-Text (Whisper)', value: 'stt' }
+        ],
+        default: 'tts'
+      }
+    ]
+  },
+
+  ai_logic_refactor: {
+    type: 'ai_logic_refactor',
+    category: 'ai',
+    label: 'Logic Refactor',
+    icon: '🧠',
+    description: 'Optimize agent behavior trees',
+    inputs: [{ name: 'tree', type: 'array', required: true }, { name: 'goal', type: 'string', required: true }],
+    outputs: [{ name: 'result', type: 'object', required: true }],
+    parameters: []
   },
 
   // PROCESSING NODES

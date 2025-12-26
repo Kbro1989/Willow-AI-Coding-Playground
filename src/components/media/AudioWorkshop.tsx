@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Mic, Play, Square, Download, Music, Volume2, Wand2, Activity } from 'lucide-react';
+import { Mic, Play, Square, Download, Music, Volume2, Wand2, Activity, Settings } from 'lucide-react';
 import audioProcessing from '../../services/media/audioProcessing';
+import { forgeMedia } from '../../services/forgeMediaService';
 
 const AudioWorkshop: React.FC = () => {
     // Modes: 'recorder' | 'tts'
@@ -11,6 +12,7 @@ const AudioWorkshop: React.FC = () => {
     const [recordingTime, setRecordingTime] = useState(0);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // TTS State
     const [ttsText, setTtsText] = useState('');
@@ -65,12 +67,22 @@ const AudioWorkshop: React.FC = () => {
     const handleTranscribe = async (blob: Blob) => {
         setTranscription('Transcribing...');
         try {
+            const { routeNexus } = await import('../../backend/routeToModel');
+
+            // Convert blob to base64 for the router
             const reader = new FileReader();
             reader.readAsDataURL(blob);
             reader.onloadend = async () => {
                 const base64data = reader.result as string;
-                const result = await audioProcessing.transcribe(base64data);
-                setTranscription(result.text);
+                const response = await routeNexus({
+                    type: 'audio',
+                    prompt: base64data,
+                    options: { audioMode: 'stt' }
+                });
+
+                if (!(response instanceof ReadableStream)) {
+                    setTranscription(response.content || 'Transcription failed.');
+                }
             };
         } catch (error) {
             console.error('Transcription failed:', error);
@@ -83,14 +95,50 @@ const AudioWorkshop: React.FC = () => {
         if (!ttsText.trim()) return;
         setIsGenerating(true);
         try {
-            const result = await audioProcessing.synthesize(ttsText);
-            setAudioUrl(result.audioUrl);
-            setTranscription(ttsText); // Show source text as "script"
+            const { routeNexus } = await import('../../backend/routeToModel');
+            const response = await routeNexus({
+                type: 'audio',
+                prompt: ttsText,
+                options: { audioMode: 'tts' }
+            });
+
+            if (!(response instanceof ReadableStream)) {
+                const finalAudioUrl = (response as any).audioUrl || `data:audio/mpeg;base64,${response.content}`;
+                setAudioUrl(finalAudioUrl);
+                setTranscription(ttsText);
+
+                // Register with Forge Media
+                forgeMedia.addAsset({
+                    type: 'audio',
+                    url: finalAudioUrl,
+                    prompt: ttsText,
+                    model: response.model,
+                    tags: ['ai-generated', 'audio-workshop']
+                });
+            }
         } catch (error) {
             console.error('TTS failed:', error);
             alert('Failed to generate speech.');
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const url = URL.createObjectURL(file);
+            setAudioUrl(url);
+
+            // Auto-transcribeuploaded audio
+            handleTranscribe(file);
+        } catch (error) {
+            console.error('[AUDIO_WORKSHOP] Upload error:', error);
+            alert('Failed to process audio upload');
+        } finally {
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -101,9 +149,22 @@ const AudioWorkshop: React.FC = () => {
                 <div className="flex items-center gap-2">
                     <Activity className="w-5 h-5 text-purple-400" />
                     <span className="font-semibold text-sm">Audio Workshop</span>
-                    <span className="text-xs text-white/40 ml-2 px-2 py-0.5 bg-white/5 rounded border border-white/5">
-                        Powered by Cloudflare (Whisper/MeloTTS)
-                    </span>
+
+                    <div className="flex items-center gap-1 ml-4 border-l border-white/10 pl-4">
+                        <button
+                            onClick={() => alert('Engine Config: Whisper-v3-large, MeloTTS-Standard')}
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-purple-400 transition-all"
+                            title="Workshop Settings"
+                        >
+                            <Settings className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-3 py-1 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all"
+                        >
+                            📁 Upload
+                        </button>
+                    </div>
                 </div>
 
                 {/* Mode Switcher */}
@@ -153,8 +214,8 @@ const AudioWorkshop: React.FC = () => {
                                 <button
                                     onClick={isRecording ? stopRecording : startRecording}
                                     className={`px-8 py-3 rounded-full font-semibold flex items-center justify-center gap-2 mx-auto transition-all ${isRecording
-                                            ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20'
-                                            : 'bg-white text-black hover:bg-gray-200'
+                                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20'
+                                        : 'bg-white text-black hover:bg-gray-200'
                                         }`}
                                 >
                                     {isRecording ? (

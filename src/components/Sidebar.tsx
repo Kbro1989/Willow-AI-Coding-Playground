@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { FileNode, GitCommit, TodoTask, TokenMetrics, UserPreferences, Extension } from '../types';
 import { runProjectManagerReview } from '../services/cloudflareService';
+import { modelRouter } from '../services/modelRouter';
 import ExtensionRegistry from './ExtensionRegistry';
 
 interface SidebarProps {
@@ -39,6 +40,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   // States for new node creation
   const [creatingNode, setCreatingNode] = useState<{ parentPath: string | null, type: 'file' | 'dir' } | null>(null);
   const [newNodeName, setNewNodeName] = useState('');
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<any[]>([
+    { role: 'model', content: 'Hello! I am Symphony, your AI Project Manager. How can I help you build with Antigravity today?' }
+  ]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
   const createInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -46,6 +52,116 @@ const Sidebar: React.FC<SidebarProps> = ({
       createInputRef.current.focus();
     }
   }, [creatingNode]);
+
+  // Handle chat submission
+  const handleChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || isChatLoading) return;
+
+    const userMsg = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setIsChatLoading(true);
+
+    try {
+      // Rule #2: No direct AI calls. Routing through Nexus backend.
+      const { routeNexus } = await import('../backend/routeToModel');
+      const response = await routeNexus({
+        type: 'text',
+        prompt: userMsg,
+        history: chatMessages.map(m => ({ role: m.role as any, content: m.content })),
+        options: { stream: true }
+      });
+
+      if (response instanceof ReadableStream) {
+        const reader = response.getReader();
+        const decoder = new TextDecoder();
+        let assistantMsg = '';
+
+        setChatMessages(prev => [...prev, { role: 'model', content: '' }]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.response) {
+                  assistantMsg += data.response;
+                  setChatMessages(prev => {
+                    const newMsgs = [...prev];
+                    newMsgs[newMsgs.length - 1].content = assistantMsg;
+                    return newMsgs;
+                  });
+                }
+              } catch (e) { }
+            }
+          }
+        }
+      } else {
+        setChatMessages(prev => [...prev, { role: 'model', content: response.content || 'No response.' }]);
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      setChatMessages(prev => [...prev, { role: 'model', content: 'Sorry, I encountered an error. Please try again.' }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  // Run AI project manager review
+  const runSymphonyReview = async () => {
+    setIsChatLoading(true);
+    try {
+      const response = await modelRouter.chat(
+        "Based on our current project state, what are the next 3 high-priority tasks we should focus on? Provide them as clear, actionable items.",
+        [],
+        "You are an expert AI Project Manager for the Antigravity Engine.",
+        true // STREAMING
+      );
+
+      if (response instanceof ReadableStream) {
+        const reader = response.getReader();
+        const decoder = new TextDecoder();
+        let assistantMsg = '';
+
+        setChatMessages(prev => [...prev, { role: 'model', content: '' }]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.response) {
+                  assistantMsg += data.response;
+                  setChatMessages(prev => {
+                    const newMsgs = [...prev];
+                    newMsgs[newMsgs.length - 1].content = assistantMsg;
+                    return newMsgs;
+                  });
+                }
+              } catch (e) { }
+            }
+          }
+        }
+      } else {
+        setChatMessages(prev => [...prev, { role: 'model', content: response.content || 'Review complete.' }]);
+      }
+    } catch (error) {
+      console.error('Project review error:', error);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
 
   const filteredFiles = useMemo(() => {
     if (!searchQuery.trim()) return files;

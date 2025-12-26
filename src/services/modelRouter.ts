@@ -7,7 +7,7 @@ import geminiProvider, { GeminiTextRequest, GeminiImageRequest, GeminiCodeReques
 import cloudflareProvider from './cloudflareProvider';
 import aiUsageService from './gameData/aiUsageService';
 
-export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning';
+export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning' | 'vision';
 
 export interface ModelRequest {
   type: ModelType;
@@ -26,11 +26,21 @@ export interface ModelResponse {
   content?: string;
   code?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  audioUrl?: string;
   functionCalls?: any[];
   model: string;
-  provider: 'gemini' | 'cloudflare';
+  provider: 'gemini' | 'cloudflare' | 'local' | 'unknown';
   latency: number;
   tokensUsed?: number;
+  cost?: number;
+}
+
+type ProviderExecutor = (request: ModelRequest, signal?: AbortSignal) => Promise<Omit<ModelResponse, 'provider' | 'latency' | 'cost'> | ReadableStream>;
+
+interface PipelineStep {
+  provider: 'gemini' | 'cloudflare' | 'local';
+  executor: ProviderExecutor;
 }
 
 /**
@@ -38,70 +48,99 @@ export interface ModelResponse {
  * Strategy: "Cloudflare First" (Cost Optimization)
  */
 
+import { nexusBus } from './nexusCommandBus';
+import sessionService from './sessionService';
 
-export async function route(request: ModelRequest): Promise<ModelResponse> {
+export async function route(request: ModelRequest): Promise<ModelResponse | ReadableStream> {
+  // Check session quota
+  if (sessionService.isOverQuota()) {
+    throw new Error('[NEXUS_QUOTA] Session hard cost limit reached. Please reset session or increase quotas.');
+  }
+
   const startTime = Date.now();
   const tier = request.tier || 'standard';
-  let response: ModelResponse | undefined;
+  const stream = request.options?.stream === true;
+
+  const abortController = new AbortController();
+  const taskId = `ai-${Math.random().toString(36).slice(2, 9)}`;
+  const job = nexusBus.registerJob({
+    id: taskId,
+    type: 'ai',
+    description: `AI ${request.type}: ${request.prompt.substring(0, 30)}...`,
+    abortController
+  });
+
+  // Define Pipeline based on Request Type & Tier
+  const pipeline: PipelineStep[] = [];
+
+  if (tier === 'premium' && geminiProvider.isAvailable()) {
+    pipeline.push({ provider: 'gemini', executor: routeToGemini });
+  } else {
+    pipeline.push({ provider: 'cloudflare', executor: routeToCloudflare });
+    if (geminiProvider.isAvailable()) {
+      pipeline.push({ provider: 'gemini', executor: routeToGemini });
+    }
+  }
+
+  let finalResponse: ModelResponse | ReadableStream | undefined;
+  let lastError: any;
 
   try {
-    // capabilities restricted to Gemini (Premium)
-    const isGeminiExclusive = false;
-
-    // 1. Premium Route (Explicit or Exclusive)
-    if (tier === 'premium' || isGeminiExclusive) {
-      // ... (existing logic)
-      if (geminiProvider.isAvailable()) {
-        console.log(`[ROUTER] Routing to Gemini (Premium/Exclusive) for ${request.type}...`);
-        const result = await routeToGemini(request);
-        response = { ...result, provider: 'gemini', latency: Date.now() - startTime };
-      } else if (isGeminiExclusive) {
-        throw new Error(`${request.type} requires Gemini API key`);
-      }
-    }
-
-    if (!response) {
-      // 2. Standard Route (Cloudflare)
-      console.log(`[ROUTER] Routing to Cloudflare (Standard) for ${request.type}...`);
+    // Execute Pipeline with Fallbacks
+    for (const step of pipeline) {
       try {
-        const result = await routeToCloudflare(request);
-        response = { ...result, provider: 'cloudflare', latency: Date.now() - startTime };
-      } catch (error) {
-        console.error('[ROUTER] Cloudflare failed:', error);
-        // 3. Last Resort: Try Gemini if we haven't already
-        if (tier !== 'premium' && geminiProvider.isAvailable()) {
-          console.warn('[ROUTER] Cloudflare failed, falling back to Gemini (Rescue)...');
-          const result = await routeToGemini(request);
-          response = { ...result, provider: 'gemini', latency: Date.now() - startTime };
-        } else {
-          throw error;
+        console.log(`[ROUTER] Attempting ${step.provider} for ${request.type}...`);
+        const result = await step.executor(request, abortController.signal);
+
+        if (result instanceof ReadableStream) {
+          return result;
         }
+
+        const latency = Date.now() - startTime;
+        const tokens = result.tokensUsed || (result.content?.length || 0) / 4;
+        const cost = aiUsageService.calculateCost(step.provider, result.model, request.prompt.length / 4, tokens);
+
+        finalResponse = {
+          ...result,
+          provider: step.provider,
+          latency,
+          cost
+        };
+        break; // Success!
+      } catch (error) {
+        console.warn(`[ROUTER] Step ${step.provider} failed:`, error);
+        lastError = error;
+        continue; // Try next fallback
       }
     }
 
-    // Log usage to InstantDB
-    if (response) {
-      const cost = aiUsageService.calculateCost(
-        response.provider,
-        response.model,
-        request.prompt.length / 4, // Approx input tokens
-        response.tokensUsed || (response.content?.length || 0) / 4 // Approx output tokens
+    if (!finalResponse) {
+      throw lastError || new Error(`All providers failed for ${request.type}`);
+    }
+
+    // Log success to InstantDB
+    if (!(finalResponse instanceof ReadableStream)) {
+      const resp = finalResponse as ModelResponse;
+
+      // Update Session Metrics
+      sessionService.updateMetrics(
+        (resp.tokensUsed || (resp.content?.length || 0) / 4),
+        resp.cost || 0
       );
 
-      // Fire and forget logging
       aiUsageService.logAIUsage({
-        model: response.model,
-        provider: response.provider,
+        model: resp.model,
+        provider: resp.provider,
         taskType: request.type as any,
         inputTokens: Math.ceil(request.prompt.length / 4),
-        outputTokens: response.tokensUsed || Math.ceil((response.content?.length || 0) / 4),
-        cost,
-        duration: response.latency,
+        outputTokens: resp.tokensUsed || Math.ceil((resp.content?.length || 0) / 4),
+        cost: resp.cost,
+        duration: resp.latency,
         success: true
       }).catch(err => console.error('[ROUTER] Failed to log usage:', err));
     }
 
-    return response!;
+    return finalResponse;
 
   } catch (error) {
     // Log failure
@@ -115,13 +154,15 @@ export async function route(request: ModelRequest): Promise<ModelResponse> {
     }).catch(e => console.error('[ROUTER] Failed to log error usage:', e));
 
     throw error;
+  } finally {
+    nexusBus.completeJob(taskId);
   }
 }
 
 /**
  * Route to Gemini provider
  */
-async function routeToGemini(request: ModelRequest): Promise<Omit<ModelResponse, 'provider' | 'latency'>> {
+async function routeToGemini(request: ModelRequest, signal?: AbortSignal): Promise<Omit<ModelResponse, 'provider' | 'latency'>> {
   switch (request.type) {
     case 'text':
     case 'reasoning': // Gemini uses same chat for reasoning
@@ -182,7 +223,7 @@ async function routeToGemini(request: ModelRequest): Promise<Omit<ModelResponse,
 /**
  * Route to Cloudflare provider
  */
-async function routeToCloudflare(request: ModelRequest): Promise<Omit<ModelResponse, 'provider' | 'latency'>> {
+async function routeToCloudflare(request: ModelRequest, signal?: AbortSignal): Promise<Omit<ModelResponse, 'provider' | 'latency'> | ReadableStream> {
   switch (request.type) {
     case 'text':
     case 'function_calling': {
@@ -191,7 +232,11 @@ async function routeToCloudflare(request: ModelRequest): Promise<Omit<ModelRespo
         history: request.history,
         systemPrompt: request.systemPrompt,
         functionDeclarations: request.functionDeclarations
-      });
+      }, request.options?.stream, signal);
+
+      if (response instanceof ReadableStream) {
+        return response;
+      }
 
       return {
         content: response.content,
@@ -206,7 +251,7 @@ async function routeToCloudflare(request: ModelRequest): Promise<Omit<ModelRespo
         prompt: request.prompt,
         negativePrompt: request.negativePrompt,
         aspectRatio: request.options?.aspectRatio
-      });
+      }, signal);
 
       return {
         imageUrl: response.imageUrl,
@@ -219,7 +264,7 @@ async function routeToCloudflare(request: ModelRequest): Promise<Omit<ModelRespo
         prompt: request.prompt,
         language: request.language,
         context: request.context
-      });
+      }, signal);
 
       return {
         code: response.code,
@@ -244,14 +289,8 @@ async function routeToCloudflare(request: ModelRequest): Promise<Omit<ModelRespo
 
       if (request.options?.audioMode === 'tts') {
         const response = await cloudflareProvider.synthesizeAudio(request.prompt);
-        // Return base64 audio in content? Or a new field? 
-        // ModelResponse has imageUrl/code/content. Let's force it into 'content' as data URI or something.
-        // Or add audioUrl to ModelResponse?
-        // For now, standardizing on content as base64 or creating a hack.
-        // Ideally we update ModelResponse. Let's leverage 'imageUrl' as 'videoUrl/audioUrl' generic? 
-        // No, let's put it in content with a prefix or just raw base64.
         return {
-          content: response.audioBase64,
+          audioUrl: `data:audio/mpeg;base64,${response.audioBase64}`,
           model: response.model
         };
       } else {
@@ -267,8 +306,17 @@ async function routeToCloudflare(request: ModelRequest): Promise<Omit<ModelRespo
     case 'video': {
       const response = await cloudflareProvider.generateVideo(request.prompt);
       return {
-        imageUrl: response.videoUrl, // Storing in imageUrl for compatibility or generic 'content'
+        videoUrl: response.videoUrl,
         model: response.model
+      };
+    }
+
+    case 'vision': {
+      // Prompt here is expected to be a Blob or data URI
+      const response = await cloudflareProvider.analyzeImage(request.prompt as any);
+      return {
+        content: JSON.stringify(response),
+        model: 'detr-resnet-50'
       };
     }
 
@@ -283,13 +331,15 @@ async function routeToCloudflare(request: ModelRequest): Promise<Omit<ModelRespo
 export async function chat(
   prompt: string,
   history?: Array<{ role: 'user' | 'model'; content: string }>,
-  systemPrompt?: string
-): Promise<ModelResponse> {
+  systemPrompt?: string,
+  stream: boolean = false
+): Promise<ModelResponse | ReadableStream> {
   return route({
     type: 'text',
     prompt,
     history,
-    systemPrompt
+    systemPrompt,
+    options: { stream }
   });
 }
 
@@ -301,7 +351,7 @@ export async function chatWithFunctions(
   functionDeclarations: any[],
   history?: Array<{ role: 'user' | 'model'; content: string }>,
   systemPrompt?: string
-): Promise<ModelResponse> {
+): Promise<ModelResponse | ReadableStream> {
   return route({
     type: 'function_calling',
     prompt,
@@ -317,7 +367,7 @@ export async function chatWithFunctions(
 export async function generateImage(
   prompt: string,
   negativePrompt?: string
-): Promise<ModelResponse> {
+): Promise<ModelResponse | ReadableStream> {
   return route({
     type: 'image',
     prompt,
@@ -332,7 +382,7 @@ export async function completeCode(
   prompt: string,
   language?: string,
   context?: string
-): Promise<ModelResponse> {
+): Promise<ModelResponse | ReadableStream> {
   return route({
     type: 'code',
     prompt,
@@ -341,12 +391,40 @@ export async function completeCode(
   });
 }
 
+/**
+ * Convenience function for audio (STT/TTS)
+ */
+export async function processAudio(
+  prompt: string,
+  mode: 'stt' | 'tts'
+): Promise<ModelResponse | ReadableStream> {
+  return route({
+    type: 'audio',
+    prompt,
+    options: { audioMode: mode }
+  });
+}
+
+/**
+ * Convenience function for movie generation
+ */
+export async function generateVideo(
+  prompt: string
+): Promise<ModelResponse | ReadableStream> {
+  return route({
+    type: 'video',
+    prompt
+  });
+}
+
 export const modelRouter = {
   route,
   chat,
   chatWithFunctions,
   generateImage,
-  completeCode
+  completeCode,
+  processAudio,
+  generateVideo
 };
 
 export default modelRouter;

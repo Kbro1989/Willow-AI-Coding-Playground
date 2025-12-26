@@ -5,6 +5,18 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import mediaContext from '../../services/media/mediaContextService';
+import { cloudflareProvider } from '../../services/cloudflareProvider';
+import {
+    Settings,
+    Save,
+    Eye,
+    Sparkles,
+    RefreshCw,
+    ScanLine,
+    Layers,
+    Sliders,
+    Zap
+} from 'lucide-react';
 import {
     createLayer,
     resizeImage,
@@ -24,6 +36,7 @@ import {
     type FilterType
 } from '../../services/media/imageProcessing';
 import type { MediaAsset } from '../../types/media';
+import { forgeMedia } from '../../services/forgeMediaService';
 
 interface ImageStudioProps {
     asset?: MediaAsset;
@@ -36,10 +49,11 @@ type Tool = 'select' | 'brush' | 'eraser' | 'crop' | 'text';
 
 export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [state, setState] = useState<ImageEditorState>({
-        width: 800,
-        height: 600,
-        layers: [createLayer(800, 600, 'Background')],
+        width: asset?.metadata?.width || 1280,
+        height: asset?.metadata?.height || 720,
+        layers: [createLayer(asset?.metadata?.width || 1280, asset?.metadata?.height || 720, 'Background')],
         activeLayerId: null,
         history: [],
         historyIndex: -1
@@ -52,8 +66,34 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
     const [contrast, setContrast] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
     const [exportFormat, setExportFormat] = useState<'png' | 'jpg' | 'webp'>('png');
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [analysisResults, setAnalysisResults] = useState<any[]>([]);
 
-    // Load asset on mount
+    // Coordinate Translation Utility (NEW)
+    const getMousePos = (e: React.MouseEvent | React.TouchEvent) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return { x: 0, y: 0 };
+
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+
+        if ('touches' in e.nativeEvent) {
+            clientX = e.nativeEvent.touches[0].clientX;
+            clientY = e.nativeEvent.touches[0].clientY;
+        } else {
+            const mouseEvent = e as React.MouseEvent;
+            clientX = mouseEvent.clientX;
+            clientY = mouseEvent.clientY;
+        }
+
+        // Translate screen coords to canvas coords, accounting for CSS scaling (zoom)
+        return {
+            x: Math.round((clientX - rect.left) * (canvas.width / rect.width)),
+            y: Math.round((clientY - rect.top) * (canvas.height / rect.height))
+        };
+    };
+
+    // Load asset on mount (Dynamic dimension update)
     useEffect(() => {
         if (asset?.url) {
             loadAsset(asset.url);
@@ -91,6 +131,144 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
         } catch (error) {
             console.error('[IMAGE_STUDIO] Failed to load asset:', error);
             alert('Failed to load image');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setIsProcessing(true);
+            const imageData = await loadImage(file);
+
+            // Create a new layer with the uploaded image
+            const newLayer = createLayer(imageData.width, imageData.height, file.name);
+            newLayer.imageData = imageData;
+
+            setState(prev => ({
+                width: Math.max(prev.width, imageData.width),
+                height: Math.max(prev.height, imageData.height),
+                layers: [...prev.layers, newLayer],
+                activeLayerId: newLayer.id,
+                history: [],
+                historyIndex: -1
+            }));
+        } catch (error) {
+            console.error('[IMAGE_STUDIO] Upload error:', error);
+            alert('Failed to process image upload');
+        } finally {
+            setIsProcessing(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleDetectObjects = async () => {
+        const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
+        if (!activeLayer?.imageData) return;
+
+        setIsProcessing(true);
+        try {
+            // Convert current image data to blob for analysis
+            const canvas = document.createElement('canvas');
+            canvas.width = activeLayer.imageData.width;
+            canvas.height = activeLayer.imageData.height;
+            const ctx = canvas.getContext('2d')!;
+            ctx.putImageData(activeLayer.imageData, 0, 0);
+
+            const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/png'));
+
+            // Rule #2: No direct AI calls. Routing through Nexus backend.
+            const { routeNexus } = await import('../../backend/routeToModel');
+            const response = await routeNexus({
+                type: 'vision',
+                prompt: blob as any // Nexus router handles blob -> analysis
+            });
+
+            if (response instanceof ReadableStream) {
+                throw new Error('Streaming not supported for vision analysis');
+            }
+
+            const results = JSON.parse(response.content || '[]');
+            setAnalysisResults(results);
+        } catch (error) {
+            console.error('[IMAGE_STUDIO] Vision analysis error:', error);
+            alert('Failed to analyze image');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleGenerateAI = async () => {
+        if (!aiPrompt.trim()) return;
+
+        setIsProcessing(true);
+        try {
+            // Rule #2: No direct AI calls. Routing through Nexus backend.
+            const { routeNexus } = await import('../../backend/routeToModel');
+            const response = await routeNexus({
+                type: 'image',
+                prompt: aiPrompt
+            });
+
+            if (response instanceof ReadableStream) {
+                throw new Error('Streaming not supported for image generation');
+            }
+
+            // Image response content is the base64 string
+            const dataUrl = `data:image/png;base64,${response.content}`;
+
+            const imageData = await loadImage(dataUrl);
+            const aiLayer = createLayer(imageData.width, imageData.height, `AI: ${aiPrompt.slice(0, 15)}...`);
+            aiLayer.imageData = imageData;
+
+            setState(prev => ({
+                width: Math.max(prev.width, imageData.width),
+                height: Math.max(prev.height, imageData.height),
+                layers: [...prev.layers, aiLayer],
+                activeLayerId: aiLayer.id,
+                history: [],
+                historyIndex: -1
+            }));
+
+            // Register with Forge Media
+            forgeMedia.addAsset({
+                type: 'image',
+                url: dataUrl,
+                prompt: aiPrompt,
+                model: response.model,
+                tags: ['ai-generated', 'image-studio']
+            });
+
+            setAiPrompt('');
+            setActiveTab('layers');
+        } catch (error) {
+            console.error('[IMAGE_STUDIO] AI Generation error:', error);
+            alert('Failed to generate image with AI');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleToolSelect = (newTool: Tool) => {
+        setTool(newTool);
+        console.log(`[STUDIO] Active tool switched to: ${newTool}`);
+        // Visual feedback would usually be a Toast
+    };
+
+    const handleSettingsClick = () => {
+        console.log('[STUDIO] Opening Engine Settings...');
+        alert('Image Studio Settings (Cloudflare Model Configuration) coming soon.');
+    };
+
+    const handleSaveOverlay = async () => {
+        if (!state.layers.length) return;
+        setIsProcessing(true);
+        try {
+            await handleExport();
+            console.log('[STUDIO] Snapshot saved to Media Registry');
         } finally {
             setIsProcessing(false);
         }
@@ -329,6 +507,26 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
                     {asset && <span className="text-xs text-slate-400">{asset.name}</span>}
                 </div>
                 <div className="flex items-center gap-2">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                    />
+                    <button
+                        onClick={handleSettingsClick}
+                        className="p-2 mr-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-cyan-400 transition-all"
+                        title="Studio Settings"
+                    >
+                        <Settings className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                    >
+                        📁 Upload
+                    </button>
                     <button
                         onClick={handleExport}
                         disabled={isProcessing}
@@ -339,7 +537,7 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
                     {onClose && (
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-cyan-400 hover:bg-slate-700 transition-all"
+                            className="p-2 ml-2 rounded-lg bg-slate-800 text-slate-400 hover:text-red-400 hover:bg-slate-700 transition-all"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -361,7 +559,7 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
                     ].map(t => (
                         <button
                             key={t.id}
-                            onClick={() => setTool(t.id)}
+                            onClick={() => handleToolSelect(t.id)}
                             className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${tool === t.id ? 'bg-cyan-600 scale-110' : 'bg-slate-800 hover:bg-slate-700'
                                 }`}
                             title={t.title}
@@ -400,18 +598,30 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
                         </div>
                     </div>
 
-                    {/* Canvas */}
-                    <div className="flex-1 flex items-center justify-center overflow-auto p-4">
+                    {/* Canvas Area with Handlers */}
+                    <div className="flex-1 flex items-center justify-center overflow-auto p-8 custom-scrollbar bg-[radial-gradient(circle_at_center,_#1a1a1f_0%,_#050505_100%)]">
                         <div
                             style={{
                                 transform: `scale(${zoom / 100})`,
                                 transformOrigin: 'center',
-                                boxShadow: '0 0 50px rgba(0,0,0,0.5)'
+                                transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: '0 0 100px rgba(0,0,0,0.8), 0 0 20px rgba(139, 92, 246, 0.1)'
                             }}
                         >
                             <canvas
                                 ref={canvasRef}
-                                className="border border-cyan-500/20"
+                                onMouseDown={(e) => {
+                                    const pos = getMousePos(e);
+                                    console.log('[CANVAS] Interaction at:', pos);
+                                    // Tool execution logic would go here
+                                }}
+                                onMouseMove={(e) => {
+                                    if (e.buttons === 1) {
+                                        const pos = getMousePos(e);
+                                        // Drawing logic implementation
+                                    }
+                                }}
+                                className="border border-white/5 rounded-sm cursor-crosshair"
                                 style={{ imageRendering: 'pixelated' }}
                             />
                         </div>
@@ -433,20 +643,23 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
                     <div className="flex border-b border-slate-700">
                         <button
                             onClick={() => setActiveTab('layers')}
-                            className={`flex-1 py-3 text-xs font-black uppercase transition-colors ${activeTab === 'layers' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-cyan-400'}`}
+                            className={`flex-1 py-3 text-[10px] font-black uppercase transition-colors flex flex-col items-center gap-1 ${activeTab === 'layers' ? 'bg-cyan-600 text-white shadow-[inset_0_0_10px_rgba(0,0,0,0.3)]' : 'text-slate-400 hover:text-cyan-400'}`}
                         >
+                            <Layers className="w-3.5 h-3.5" />
                             Layers
                         </button>
                         <button
                             onClick={() => setActiveTab('adjust')}
-                            className={`flex-1 py-3 text-xs font-black uppercase transition-colors ${activeTab === 'adjust' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-cyan-400'}`}
+                            className={`flex-1 py-3 text-[10px] font-black uppercase transition-colors flex flex-col items-center gap-1 ${activeTab === 'adjust' ? 'bg-cyan-600 text-white shadow-[inset_0_0_10px_rgba(0,0,0,0.3)]' : 'text-slate-400 hover:text-cyan-400'}`}
                         >
+                            <Sliders className="w-3.5 h-3.5" />
                             Colors
                         </button>
                         <button
                             onClick={() => setActiveTab('ai')}
-                            className={`flex-1 py-3 text-xs font-black uppercase transition-colors ${activeTab === 'ai' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-purple-400'}`}
+                            className={`flex-1 py-3 text-[10px] font-black uppercase transition-colors flex flex-col items-center gap-1 ${activeTab === 'ai' ? 'bg-purple-600 text-white shadow-[inset_0_0_10px_rgba(0,0,0,0.3)]' : 'text-slate-400 hover:text-purple-400'}`}
                         >
+                            <Zap className="w-3.5 h-3.5" />
                             AI Tools
                         </button>
                     </div>
@@ -576,6 +789,28 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
 
                         {activeTab === 'ai' && (
                             <div className="p-4 space-y-4">
+                                <div className="space-y-2">
+                                    <span className="text-xs font-black uppercase text-slate-400">Computer Vision</span>
+                                    <button
+                                        onClick={handleDetectObjects}
+                                        disabled={!state.activeLayerId || isProcessing}
+                                        className="w-full px-3 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <span>👁️</span> Detect Objects
+                                    </button>
+
+                                    {analysisResults.length > 0 && (
+                                        <div className="mt-2 space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                                            {analysisResults.map((res, i) => (
+                                                <div key={i} className="flex items-center justify-between text-[10px] bg-slate-800/50 p-1.5 rounded border border-slate-700/50">
+                                                    <span className="capitalize text-slate-200">{res.label}</span>
+                                                    <span className="text-purple-400 font-bold">{Math.round(res.score * 100)}%</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="p-3 bg-purple-900/20 border border-purple-500/30 rounded-xl space-y-2">
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
@@ -617,6 +852,23 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
                                             Upscale 4x
                                         </button>
                                     </div>
+                                </div>
+
+                                <div className="p-3 border-t border-slate-700 mt-4 space-y-3">
+                                    <span className="text-xs font-black uppercase text-purple-400">FLUX-1 Turbo</span>
+                                    <textarea
+                                        value={aiPrompt}
+                                        onChange={(e) => setAiPrompt(e.target.value)}
+                                        placeholder="Describe the image you want to generate..."
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-cyan-50 h-20 outline-none focus:border-purple-500 transition-all"
+                                    />
+                                    <button
+                                        onClick={handleGenerateAI}
+                                        disabled={isProcessing || !aiPrompt.trim()}
+                                        className="w-full px-3 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <span>🚀</span> Generate Asset
+                                    </button>
                                 </div>
 
                                 <div className="p-3 bg-blue-900/10 border border-blue-500/20 rounded-xl">
