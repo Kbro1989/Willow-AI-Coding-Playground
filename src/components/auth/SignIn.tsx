@@ -34,7 +34,7 @@ const SignIn: React.FC = () => {
                             onClick={() => {
                                 const url = db.auth.createAuthorizationURL({
                                     clientName: "google-web",
-                                    redirectURL: window.location.href,
+                                    redirectURL: window.location.origin,
                                 });
                                 window.location.href = url;
                             }}
