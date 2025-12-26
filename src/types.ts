@@ -407,3 +407,12 @@ export interface GameSession {
   duration?: number;
   isActive: boolean;
 }
+
+export type ActiveView =
+  | 'dashboard' | 'director' | 'editor' | 'matrix' | 'forge'
+  | 'pipelines' | 'behavior' | 'assets' | 'world' | 'data'
+  | 'collab' | 'diagnostics' | 'deploy' | 'settings' | 'narrative';
+
+export type AIModelMode = 'assist' | 'co-pilot' | 'autonomous' | 'read-only';
+
+export type ProjectEnv = 'dev' | 'staging' | 'prod' | 'local';

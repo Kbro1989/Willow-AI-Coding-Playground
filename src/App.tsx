@@ -5,7 +5,7 @@ import {
   TokenMetrics, BuildInfo, GameAsset, SceneObject, PhysicsConfig,
   PipelineConfig, RenderConfig, CompositingConfig, SimulationState,
   WorldConfig, SculptPoint, EngineAction, EngineLog, NeuralNode, NeuralEdge,
-  Workspace, Message, UserPreferences, Extension
+  Workspace, Message, UserPreferences, Extension, ActiveView, AIModelMode, ProjectEnv
 } from './types';
 
 // Lucide Icons for the Command Spine and Sidebars
@@ -32,6 +32,8 @@ import ApiKeyManager from './components/ApiKeyManager';
 import ErrorBoundary from './components/ErrorBoundary';
 import SignIn from './components/auth/SignIn';
 import N8NWorkflow from './components/N8NWorkflow';
+import { CommandSpine } from './components/layout/CommandSpine';
+import { PrimaryNav } from './components/layout/PrimaryNav';
 
 // Nexus Specialized Components (Phase 1 Scaffolding)
 import Director from './components/nexus/Director';
@@ -66,14 +68,7 @@ const DEFAULT_WORKSPACE_NAME = 'Antigravity Studio PRO v4.2';
 const STORAGE_KEY = 'antigravity_pro_workspace_v2';
 const initialExtensions: Extension[] = []; // In a real app, populate or load from FS
 
-// UI Types
-type ActiveView =
-  | 'dashboard' | 'director' | 'editor' | 'matrix' | 'forge'
-  | 'pipelines' | 'behavior' | 'assets' | 'world' | 'data'
-  | 'collab' | 'diagnostics' | 'deploy' | 'settings' | 'narrative';
-
-type AIModelMode = 'assist' | 'co-pilot' | 'autonomous' | 'read-only';
-type ProjectEnv = 'dev' | 'staging' | 'prod' | 'local';
+// UI Types imported from types.ts
 
 const App: React.FC = () => {
   // --- Authentication ---
@@ -261,91 +256,7 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig, simulation, nodes, edges, terminalHistory, tasks, stagedFiles, commitHistory, engineLogs, chatMessages, sculptHistory, variableData, extensions, projectVersion, assets, activeWorkspaceId]);
 
-  // --- Layout Components ---
-
-  const CommandSpine = () => (
-    <div className="h-14 bg-[#0a1222] border-b border-cyan-500/20 flex items-center justify-between px-4 shrink-0 z-50 shadow-2xl">
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3 px-3 py-1.5 bg-black/40 border border-white/5 rounded-xl cursor-not-allowed group">
-          <Blocks className="w-4 h-4 text-cyan-400" />
-          <div className="flex flex-col">
-            <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest leading-none">Nexus Cluster</span>
-            <span className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors">ANTIGRAVITY v4.2 PRO</span>
-          </div>
-          <ChevronDown className="w-3 h-3 text-slate-600" />
-        </div>
-        <div className="h-8 w-px bg-white/5" />
-        <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
-          {(['dev', 'prod'] as ProjectEnv[]).map(env => (
-            <button key={env} onClick={() => setProjectEnv(env)} className={`px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${projectEnv === env ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(0,242,255,0.4)]' : 'text-slate-500 hover:text-white'}`}>
-              {env}
-            </button>
-          ))}
-        </div>
-        <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
-          {(['assist', 'co-pilot', 'autonomous'] as AIModelMode[]).map(mode => (
-            <button key={mode} onClick={() => setAiMode(mode)} className={`px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${aiMode === mode ? 'bg-purple-500 text-white' : 'text-slate-500 hover:text-white'}`}>
-              {mode}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex items-center gap-4">
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-          <input type="text" placeholder="CMD+K SEARCH" className="bg-black/40 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-[10px] font-black tracking-widest text-white focus:outline-none focus:border-cyan-500/50" />
-        </div>
-        <div className="flex gap-2">
-          <Undo2 className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer" />
-          <Redo2 className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer" />
-        </div>
-        <div className="h-8 w-px bg-white/5" />
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowPerformanceHUD(!showPerformanceHUD)} className={`p-2 rounded-xl transition-all ${showPerformanceHUD ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-500 hover:bg-white/5'}`}>
-            <Cpu className="w-4 h-4" />
-          </button>
-          <Bell className="w-4 h-4 text-slate-500 hover:text-white" />
-          <button onClick={handlePanic} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isPanic ? 'bg-red-500 text-white animate-bounce' : 'bg-red-900/20 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white'}`}>
-            PANIC (KILL)
-          </button>
-        </div>
-        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-purple-600 border border-white/10 flex items-center justify-center text-[10px] font-black text-white">OP</div>
-      </div>
-    </div>
-  );
-
-  const PrimaryNav = () => {
-    const navItems: { id: ActiveView; label: string; icon: any; category: string }[] = [
-      { id: 'dashboard', label: 'SYSTEM Overview', icon: LayoutDashboard, category: 'Main' },
-      { id: 'director', label: 'AI DIRECTOR', icon: Brain, category: 'Main' },
-      { id: 'editor', label: 'SOURCE EDITOR', icon: Code2, category: 'Main' },
-      { id: 'matrix', label: 'MATRIX RUNTIME', icon: Box, category: 'Main' },
-      { id: 'forge', label: 'NEURAL FORGE', icon: Hammer, category: 'Creative' },
-      { id: 'pipelines', label: 'AUTOMATION', icon: Blocks, category: 'Creative' },
-      { id: 'behavior', label: 'LOGIC TREES', icon: Bot, category: 'Creative' },
-      { id: 'narrative', label: 'NARRATIVE', icon: PenTool, category: 'Creative' },
-      { id: 'assets', label: 'REGISTRY', icon: Library, category: 'Assets' },
-      { id: 'world', label: 'WORLD GEN', icon: Globe, category: 'Assets' },
-      { id: 'data', label: 'PERSISTENCE', icon: Database, category: 'Data' },
-      { id: 'collab', label: 'MULTI-LINK', icon: Users, category: 'Collab' },
-      { id: 'diagnostics', label: 'TRACING', icon: Activity, category: 'Audit' },
-      { id: 'deploy', label: 'SHIPPER', icon: Ship, category: 'Audit' },
-      { id: 'settings', label: 'CONFIG', icon: Settings, category: 'Config' },
-    ];
-
-    return (
-      <div className="w-16 bg-[#0a1222] border-r border-cyan-500/10 flex flex-col items-center py-4 gap-4 shrink-0 z-40">
-        <Zap className="w-6 h-6 text-cyan-400 mb-4 animate-pulse" fill="currentColor" />
-        {navItems.map(item => (
-          <button key={item.id} onClick={() => setActiveView(item.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all group relative ${activeView === item.id ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-600 hover:text-white hover:bg-white/5'}`}>
-            <item.icon className="w-5 h-5" />
-            {activeView === item.id && <div className="absolute left-0 w-1 h-6 bg-cyan-500 rounded-r-full shadow-[0_0_10px_#00f2ff]"></div>}
-            <div className="absolute left-full ml-4 px-2 py-1 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded opacity-0 group-hover:opacity-100 pointer-events-none z-50 whitespace-nowrap">{item.label}</div>
-          </button>
-        ))}
-      </div>
-    );
-  };
+  // --- Main Rendering ---
 
   // --- Main Rendering ---
   if (isLoading) return <div className="h-screen bg-[#050a15] flex items-center justify-center text-cyan-400 font-mono text-[10px] tracking-[0.5em] uppercase animate-pulse">Neural Handshake...</div>;
@@ -362,10 +273,22 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <div className="h-screen w-full flex flex-col bg-[#050a15] text-white/90 overflow-hidden select-none">
-        <CommandSpine />
-        <div className="flex-1 flex overflow-hidden">
-          <PrimaryNav />
+      <div className="h-screen w-full flex flex-col bg-[#050a15] text-white/90 overflow-hidden">
+        {/* Global Command Spine */}
+        <CommandSpine
+          projectEnv={projectEnv}
+          setProjectEnv={setProjectEnv}
+          aiMode={aiMode}
+          setAiMode={setAiMode}
+          showPerformanceHUD={showPerformanceHUD}
+          setShowPerformanceHUD={setShowPerformanceHUD}
+          isPanic={isPanic}
+          onPanic={() => setIsPanic(true)}
+        />
+
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Primary Navigation */}
+          <PrimaryNav activeView={activeView} setActiveView={setActiveView} />
           <main className="flex-1 relative overflow-hidden flex flex-col min-w-0">
             {/* Tab Content Cluster */}
             <div className="flex-1 relative overflow-hidden">

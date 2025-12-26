@@ -64,6 +64,16 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, isTyping]);
 
+  // Local Bridge Status Polling
+  const [bridgeStatus, setBridgeStatus] = useState(localBridgeClient.getStatus());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const status = localBridgeClient.getStatus();
+      setBridgeStatus(prev => (prev.isConnected === status.isConnected && prev.isCloudMode === status.isCloudMode) ? prev : status);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   const addMessage = (msg: Omit<Message, 'id' | 'timestamp'>) => {
     const newMsg: Message = { ...msg, id: Math.random().toString(36).substring(7), timestamp: Date.now() };
     setMessages(prev => [...prev, newMsg]);
@@ -471,9 +481,9 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
       {/* Status Indicator */}
       <div className="px-12 py-3 bg-[#050a15] border-b border-cyan-900/30 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div className={`w-3 h-3 rounded-full ${localBridgeClient.getStatus().isConnected ? 'bg-green-500' : localBridgeClient.getStatus().isCloudMode ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></div>
+          <div className={`w-3 h-3 rounded-full ${bridgeStatus.isConnected ? 'bg-green-500' : bridgeStatus.isCloudMode ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">
-            {localBridgeClient.getStatus().isConnected ? 'Local Bridge Connected' : localBridgeClient.getStatus().isCloudMode ? 'Cloud Mode Active' : 'Local Bridge Disconnected'}
+            {bridgeStatus.isConnected ? 'Local Bridge Connected' : bridgeStatus.isCloudMode ? 'Cloud Mode Active' : 'Local Bridge Disconnected'}
           </span>
         </div>
         <div className="flex items-center space-x-4">
