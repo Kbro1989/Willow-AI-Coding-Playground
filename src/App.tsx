@@ -36,6 +36,8 @@ import { initialFiles } from './constants';
 import { cloudlareLimiter as limiter } from './services/cloudflareService';
 import { db } from './lib/db';
 import SignIn from './components/auth/SignIn';
+import N8NWorkflow from './components/N8NWorkflow';
+
 import { initializeAgentAPI } from './services/agentAPI';
 
 const DEFAULT_WORKSPACE_NAME = 'Willow Studio Professional';
@@ -348,16 +350,18 @@ const App: React.FC = () => {
           const existingFile = nodes.find(n => n.name === fileName && n.type === 'file');
           return existingFile ? nodes.map(n => n === existingFile ? { ...n, content } : n) : [...nodes, { name: fileName, type: 'file', path: path, content }];
         }
-        const currentDirName = parts[0];
-        const remainingParts = parts.slice(1);
-        const existingDir = nodes.find(n => n.name === currentDirName && n.type === 'dir');
-        if (existingDir) return nodes.map(n => n === existingDir ? { ...n, children: updateTree(n.children || [], remainingParts) } : n);
-        const newDirPath = pathParts.slice(0, pathParts.length - remainingParts.length).join('/');
-        return [...nodes, { name: currentDirName, type: 'dir', path: newDirPath, children: updateTree([], remainingParts) }];
+        const [head, ...tail] = parts;
+        return nodes.map(node => {
+          if (node.name === head && node.type === 'dir') {
+            return { ...node, children: updateTree(node.children || [], tail) };
+          }
+          return node;
+        });
       };
-      return { ...prev, files: updateTree(prev.files, pathParts), activeFile: path };
+      return { ...prev, files: updateTree(prev.files, pathParts) };
     });
-  }, []);
+  }, [addLog]);
+
 
   const handleSyncVariableData = useCallback((data: Record<string, any>) => {
     setVariableData(prev => ({ ...prev, ...data }));
@@ -573,7 +577,7 @@ const App: React.FC = () => {
                   {bottomPanel === 'terminal' && <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />}
                   {bottomPanel === 'diagnostics' && <DiagnosticsPanel />}
                   {bottomPanel === 'forge' && <Forge onClose={() => setBottomPanel('chat')} />}
-                  {bottomPanel === 'pipeline' && <PipelineBuilder onClose={() => setBottomPanel('chat')} />}
+                  {bottomPanel === 'pipeline' && <div className="h-full w-full relative"><N8NWorkflow /></div>}
                   {bottomPanel === 'behavior' && <BehaviorTreeEditor onSave={(tree) => addLog(`Behavior Sync: ${tree.length} nodes saved`, 'success', 'Neural')} onDebug={(id) => addLog(`Debugging node: ${id}`, 'info', 'Runtime')} />}
                   {bottomPanel === 'rsmv' && <RSMVBrowser onImportModel={(m) => handleImportAsset({ id: `rsmv-${m.id}`, name: m.name, type: 'mesh', url: '', status: 'raw' })} />}
                   {bottomPanel === 'shader' && <ShaderGraph onCompile={(glsl) => addLog(`Shader Compiled: ${glsl.length} chars`, 'success', 'GPU')} onApplyToObjects={(id) => addLog(`Mat Applied: ${id}`, 'info', 'Render')} />}
