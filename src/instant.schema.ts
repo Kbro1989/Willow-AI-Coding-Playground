@@ -8,7 +8,7 @@ const _schema = i.schema({
         // System entities (InstantDB built-in)
         $files: i.entity({
             path: i.string().unique().indexed(),
-            url: i.string(),
+            url: i.string().optional(),
         }),
         $users: i.entity({
             email: i.string().unique().indexed().optional(),
@@ -63,16 +63,23 @@ const _schema = i.schema({
 
         // AI model usage tracking
         aiUsage: i.entity({
-            model: i.string().indexed(),
-            provider: i.string().indexed(), // 'gemini', 'cloudflare', 'local'
-            taskType: i.string().indexed(), // 'text', 'image', 'code', etc.
-            inputTokens: i.number(),
-            outputTokens: i.number(),
-            cost: i.number(),
-            duration: i.number(),
-            success: i.boolean().indexed(),
+            model: i.string().indexed().optional(),
+            provider: i.string().indexed().optional(), // 'gemini', 'cloudflare', 'local'
+            taskType: i.string().indexed().optional(), // 'text', 'image', 'code', etc.
+            inputTokens: i.number().optional(),
+            outputTokens: i.number().optional(),
+            cost: i.number().optional(),
+            duration: i.number().optional(),
+            success: i.boolean().indexed().optional(),
             userId: i.string().indexed().optional(),
-            timestamp: i.number().indexed(),
+            timestamp: i.number().indexed().optional(),
+        }),
+
+        // Task management (Restored from pull)
+        todos: i.entity({
+            text: i.string().optional(),
+            done: i.boolean().optional(),
+            createdAt: i.number().optional(),
         }),
 
         // Quests and achievements
