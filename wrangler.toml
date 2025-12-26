@@ -1,65 +1,57 @@
 name = "antigravity-engine"
-main = "dist/worker.js"
-compatibility_date = "2025-02-14"
 pages_build_output_dir = "dist"
+compatibility_date = "2025-02-14"
 
-# Account ID from user credentials
-account_id = "6872653edcee9c791787c1b783173793"
+# Global Variables
+[vars]
+AI_GATEWAY_ID = "antigravity-gateway"
 
-# Production deployment
-workers_dev = true
+# Preview Environment (Shared Bindings)
+[env.preview]
+[env.preview.vars]
+ENVIRONMENT = "preview"
+AI_GATEWAY_ID = "antigravity-gateway"
 
-# KV Namespaces for session and data storage
-[[kv_namespaces]]
+[[env.preview.kv_namespaces]]
 binding = "SESSION_KV"
-id = "d2115d86d630412a92875739f813eeea"  # ASSET_NAMESPACE
+id = "d2115d86d630412a92875739f813eeea"
 
-[[kv_namespaces]]
+[[env.preview.kv_namespaces]]
 binding = "CACHE_KV"
-id = "58fba013729b43cc9024c7ee86e2b82b"  # VARIABLES
+id = "58fba013729b43cc9024c7ee86e2b82b"
 
-# R2 Buckets for media storage
-[[r2_buckets]]
+[[env.preview.r2_buckets]]
 binding = "MEDIA_BUCKET"
 bucket_name = "antigravity-media"
 
-[[r2_buckets]]
+[[env.preview.r2_buckets]]
 binding = "ASSETS_BUCKET"
 bucket_name = "antigravity-assets"
 
-# AI Binding for Workers AI
-[ai]
+[env.preview.ai]
 binding = "AI"
 
-# Scheduled tasks
-[triggers]
-crons = ["0 */6 * * *", "0 0 * * *"]
-
-# Build configuration
-[build]
-command = "npm run build:all"
-
-# Static site (Vite build output)
-[site]
-bucket = "./dist"
-
-# Environment variables (non-sensitive)
-[vars]
+# Production Environment (Shared Bindings)
+[env.production]
+[env.production.vars]
 ENVIRONMENT = "production"
 AI_GATEWAY_ID = "antigravity-gateway"
 
-# Staging environment
-[env.staging]
-name = "antigravity-engine-staging"
-workers_dev = true
+[[env.production.kv_namespaces]]
+binding = "SESSION_KV"
+id = "d2115d86d630412a92875739f813eeea"
 
-[env.staging.vars]
-ENVIRONMENT = "staging"
+[[env.production.kv_namespaces]]
+binding = "CACHE_KV"
+id = "58fba013729b43cc9024c7ee86e2b82b"
 
-# Production environment
-[env.production]
-name = "antigravity-engine"
-workers_dev = false
+[[env.production.r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "antigravity-media"
 
-[env.production.vars]
-ENVIRONMENT = "production"
+[[env.production.r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "antigravity-assets"
+
+[env.production.ai]
+binding = "AI"
