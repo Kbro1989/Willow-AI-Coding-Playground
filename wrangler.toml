@@ -1,12 +1,59 @@
 name = "antigravity-engine"
-main = "src/index.tsx"
+main = "dist/worker.js"
 compatibility_date = "2025-02-14"
 
 # Account ID from user memory
 account_id = "6872653edcee9c787c1b783173793"
 
+# Production deployment
+workers_dev = true
+
+# KV Namespaces for session and data storage
+[[kv_namespaces]]
+binding = "SESSION_KV"
+id = "placeholder_session_kv_id"
+
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "placeholder_cache_kv_id"
+
+# R2 Buckets for media storage
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "antigravity-media"
+
+[[r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "antigravity-assets"
+
+# Scheduled tasks
+[triggers]
+crons = ["0 */6 * * *", "0 0 * * *"]
+
+# Build configuration
+[build]
+command = "npm run build:all"
+
+# Static site (Vite build output)
 [site]
 bucket = "./dist"
 
-[build]
-command = "npm run build"
+# Environment variables (non-sensitive)
+[vars]
+ENVIRONMENT = "production"
+
+# Staging environment
+[env.staging]
+name = "antigravity-engine-staging"
+workers_dev = true
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+
+# Production environment
+[env.production]
+name = "antigravity-engine"
+workers_dev = false
+
+[env.production.vars]
+ENVIRONMENT = "production"
