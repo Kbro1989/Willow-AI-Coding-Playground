@@ -1,6 +1,7 @@
 name = "antigravity-engine"
 main = "dist/worker.js"
 compatibility_date = "2025-02-14"
+pages_build_output_dir = "dist"
 
 # Account ID from user credentials
 account_id = "6872653edcee9c791787c1b783173793"
