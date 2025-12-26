@@ -24,8 +24,10 @@ export const saveToRegistry = async (
         // Simulating the transaction logic for now
         // In reality we would use db.transact([...])
 
+        // We cast collection to any to bypass strict typing for this generic handler
+        // In a strictly typed system, we would map each collection to its schema type
         await db.transact([
-            db.tx[collection][entryId].update({
+            (db.tx as any)[collection][entryId].update({
                 ...data,
                 version: 1,
                 updatedAt: timestamp,
