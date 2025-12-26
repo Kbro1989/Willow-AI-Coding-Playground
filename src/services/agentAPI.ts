@@ -4,6 +4,7 @@
  */
 
 import { localBridgeClient } from './localBridgeService';
+import { SyncMode } from '../types';
 
 export interface AgentAPI {
     // Terminal operations
@@ -27,8 +28,9 @@ export interface AgentAPI {
 
     // Bridge status
     bridge: {
-        getStatus: () => { isConnected: boolean; isCloudMode: boolean };
+        getStatus: () => { isConnected: boolean; isCloudMode: boolean; syncMode: SyncMode };
         setBridgeUrl: (url: string) => void;
+        setSyncMode: (mode: SyncMode) => void;
     };
 }
 
@@ -88,7 +90,8 @@ export function initializeAgentAPI(): AgentAPI {
 
         bridge: {
             getStatus: () => localBridgeClient.getStatus(),
-            setBridgeUrl: (url: string) => localBridgeClient.setBridgeUrl(url)
+            setBridgeUrl: (url: string) => localBridgeClient.setBridgeUrl(url),
+            setSyncMode: (mode: SyncMode) => localBridgeClient.setSyncMode(mode)
         }
     };
 
@@ -105,6 +108,7 @@ export function initializeAgentAPI(): AgentAPI {
     console.log('  - window.agentAPI.fs.write("path/to/file.ts", content)');
     console.log('  - window.agentAPI.fs.list("./src")');
     console.log('  - window.agentAPI.bridge.getStatus()');
+    console.log('  - window.agentAPI.bridge.setSyncMode("dual")');
 
     return api;
 }

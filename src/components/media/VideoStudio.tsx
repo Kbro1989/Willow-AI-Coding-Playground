@@ -149,9 +149,9 @@ export const VideoStudio: React.FC = () => {
 
                     {/* Prompt Input */}
                     <div className="space-y-3 flex-1">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Director's Script</label>
+                        <label className="nexus-label">Director's Script</label>
                         <textarea
-                            className="w-full h-40 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none placeholder-zinc-600"
+                            className="nexus-textarea w-full h-64 resize-none font-sans"
                             placeholder="Describe the scene in detail...&#10;e.g., A cyberpunk street during rain, neon reflections, cinematic lighting"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
@@ -161,20 +161,20 @@ export const VideoStudio: React.FC = () => {
                     <button
                         disabled={isGenerating || !prompt}
                         onClick={handleGenerate}
-                        className={`w-full py-4 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${isGenerating
-                            ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-900/20'
+                        className={`w-full py-4 font-black uppercase tracking-widest flex items-center justify-center space-x-3 transition-all ${isGenerating
+                            ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50'
+                            : 'nexus-btn-accent'
                             }`}
                     >
                         {isGenerating ? (
                             <>
                                 <Loader className="w-5 h-5 animate-spin" />
-                                <span>Rendering Frame...</span>
+                                <span>Simulating...</span>
                             </>
                         ) : (
                             <>
                                 <Play className="w-5 h-5 fill-current" />
-                                <span>Generate Sequence</span>
+                                <span>Ignite Sequence</span>
                             </>
                         )}
                     </button>

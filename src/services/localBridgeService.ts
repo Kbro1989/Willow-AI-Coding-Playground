@@ -1,11 +1,13 @@
 import { readCloudFile, writeCloudFile, deleteCloudFile } from './cloudFsService';
 import { executeRemoteCommand } from './remoteTerminalService';
+import { SyncMode } from '../types';
 
 class LocalBridgeClient {
   private ws: WebSocket | null = null;
   private messageHandlers: Map<string, (response: any) => void> = new Map();
   private commandCounter = 0;
-  private isCloudMode: boolean = false; // New flag to indicate if we are in cloud mode
+  private isCloudMode: boolean = false;
+  private syncMode: SyncMode = SyncMode.LOCAL;
 
   constructor() {
     this.connect();
@@ -17,6 +19,11 @@ class LocalBridgeClient {
       this.ws.close();
     }
     this.connect();
+  }
+
+  public setSyncMode(mode: SyncMode) {
+    this.syncMode = mode;
+    console.log(`[LocalBridge] Sync Mode set to: ${mode}`);
   }
 
   private connect() {
@@ -64,8 +71,12 @@ class LocalBridgeClient {
     };
   }
 
-  getStatus(): { isConnected: boolean, isCloudMode: boolean } {
-    return { isConnected: this.ws?.readyState === WebSocket.OPEN && !this.isCloudMode, isCloudMode: this.isCloudMode };
+  getStatus(): { isConnected: boolean, isCloudMode: boolean, syncMode: SyncMode } {
+    return {
+      isConnected: this.ws?.readyState === WebSocket.OPEN && !this.isCloudMode,
+      isCloudMode: this.isCloudMode,
+      syncMode: this.syncMode
+    };
   }
 
   private sendMessage(type: string, payload: any): Promise<any> {
@@ -128,18 +139,34 @@ class LocalBridgeClient {
   }
 
   async writeLocalFile(filePath: string, content: string): Promise<{ success: boolean, error?: string }> {
-    if (this.isCloudMode) {
-      const result = await writeCloudFile(filePath, content);
-      return { success: result.success, error: result.message };
-    }
-    try {
-      await this.sendMessage('fs_write', { filePath, content });
+    if (this.syncMode === SyncMode.OFFLINE) {
+      console.log(`[LocalBridge] OFFLINE Mode: Suppression write to ${filePath}`);
       return { success: true };
-    } catch (e: any) {
-      console.warn("[LocalBridge] Write file failed, switching to Cloud Mode.", e);
-      this.isCloudMode = true;
-      return this.writeLocalFile(filePath, content);
     }
+
+    // 1. Determine targets based on syncMode
+    const writeToCloud = this.isCloudMode || this.syncMode === SyncMode.CLOUD || this.syncMode === SyncMode.DUAL;
+    const writeToLocal = !this.isCloudMode && (this.syncMode === SyncMode.LOCAL || this.syncMode === SyncMode.DUAL);
+
+    let cloudResult = { success: true };
+    let localResult = { success: true };
+
+    if (writeToCloud) {
+      const result = await writeCloudFile(filePath, content);
+      cloudResult = { success: result.success };
+      if (!result.success) console.error(`[LocalBridge] Cloud Write Failed: ${result.message}`);
+    }
+
+    if (writeToLocal) {
+      try {
+        await this.sendMessage('fs_write', { filePath, content });
+      } catch (e: any) {
+        console.warn("[LocalBridge] Local write failed during sync.", e);
+        localResult = { success: false };
+      }
+    }
+
+    return { success: cloudResult.success && localResult.success };
   }
 
   async deleteLocalFile(filePath: string): Promise<{ success: boolean, error?: string }> {

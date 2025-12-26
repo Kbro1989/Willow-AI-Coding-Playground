@@ -43,7 +43,31 @@ body {
 
   /* Interaction Tokens */
   .nexus-btn {
-    @apply transition-all duration-200 active:scale-95 cursor-pointer;
+    @apply transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .nexus-btn-primary {
+    @apply nexus-btn bg-cyan-600 hover:bg-cyan-500 text-white shadow-[0_0_20px_rgba(0,242,255,0.2)];
+  }
+
+  .nexus-btn-accent {
+    @apply nexus-btn bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.2)];
+  }
+
+  .nexus-btn-danger {
+    @apply nexus-btn bg-red-600 hover:bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.2)];
+  }
+
+  .nexus-input {
+    @apply bg-[#050a15] border border-cyan-500/20 rounded-lg px-4 py-2 text-sm text-cyan-50 outline-none transition-all focus:border-cyan-500 shadow-[inset_0_0_10px_rgba(0,0,0,0.3)];
+  }
+
+  .nexus-textarea {
+    @apply bg-[#050a15]/50 border border-cyan-500/10 rounded-xl p-4 text-sm text-slate-100 outline-none transition-all focus:border-cyan-500 focus:bg-[#050a15] shadow-[inset_0_0_15px_rgba(0,0,0,0.5)];
+  }
+
+  .nexus-label {
+    @apply text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2;
   }
 
   .nexus-btn-glow:hover {

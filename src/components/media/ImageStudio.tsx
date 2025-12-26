@@ -949,19 +949,20 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
                                 </div>
 
                                 <div className="p-3 border-t border-slate-700 mt-4 space-y-3">
-                                    <span className="text-xs font-black uppercase text-purple-400">FLUX-1 Turbo</span>
+                                    <label className="nexus-label text-purple-400">FLUX-1 Turbo</label>
                                     <textarea
                                         value={aiPrompt}
                                         onChange={(e) => setAiPrompt(e.target.value)}
                                         placeholder="Describe the image you want to generate..."
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-cyan-50 h-20 outline-none focus:border-purple-500 transition-all"
+                                        className="nexus-textarea w-full h-24 resize-none"
                                     />
                                     <button
                                         onClick={handleGenerateAI}
                                         disabled={isProcessing || !aiPrompt.trim()}
-                                        className="w-full px-3 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg text-xs font-black uppercase transition-all flex items-center justify-center gap-2"
+                                        className="w-full nexus-btn-accent py-3 font-black uppercase tracking-widest flex items-center justify-center gap-2"
                                     >
-                                        <span>🚀</span> Generate Asset
+                                        <Sparkles className="w-4 h-4" />
+                                        <span>Ignite Forge</span>
                                     </button>
                                 </div>
 

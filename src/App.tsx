@@ -5,7 +5,7 @@ import {
   TokenMetrics, BuildInfo, GameAsset, SceneObject, PhysicsConfig,
   PipelineConfig, RenderConfig, CompositingConfig, SimulationState,
   WorldConfig, SculptPoint, EngineAction, EngineLog, NeuralNode, NeuralEdge,
-  Workspace, Message, UserPreferences, Extension, ActiveView, AIModelMode, ProjectEnv
+  Workspace, Message, UserPreferences, Extension, ActiveView, AIModelMode, ProjectEnv, SyncMode
 } from './types';
 
 // Lucide Icons for the Command Spine and Sidebars
@@ -54,6 +54,7 @@ import { cloudlareLimiter as limiter } from './services/cloudflareService';
 import { db } from './lib/db';
 import { initializeAgentAPI } from './services/agentAPI';
 import { nexusBus } from './services/nexusCommandBus';
+import { localBridgeClient } from './services/localBridgeService';
 
 // Media components (Forge migration targets)
 import AudioWorkshop from './components/media/AudioWorkshop';
@@ -98,6 +99,7 @@ const App: React.FC = () => {
   const [nodes, setNodes] = useState<NeuralNode[]>([]);
   const [edges, setEdges] = useState<NeuralEdge[]>([]);
   const [tasks, setTasks] = useState<TodoTask[]>([]);
+  const [syncMode, setSyncMode] = useState<SyncMode>(SyncMode.LOCAL);
   const [stagedFiles, setStagedFiles] = useState<string[]>([]);
   const [commitHistory, setCommitHistory] = useState<GitCommit[]>([]);
   const [variableData, setVariableData] = useState<Record<string, any>>({});
@@ -199,7 +201,11 @@ const App: React.FC = () => {
 
   const handleInjectScript = useCallback((path: string, content: string) => {
     addLog(`Script Injected: ${path}`, 'success', 'Kernel');
-    // Logic to update file content would go here
+    // Direct Action: Write to persistent storage
+    (window as any).agentAPI?.fs.write(path, content).then((res: any) => {
+      if (res.success) addLog(`File persisted: ${path}`, 'info', 'AgentFS');
+      else addLog(`Persistence failure: ${path}`, 'error', 'AgentFS');
+    });
   }, [addLog]);
 
   const handleUninstallExtension = (id: string) => {
@@ -248,6 +254,10 @@ const App: React.FC = () => {
         setVariableData(ws.variableData || {});
         setProjectVersion(ws.projectVersion || 'v4.2.0');
         setActiveWorkspaceId(ws.id);
+        if (ws.syncMode) {
+          setSyncMode(ws.syncMode);
+          localBridgeClient.setSyncMode(ws.syncMode);
+        }
       } catch (e) {
         console.error('Failed to load workspace:', e);
       }
@@ -265,14 +275,15 @@ const App: React.FC = () => {
           name: DEFAULT_WORKSPACE_NAME,
           project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig,
           simulation, nodes, edges, terminalHistory, tasks, stagedFiles, commitHistory, engineLogs,
-          messages: chatMessages, sculptHistory, variableData, extensions, projectVersion, assets
+          messages: chatMessages, sculptHistory, variableData, extensions, projectVersion, assets, syncMode
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(ws));
+        localBridgeClient.setSyncMode(syncMode);
         setLastSaved(Date.now());
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig, simulation, nodes, edges, terminalHistory, tasks, stagedFiles, commitHistory, engineLogs, chatMessages, sculptHistory, variableData, extensions, projectVersion, assets, activeWorkspaceId]);
+  }, [project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig, simulation, nodes, edges, terminalHistory, tasks, stagedFiles, commitHistory, engineLogs, chatMessages, sculptHistory, variableData, extensions, projectVersion, assets, activeWorkspaceId, syncMode]);
 
   // --- Main Rendering ---
 

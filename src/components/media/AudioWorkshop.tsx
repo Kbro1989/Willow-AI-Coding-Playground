@@ -240,25 +240,28 @@ const AudioWorkshop: React.FC = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="w-full max-w-2xl flex flex-col h-full py-4">
-                            <label className="text-sm font-medium text-white/50 mb-2">Text-to-Speech Prompt</label>
-                            <textarea
-                                className="flex-1 w-full bg-[#1a1d24] border border-white/10 rounded-xl p-4 text-white placeholder-white/20 focus:outline-none focus:border-blue-500/50 resize-none font-sans text-lg leading-relaxed"
-                                placeholder="Type something amazing for the AI to say..."
-                                value={ttsText}
-                                onChange={(e) => setTtsText(e.target.value)}
-                            />
-                            <div className="mt-4 flex justify-end">
+                        <div className="w-full max-w-2xl flex flex-col h-full py-4 space-y-4">
+                            <div>
+                                <label className="nexus-label">Vocal Synthesis Script</label>
+                                <textarea
+                                    className="nexus-textarea w-full h-64 font-sans text-lg leading-relaxed"
+                                    placeholder="Type something amazing for the AI to say..."
+                                    value={ttsText}
+                                    onChange={(e) => setTtsText(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex justify-end">
                                 <button
                                     onClick={handleTTS}
                                     disabled={isGenerating || !ttsText.trim()}
-                                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-all shadow-lg shadow-blue-500/20"
+                                    className="nexus-btn-accent px-8 py-3 font-black uppercase tracking-widest flex items-center gap-3"
                                 >
                                     {isGenerating ? (
-                                        <><Activity className="w-4 h-4 animate-spin" /> Generating Audio...</>
+                                        <Activity className="w-4 h-4 animate-spin" />
                                     ) : (
-                                        <><Wand2 className="w-4 h-4" /> Generate Speech</>
+                                        <Wand2 className="w-4 h-4" />
                                     )}
+                                    {isGenerating ? 'Synthesizing Audio...' : 'Manifest Speech'}
                                 </button>
                             </div>
                         </div>

@@ -279,6 +279,7 @@ export interface Workspace {
   sculptHistory: SculptPoint[];
   savedPipelines?: any[]; // Workflow[] from n8n
   assets: GameAsset[];
+  syncMode: SyncMode;
 }
 
 export enum ModelKey {
@@ -419,3 +420,33 @@ export type ActiveView =
 export type AIModelMode = 'assist' | 'co-pilot' | 'autonomous' | 'read-only';
 
 export type ProjectEnv = 'dev' | 'staging' | 'prod' | 'local';
+
+/**
+ * SyncMode defines the persistence strategy for the engine's file system and state.
+ * It determines where AI-generated files and workspace mutations are directed.
+ */
+export enum SyncMode {
+  /** 
+   * Data is persisted exclusively to the local file system via the local bridge.
+   * Required for local-only development and high-bandwidth file operations.
+   */
+  LOCAL = 'local',
+
+  /** 
+   * Data is persisted exclusively to the Cloudflare R2/Worker cloud volume.
+   * Ideal for remote collaboration and thin-client environments.
+   */
+  CLOUD = 'cloud',
+
+  /** 
+   * Concurrent broadcast to BOTH local and cloud volumes.
+   * Ensures the local development environment remains in perfect lockstep with the remote deployment.
+   */
+  DUAL = 'dual',
+
+  /** 
+   * Disables all persistent writes. Operations remain transient in memory.
+   * Best for sandboxed experimentation or read-only auditing.
+   */
+  OFFLINE = 'offline'
+}

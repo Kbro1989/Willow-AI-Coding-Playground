@@ -223,16 +223,16 @@ const N8NWorkflow: React.FC = () => {
 
                             {NODE_DEFINITIONS[selectedNode.data.type as NodeType]?.parameters.map(param => (
                                 <div key={param.name} className="space-y-1">
-                                    <label className="text-[10px] uppercase text-cyan-400">{param.label}</label>
+                                    <label className="nexus-label !text-cyan-400">{param.label}</label>
                                     {param.type === 'textarea' || param.type === 'code' ? (
                                         <textarea
-                                            className="w-full bg-[#050a15] border border-cyan-900/50 rounded p-2 text-xs text-slate-300 font-mono focus:border-cyan-500 outline-none min-h-[100px]"
+                                            className="nexus-textarea w-full min-h-[120px] font-mono"
                                             value={selectedNode.data.parameters[param.name] || ''}
                                             onChange={(e) => updateNodeParam(selectedNode.id, param.name, e.target.value)}
                                         />
                                     ) : param.type === 'select' ? (
                                         <select
-                                            className="w-full bg-[#050a15] border border-cyan-900/50 rounded p-2 text-xs text-slate-300 focus:border-cyan-500 outline-none"
+                                            className="nexus-input w-full"
                                             value={selectedNode.data.parameters[param.name] || param.default}
                                             onChange={(e) => updateNodeParam(selectedNode.id, param.name, e.target.value)}
                                         >
@@ -243,7 +243,7 @@ const N8NWorkflow: React.FC = () => {
                                     ) : (
                                         <input
                                             type={param.type === 'number' ? 'number' : 'text'}
-                                            className="w-full bg-[#050a15] border border-cyan-900/50 rounded p-2 text-xs text-slate-300 focus:border-cyan-500 outline-none"
+                                            className="nexus-input w-full"
                                             value={selectedNode.data.parameters[param.name] || ''}
                                             onChange={(e) => updateNodeParam(selectedNode.id, param.name, e.target.value)}
                                         />
