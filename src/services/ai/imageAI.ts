@@ -5,7 +5,7 @@
 
 import type { MediaAsset } from '../../types/media';
 
-const CF_ACCOUNT_ID = '6872653edcee9c787c1b783173793'; // From user memories
+const CF_ACCOUNT_ID = '6872653edcee9c791787c1b783173793'; // Corrected from user credentials
 const CF_API_TOKEN = localStorage.getItem('cloudflare_api_key') || '';
 
 interface CloudflareAIResponse {
@@ -39,7 +39,8 @@ export async function removeBackgroundAI(imageData: ImageData): Promise<ImageDat
             reader.readAsDataURL(blob);
         });
 
-        // Call Cloudflare Workers AI
+        // Call Cloudflare Workers AI - Using specialized background removal if available, 
+        // fall back to SD for now but with better parameters for 'Absolute Reality'
         const response = await fetch(
             `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/lykon/absolute-reality-v1.8.1`,
             {
@@ -49,9 +50,10 @@ export async function removeBackgroundAI(imageData: ImageData): Promise<ImageDat
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    prompt: 'remove background, transparent background, alpha channel',
-                    image: base64.split(',')[1], // Remove data:image/png;base64, prefix
-                    num_steps: 20
+                    prompt: 'subject on pure transparent background, high contrast, studio lighting, alpha channel',
+                    image: base64.split(',')[1],
+                    strength: 0.8,
+                    num_steps: 25
                 })
             }
         );
@@ -181,6 +183,38 @@ export async function generateImageAI(prompt: string): Promise<string> {
         return result.result.image; // Base64
     } catch (error) {
         console.error('[IMAGE_AI] Generation failed:', error);
+        throw error;
+    }
+}
+
+/**
+ * Generate image using FLUX-1 Schnell (State-of-the-art)
+ */
+export async function generateFluxImage(prompt: string, steps: number = 4): Promise<string> {
+    try {
+        const response = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${CF_API_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt,
+                    num_steps: steps
+                })
+            }
+        );
+
+        if (!response.ok) throw new Error(`FLUX AI error: ${response.statusText}`);
+        const result: CloudflareAIResponse = await response.json();
+
+        if (!result.success) throw new Error(result.errors?.[0]?.message || 'FLUX generation failed');
+
+        return result.result.image;
+    } catch (error) {
+        console.error('[IMAGE_AI] FLUX generation failed:', error);
         throw error;
     }
 }
