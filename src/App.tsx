@@ -13,7 +13,7 @@ import {
   LayoutDashboard, Brain, Code2, Box, Hammer, Blocks,
   Bot, Library, Globe, Database, Users, Activity,
   Ship, Settings, Search, Undo2, Redo2, Bell,
-  Cpu, ShieldAlert, ChevronDown, Zap
+  Cpu, ShieldAlert, ChevronDown, Zap, PenTool
 } from 'lucide-react';
 
 // Common Components
@@ -39,6 +39,12 @@ import Matrix from './components/nexus/Matrix';
 import Forge from './components/nexus/Forge';
 import Behavior from './components/nexus/Behavior';
 import Deploy from './components/nexus/Deploy';
+import Registry from './components/nexus/Registry';
+import World from './components/nexus/World';
+import Persistence from './components/nexus/Persistence';
+import Link from './components/nexus/Link';
+import Config from './components/nexus/Config';
+import Narrative from './components/nexus/Narrative';
 
 // Services
 import { initialFiles } from './constants';
@@ -64,7 +70,7 @@ const initialExtensions: Extension[] = []; // In a real app, populate or load fr
 type ActiveView =
   | 'dashboard' | 'director' | 'editor' | 'matrix' | 'forge'
   | 'pipelines' | 'behavior' | 'assets' | 'world' | 'data'
-  | 'collab' | 'diagnostics' | 'deploy' | 'settings';
+  | 'collab' | 'diagnostics' | 'deploy' | 'settings' | 'narrative';
 
 type AIModelMode = 'assist' | 'co-pilot' | 'autonomous' | 'read-only';
 type ProjectEnv = 'dev' | 'staging' | 'prod' | 'local';
@@ -317,6 +323,7 @@ const App: React.FC = () => {
       { id: 'forge', label: 'NEURAL FORGE', icon: Hammer, category: 'Creative' },
       { id: 'pipelines', label: 'AUTOMATION', icon: Blocks, category: 'Creative' },
       { id: 'behavior', label: 'LOGIC TREES', icon: Bot, category: 'Creative' },
+      { id: 'narrative', label: 'NARRATIVE', icon: PenTool, category: 'Creative' },
       { id: 'assets', label: 'REGISTRY', icon: Library, category: 'Assets' },
       { id: 'world', label: 'WORLD GEN', icon: Globe, category: 'Assets' },
       { id: 'data', label: 'PERSISTENCE', icon: Database, category: 'Data' },
@@ -434,8 +441,14 @@ const App: React.FC = () => {
               {activeView === 'forge' && <Forge />}
               {activeView === 'pipelines' && <N8NWorkflow />}
               {activeView === 'behavior' && <Behavior />}
+              {activeView === 'narrative' && <Narrative />}
+              {activeView === 'assets' && <Registry />}
+              {activeView === 'world' && <World />}
+              {activeView === 'data' && <Persistence />}
+              {activeView === 'collab' && <Link />}
               {activeView === 'diagnostics' && <DiagnosticsPanel />}
               {activeView === 'deploy' && <Deploy />}
+              {activeView === 'settings' && <Config />}
             </div>
 
             {/* Modals & Overlays */}
