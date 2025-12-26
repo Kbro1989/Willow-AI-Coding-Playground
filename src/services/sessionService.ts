@@ -14,10 +14,16 @@ class SessionService {
     };
 
     private HARD_COST_LIMIT = 5.00; // $5.00 limit for current session
-    private listeners: Array<(m: SessionMetrics) => void> = [];
+    private isHardBudgetEnabled = true;
+    private listeners: Array<(m: SessionMetrics & { isHardBudgetEnabled: boolean }) => void> = [];
 
     getMetrics() {
-        return { ...this.metrics };
+        return { ...this.metrics, isHardBudgetEnabled: this.isHardBudgetEnabled };
+    }
+
+    setHardBudgetEnabled(enabled: boolean) {
+        this.isHardBudgetEnabled = enabled;
+        this.notify();
     }
 
     updateMetrics(tokens: number, cost: number) {
@@ -28,10 +34,10 @@ class SessionService {
     }
 
     isOverQuota(): boolean {
-        return this.metrics.totalCost >= this.HARD_COST_LIMIT;
+        return this.isHardBudgetEnabled && this.metrics.totalCost >= this.HARD_COST_LIMIT;
     }
 
-    subscribe(listener: (m: SessionMetrics) => void) {
+    subscribe(listener: (m: SessionMetrics & { isHardBudgetEnabled: boolean }) => void) {
         this.listeners.push(listener);
         return () => {
             this.listeners = this.listeners.filter(l => l !== listener);
@@ -39,7 +45,8 @@ class SessionService {
     }
 
     private notify() {
-        this.listeners.forEach(l => l(this.metrics));
+        const fullMetrics = { ...this.metrics, isHardBudgetEnabled: this.isHardBudgetEnabled };
+        this.listeners.forEach(l => l(fullMetrics));
     }
 
     reset() {

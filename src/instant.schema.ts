@@ -123,6 +123,26 @@ const _schema = i.schema({
             duration: i.number().optional(),
             isActive: i.boolean().indexed(),
         }),
+
+        // Real-time Presence (Cursors and Focus)
+        presence: i.entity({
+            userId: i.string().indexed(),
+            userName: i.string(),
+            cursorX: i.number(),
+            cursorY: i.number(),
+            activeFile: i.string().optional(),
+            activeTab: i.string().optional(),
+            lastActive: i.number().indexed(),
+        }),
+
+        // Collaborative Workspace State
+        workspace_state: i.entity({
+            workspaceId: i.string().indexed(),
+            activeUsers: i.string(), // JSON array of user IDs
+            lockedEntities: i.string(), // JSON array of entity IDs
+            globalDirectives: i.string(), // Current AI goal/state
+            updatedAt: i.number(),
+        }),
     },
     links: {
         // System links

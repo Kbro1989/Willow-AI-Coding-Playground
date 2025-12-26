@@ -38,6 +38,7 @@ import Director from './components/nexus/Director';
 import Matrix from './components/nexus/Matrix';
 import Forge from './components/nexus/Forge';
 import Behavior from './components/nexus/Behavior';
+import Deploy from './components/nexus/Deploy';
 
 // Services
 import { initialFiles } from './constants';
@@ -434,6 +435,7 @@ const App: React.FC = () => {
               {activeView === 'pipelines' && <N8NWorkflow />}
               {activeView === 'behavior' && <Behavior />}
               {activeView === 'diagnostics' && <DiagnosticsPanel />}
+              {activeView === 'deploy' && <Deploy />}
             </div>
 
             {/* Modals & Overlays */}

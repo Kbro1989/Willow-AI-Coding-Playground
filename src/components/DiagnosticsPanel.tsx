@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { nexusBus, NexusJob } from '../services/nexusCommandBus';
 import { sessionService, SessionMetrics } from '../services/sessionService';
-import { Activity, Zap, Cpu, AlertTriangle, TrendingUp, Database } from 'lucide-react';
+import { Activity, Zap, Cpu, AlertTriangle, TrendingUp, Database, ShieldCheck, Users } from 'lucide-react';
 
 const DiagnosticsPanel: React.FC = () => {
   const [jobs, setJobs] = useState<NexusJob[]>(nexusBus.getJobs());
-  const [metrics, setMetrics] = useState<SessionMetrics>(sessionService.getMetrics());
+  const [metrics, setMetrics] = useState<SessionMetrics & { isHardBudgetEnabled: boolean }>(sessionService.getMetrics());
 
   useEffect(() => {
     const unsubBus = nexusBus.subscribe(() => {
@@ -33,36 +33,46 @@ const DiagnosticsPanel: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-4 gap-6 mb-8">
-        <div className="p-4 bg-cyan-950/20 border border-cyan-500/10 rounded-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-            <Cpu className="w-12 h-12 text-cyan-400" />
+        <div className="bg-black/40 border border-white/5 p-5 rounded-xl col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-500">
+              <ShieldCheck className="w-4 h-4" />
+              Economy Guardrails
+            </div>
+            <button
+              onClick={() => sessionService.setHardBudgetEnabled(!metrics.isHardBudgetEnabled)}
+              className={`px-3 py-1 rounded text-[9px] font-black uppercase transition-all ${metrics.isHardBudgetEnabled ? 'bg-emerald-500 text-black' : 'bg-slate-800 text-slate-400'}`}
+            >
+              Hard Budget: {metrics.isHardBudgetEnabled ? 'ACTIVE' : 'OFF'}
+            </button>
           </div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-cyan-500 mb-2">Neural Load</div>
-          <div className="text-3xl font-black text-white">{jobs.filter(j => j.type === 'ai').length} <span className="text-xs text-cyan-600 font-normal uppercase">Active Jobs</span></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase mb-1">Session Burn</div>
+              <div className="text-2xl font-black text-white">${metrics.totalCost.toFixed(3)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase mb-1">Hard Limit</div>
+              <div className="text-2xl font-black text-slate-400">$5.000</div>
+            </div>
+          </div>
+          {metrics.isHardBudgetEnabled && metrics.totalCost > 4.5 && (
+            <div className="mt-4 p-2 bg-red-500/10 border border-red-500/20 rounded text-[9px] text-red-500 font-bold animate-pulse">
+              CRITICAL: Budget threshold reached. Autonomous jobs will be throttled.
+            </div>
+          )}
         </div>
 
-        <div className="p-4 bg-emerald-950/10 border border-emerald-500/10 rounded-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-            <TrendingUp className="w-12 h-12 text-emerald-400" />
+        <div className="bg-black/40 border border-white/5 p-5 rounded-xl col-span-2">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-500 mb-4">
+            <Users className="w-4 h-4" />
+            Collaborative Presence
           </div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-500 mb-2">Neural Economy</div>
-          <div className="text-3xl font-black text-white">${metrics.totalCost.toFixed(3)} <span className="text-xs text-emerald-600 font-normal uppercase">Total Cost</span></div>
-        </div>
-
-        <div className="p-4 bg-purple-950/10 border border-purple-500/10 rounded-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-            <Zap className="w-12 h-12 text-purple-400" />
+          <div className="flex -space-x-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 border border-black flex items-center justify-center text-[10px] font-black text-white">OP</div>
+            <div className="w-8 h-8 rounded-full bg-slate-800 border border-black flex items-center justify-center text-[10px] font-black text-slate-500">+0</div>
           </div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-purple-500 mb-2">Token Velocity</div>
-          <div className="text-3xl font-black text-white">{metrics.totalTokens.toLocaleString()} <span className="text-xs text-purple-600 font-normal uppercase">Used</span></div>
-        </div>
-
-        <div className="p-4 bg-slate-950/10 border border-slate-500/10 rounded-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-            <Database className="w-12 h-12 text-slate-400" />
-          </div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-2">Registry Size</div>
-          <div className="text-3xl font-black text-white">{jobs.length} <span className="text-xs text-slate-600 font-normal uppercase">Total Entries</span></div>
+          <p className="mt-3 text-[10px] text-slate-500 italic">No other users integrated in current link scope.</p>
         </div>
       </div>
 
