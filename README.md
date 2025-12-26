@@ -14,6 +14,13 @@ An AI-powered code editor and game development environment with advanced feature
 - **Pipeline Builder**: Visual workflow editor (n8n-style) for creating AI pipelines
 - **Extension Registry**: Manage and install extensions
 
+### Game Persistence & Data 🎮
+- **Character System**: Full character CRUD with progression and inventory
+- **World Management**: Locations, quests, and NPC systems
+- **Asset Management**: User-generated and AI-generated media library
+- **AI Usage Tracking**: Cost analytics and model performance monitoring
+- **InstantDB Integration**: Real-time database with comprehensive game schema
+
 ### Creative Suite 🎨
 - **Image Studio**: AI background removal, upscaling, & generation (SDXL/Flux)
 - **Audio Workshop**: Speech-to-Text & Text-to-Speech synthesis (Whisper/MeloTTS)
@@ -58,25 +65,34 @@ An AI-powered code editor and game development environment with advanced feature
 - **Live Director** for real-time AI interactions
 
 ### Build Tools
-- **Create React App** with TypeScript template
 - **Vite** for fast development and building
 - **ESLint** and **Prettier** for code quality
+- **Cloudflare Workers** for edge deployment
+- **wrangler** for Workers deployment and management
+
+### Database & Storage
+- **InstantDB** for real-time game data persistence
+- **Cloudflare KV** for session and cache storage
+- **Cloudflare R2** for media and asset storage
 
 ## 📦 Installation
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Kbro1989/Willow-AI-Coding-Playground
 cd antigravity-engine
 
 # Install dependencies
 npm install
 
 # Start development server
-npm start
+npm run dev
 
 # Build for production
-npm run build
+npm run build:all
+
+# Deploy to Cloudflare Workers
+npm run deploy
 ```
 
 ## 🔧 Configuration
@@ -135,11 +151,22 @@ src/
 ├── services/           # AI and utility services
 │   ├── modelRouter.ts
 │   ├── geminiService.ts
-│   └── cloudflareService.ts
-├── types/              # TypeScript type definitions
-│   └── index.ts
-├── App.tsx             # Main application component
-└── index.tsx           # Application entry point
+│   ├── cloudflareService.ts
+│   └── gameData/      # Game database services
+│       ├── characterService.ts
+│       ├── aiUsageService.ts
+│       ├── assetService.ts
+│       └── index.ts
+├── types.ts           # TypeScript type definitions
+├── instant.schema.ts  # InstantDB game schema
+├── App.tsx            # Main application component
+└── index.tsx          # Application entry point
+
+buildScripts/          # Build automation
+├── buildWorker.js     # Cloudflare Worker bundling
+└── copyAssets.js      # Asset deployment
+
+wrangler.toml          # Cloudflare Workers config
 ```
 
 ## 🤝 Contributing
