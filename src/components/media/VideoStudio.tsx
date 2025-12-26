@@ -25,10 +25,7 @@ export const VideoStudio: React.FC = () => {
     const [resultVideo, setResultVideo] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [generationTime, setGenerationTime] = useState(0);
-
-    const handleSettings = () => {
-        alert('Cinematic Synthesis Settings: FPS: 24, Motion: 5.0, Bucket: 127');
-    };
+    const [showSettings, setShowSettings] = useState(false);
 
     const handleSave = () => {
         if (!resultVideo) return;
@@ -87,13 +84,24 @@ export const VideoStudio: React.FC = () => {
                     <Film className="w-6 h-6 text-purple-500" />
                     <h2 className="text-xl font-bold tracking-tight">Cinematic Logic</h2>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 relative">
                     <button
-                        onClick={handleSettings}
-                        className="p-2 hover:bg-zinc-800 rounded-full transition-colors"
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={`p-2 rounded-full transition-colors ${showSettings ? 'bg-purple-500/20 text-purple-400' : 'hover:bg-zinc-800 text-zinc-400'}`}
                     >
-                        <Settings className="w-5 h-5 text-zinc-400" />
+                        <Settings className="w-5 h-5" />
                     </button>
+                    {showSettings && (
+                        <div className="absolute top-12 right-0 w-64 bg-zinc-900 border border-zinc-700 rounded-xl p-4 shadow-2xl z-50">
+                            <h4 className="text-xs font-bold uppercase text-purple-400 mb-3">Diffusion Settings</h4>
+                            <div className="space-y-2 text-[10px] text-zinc-400">
+                                <div className="flex justify-between"><span>Resolution</span> <span className="text-white">1024x576</span></div>
+                                <div className="flex justify-between"><span>FPS</span> <span className="text-white">24</span></div>
+                                <div className="flex justify-between"><span>Steps</span> <span className="text-white">30</span></div>
+                                <div className="flex justify-between"><span>CFG Scale</span> <span className="text-white">2.5</span></div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -4,8 +4,10 @@ import { ideTools } from '../services/geminiService';
 import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPreferences, Extension, SceneObject, PhysicsConfig, WorldConfig, RenderConfig, CompositingConfig, SimulationState, EngineAction, EngineLog } from '../types';
 // Hybrid: Cloudflare for text/images now through modelRouter, Gemini for live audio/video
 import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
-import { generateCinematic, generateImage, synthesizeSpeech, cloudlareLimiter as limiter } from '../services/cloudflareService';
-import { modelRouter, ModelResponse } from '../services/modelRouter';
+// Hybrid: Cloudflare for text/images now through modelRouter, Gemini for live audio/video
+import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
+import { cloudlareLimiter as limiter } from '../services/cloudflareService';
+import { modelRouter, ModelResponse, generate3D, generateImage, generateCinematic, synthesizeSpeech } from '../services/modelRouter';
 import { localBridgeClient } from '../services/localBridgeService'; // Import local bridge client
 
 
@@ -141,8 +143,12 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           // You might want to auto-play this audio
           break;
         case 'generate_cinematic': // Cloudflare Worker Video Generation
-          toolResult = await generateCinematic(args.prompt);
+          toolResult = await generateCinematic(args.prompt) as ModelResponse;
           addMessage({ role: 'assistant', content: `Generated cinematic video based on "${args.prompt}"`, videoUrl: toolResult.videoUrl, model: 'Cloudflare AI Video' });
+          break;
+        case 'generate_3d_asset': // New 3D Generation
+          toolResult = await generate3D(args.prompt) as ModelResponse;
+          addMessage({ role: 'assistant', content: `Generated 3D asset based on "${args.prompt}"`, modelUrl: toolResult.modelUrl, model: 'Cloudflare AI 3D' });
           break;
         case 'run_terminal_command': // Local Code Agent - Terminal
           toolResult = await localBridgeClient.runTerminalCommand(args.command);
@@ -200,9 +206,14 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
         tools.push('ide_filesystem_mutation');
       }
       if (/object|entity|mesh|scene/i.test(prompt)) {
-        steps.push(`Define object properties from prompt`);
-        steps.push(`Add object to 3D scene`);
-        tools.push('ide_matrix_intervention');
+        if (/generate 3d|create 3d|sculpt/i.test(prompt)) {
+          steps.push(`Generate 3D asset with AI`);
+          tools.push('generate_3d_asset');
+        } else {
+          steps.push(`Define object properties from prompt`);
+          steps.push(`Add object to 3D scene`);
+          tools.push('ide_matrix_intervention');
+        }
       }
       if (/image|texture|asset/i.test(prompt)) {
         steps.push(`Generate asset with AI (FLUX)`);

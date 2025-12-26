@@ -206,6 +206,22 @@ const App: React.FC = () => {
     setExtensions(prev => prev.filter(e => e.identifier.id !== id));
   };
 
+  const handleRunAction = useCallback((action: string) => {
+    addLog(`Matrix Action: ${action}`, 'info', 'Control');
+
+    if (action.startsWith('ANNOTATION_PROCESSED_')) {
+      const mode = action.replace('ANNOTATION_PROCESSED_', '');
+      let prompt = "Analyze this input.";
+
+      if (mode === '3D') prompt = "I have sketched a 3D concept. Please generate a 3D asset matching this design.";
+      else if (mode === 'IMAGE') prompt = "Convert this sketch into a high-fidelity image asset.";
+      else if (mode === 'CODE') prompt = "Analyze this diagram and generate the corresponding code structure.";
+
+      // Delay slightly to ensure image message arrives first (if async)
+      setTimeout(() => chatRef.current?.sendMessage(prompt), 100);
+    }
+  }, [addLog]);
+
   // --- Persistence & Initialization ---
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -351,7 +367,7 @@ const App: React.FC = () => {
                   onImportAsset={handleImportAsset} onUpdateSceneObject={handleUpdateSceneObject}
                   onAddSceneObject={handleAddSceneObject}
                   onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
-                  onRunAction={(c) => addLog(`Matrix Action: ${c}`, 'info', 'Control')}
+                  onRunAction={handleRunAction}
                   onSendVisualFeedback={(img) => chatRef.current?.addAnnotatedMessage(img)}
                   sculptHistory={sculptHistory} redoStack={[]} onSculptTerrain={(p) => setSculptHistory(prev => [...prev, { ...p, brushSize: worldConfig.brushSize, brushStrength: worldConfig.brushStrength }])}
                   onUndoSculpt={() => setSculptHistory(prev => prev.slice(0, -1))} onRedoSculpt={() => { }} onClearSculpt={() => setSculptHistory([])}
@@ -365,7 +381,7 @@ const App: React.FC = () => {
               {activeView === 'pipelines' && <N8NWorkflow />}
               {activeView === 'behavior' && <Behavior />}
               {activeView === 'narrative' && <Narrative />}
-              {activeView === 'assets' && <Registry />}
+              {activeView === 'assets' && <Registry onImport={handleImportAsset} />}
               {activeView === 'world' && <World />}
               {activeView === 'data' && <Persistence />}
               {activeView === 'collab' && <Link />}

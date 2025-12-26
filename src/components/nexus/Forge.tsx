@@ -43,11 +43,89 @@ const Forge: React.FC = () => {
                     {activeTab === 'audio' && <AudioWorkshop />}
                     {activeTab === 'video' && <VideoStudio />}
                     {activeTab === 'model' && <ModelStudio />}
-                    {activeTab === 'library' && <div className="p-12 text-center text-slate-700 uppercase font-black tracking-widest">Library view under reconstruction...</div>}
+                    {activeTab === 'library' && <ForgeLibrary />}
                 </div>
 
                 {/* Right Pipeline Sidebar (Recent Generations) */}
                 <ForgeSidebar />
+            </div>
+        </div>
+    );
+};
+
+const ForgeLibrary = () => {
+    const [assets, setAssets] = useState<ForgeAsset[]>(forgeMedia.getAssets());
+    const [filter, setFilter] = useState<string>('all');
+
+    React.useEffect(() => {
+        return forgeMedia.subscribe(setAssets);
+    }, []);
+
+    const filteredAssets = assets.filter(a => filter === 'all' || a.type === filter);
+
+    return (
+        <div className="flex flex-col h-full bg-[#0a1222]">
+            {/* Toolbar */}
+            <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                <div className="flex gap-2">
+                    {['all', 'image', 'audio', 'video', 'model'].map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setFilter(t)}
+                            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all ${filter === t
+                                ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40'
+                                : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'}`}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                </div>
+                <div className="text-[10px] text-slate-500 font-black uppercase">{filteredAssets.length} Assets</div>
+            </div>
+
+            {/* Grid */}
+            <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredAssets.map(asset => (
+                    <div key={asset.id} className="group relative bg-black/40 border border-white/5 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all">
+                        <div className="aspect-square bg-white/5 flex items-center justify-center relative">
+                            {asset.type === 'image' && <img src={asset.url} alt={asset.prompt} className="w-full h-full object-cover" />}
+                            {asset.type === 'video' && <video src={asset.url} className="w-full h-full object-cover" />}
+                            {asset.type === 'audio' && <Music className="w-12 h-12 text-yellow-500/50" />}
+                            {asset.type === 'model' && <Box className="w-12 h-12 text-purple-500/50" />}
+
+                            {/* Overlay Actions */}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                <button
+                                    onClick={() => window.open(asset.url, '_blank')}
+                                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white"
+                                    title="Open / Download"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => forgeMedia.removeAsset(asset.id)}
+                                    className="p-2 bg-red-500/20 hover:bg-red-500/40 rounded-full text-red-400"
+                                    title="Delete"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="p-3">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className={`text-[8px] font-black uppercase px-1.5 rounded ${getTypeColor(asset.type)}`}>{asset.type}</span>
+                                <span className="text-[8px] text-slate-600">{new Date(asset.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 line-clamp-1 truncate" title={asset.prompt}>{asset.prompt || 'Untitled Asset'}</p>
+                        </div>
+                    </div>
+                ))}
+                {filteredAssets.length === 0 && (
+                    <div className="col-span-full h-64 flex flex-col items-center justify-center text-slate-700">
+                        <Box className="w-12 h-12 mb-4 opacity-20" />
+                        <span className="text-xs font-black uppercase tracking-widest">No Assets Found</span>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -93,7 +171,7 @@ const ForgeSidebar = () => {
                                     {asset.type}
                                 </span>
                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button className="text-slate-500 hover:text-white"><ExternalLink className="w-3 h-3" /></button>
+                                    <button onClick={() => window.open(asset.url, '_blank')} className="text-slate-500 hover:text-white"><ExternalLink className="w-3 h-3" /></button>
                                     <button onClick={() => forgeMedia.removeAsset(asset.id)} className="text-slate-500 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
                                 </div>
                             </div>

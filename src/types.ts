@@ -210,6 +210,7 @@ export interface GameAsset {
   type: 'mesh' | 'texture' | 'audio' | 'script';
   status: 'raw' | 'processing' | 'optimized';
   url?: string;
+  tags?: string[];
 }
 
 export interface PipelineConfig {

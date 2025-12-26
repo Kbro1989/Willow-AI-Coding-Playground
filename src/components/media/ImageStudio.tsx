@@ -69,6 +69,11 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
     const [aiPrompt, setAiPrompt] = useState('');
     const [analysisResults, setAnalysisResults] = useState<any[]>([]);
 
+    // Drawing Refs
+    const isDrawing = useRef(false);
+    const lastPos = useRef({ x: 0, y: 0 });
+    const layerCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
     // Coordinate Translation Utility (NEW)
     const getMousePos = (e: React.MouseEvent | React.TouchEvent) => {
         const canvas = canvasRef.current;
@@ -496,6 +501,102 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
         }
     };
 
+    // Tool Handlers
+    const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (tool === 'select') return;
+
+        const pos = getMousePos(e);
+
+        if (tool === 'text') {
+            const text = prompt('Enter text layer content:');
+            if (!text) return;
+
+            const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
+            if (!activeLayer?.imageData) return;
+
+            // Render text to layer
+            const lCanvas = document.createElement('canvas');
+            lCanvas.width = state.width;
+            lCanvas.height = state.height;
+            const lCtx = lCanvas.getContext('2d')!;
+            lCtx.putImageData(activeLayer.imageData, 0, 0);
+
+            lCtx.font = 'bold 48px Inter, sans-serif';
+            lCtx.fillStyle = '#00f2ff';
+            lCtx.fillText(text, pos.x, pos.y);
+
+            updateLayer(activeLayer.id, { imageData: lCtx.getImageData(0, 0, state.width, state.height) });
+            return;
+        }
+
+        if (tool === 'brush' || tool === 'eraser') {
+            isDrawing.current = true;
+            lastPos.current = pos;
+
+            const activeLayer = state.layers.find(l => l.id === state.activeLayerId);
+            if (!activeLayer?.imageData) return;
+
+            // Setup isolated drawing context
+            const lCanvas = document.createElement('canvas');
+            lCanvas.width = state.width;
+            lCanvas.height = state.height;
+            const lCtx = lCanvas.getContext('2d')!;
+            lCtx.putImageData(activeLayer.imageData, 0, 0);
+            lCtx.lineCap = 'round';
+            lCtx.lineJoin = 'round';
+            lCtx.lineWidth = tool === 'brush' ? 5 : 20;
+            lCtx.strokeStyle = tool === 'brush' ? '#00f2ff' : 'rgba(0,0,0,1)';
+            if (tool === 'eraser') lCtx.globalCompositeOperation = 'destination-out';
+
+            layerCanvasRef.current = lCanvas;
+        }
+    };
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!isDrawing.current || !layerCanvasRef.current || (tool !== 'brush' && tool !== 'eraser')) return;
+
+        const pos = getMousePos(e);
+        const lCtx = layerCanvasRef.current.getContext('2d')!;
+
+        // Draw to layer (invisible until saved)
+        lCtx.beginPath();
+        lCtx.moveTo(lastPos.current.x, lastPos.current.y);
+        lCtx.lineTo(pos.x, pos.y);
+        lCtx.stroke();
+
+        // Draw visual feedback
+        const mainCtx = canvasRef.current?.getContext('2d');
+        if (mainCtx) {
+            mainCtx.beginPath();
+            mainCtx.moveTo(lastPos.current.x, lastPos.current.y);
+            mainCtx.lineTo(pos.x, pos.y);
+            mainCtx.lineCap = 'round';
+            mainCtx.lineJoin = 'round';
+            mainCtx.lineWidth = tool === 'brush' ? 5 : 20;
+            mainCtx.strokeStyle = tool === 'brush' ? '#00f2ff' : '#000000';
+            // Note: Eraser visualization on composite is imperfect without re-render, but acceptable for MVP
+            if (tool === 'eraser') mainCtx.globalCompositeOperation = 'destination-out';
+            else mainCtx.globalCompositeOperation = 'source-over';
+            mainCtx.stroke();
+            mainCtx.globalCompositeOperation = 'source-over'; // Reset
+        }
+
+        lastPos.current = pos;
+    };
+
+    const handleMouseUp = () => {
+        if (!isDrawing.current) return;
+        isDrawing.current = false;
+
+        // Commit changes
+        if (layerCanvasRef.current && state.activeLayerId) {
+            const lCtx = layerCanvasRef.current.getContext('2d')!;
+            const newData = lCtx.getImageData(0, 0, state.width, state.height);
+            updateLayer(state.activeLayerId, { imageData: newData });
+            layerCanvasRef.current = null;
+        }
+    };
+
     return (
         <div className="flex flex-col h-full w-full bg-[#050a15] text-white">
             {/* Header */}
@@ -610,18 +711,11 @@ export const ImageStudio: React.FC<ImageStudioProps> = ({ asset, onClose, onSave
                         >
                             <canvas
                                 ref={canvasRef}
-                                onMouseDown={(e) => {
-                                    const pos = getMousePos(e);
-                                    console.log('[CANVAS] Interaction at:', pos);
-                                    // Tool execution logic would go here
-                                }}
-                                onMouseMove={(e) => {
-                                    if (e.buttons === 1) {
-                                        const pos = getMousePos(e);
-                                        // Drawing logic implementation
-                                    }
-                                }}
-                                className="border border-white/5 rounded-sm cursor-crosshair"
+                                onMouseDown={handleMouseDown}
+                                onMouseMove={handleMouseMove}
+                                onMouseUp={handleMouseUp}
+                                onMouseLeave={handleMouseUp}
+                                className={`border border-white/5 rounded-sm ${tool === 'select' ? 'cursor-default' : 'cursor-crosshair'}`}
                                 style={{ imageRendering: 'pixelated' }}
                             />
                         </div>

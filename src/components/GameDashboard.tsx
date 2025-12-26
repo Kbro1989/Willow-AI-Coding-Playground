@@ -360,25 +360,95 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
       case 'layout':
       case 'shading':
         return (
-          <>
-            <div className="p-6 border-b border-cyan-900/40 flex items-center justify-between">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Asset Registry</h4>
-              <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-cyan-500/10 rounded-lg text-cyan-400 transition-all" title="Import Local Model (.glb, .gltf)"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".glb,.gltf" />
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
-              {assets.map(asset => (
-                <div key={asset.id} className="p-4 bg-cyan-950/20 border border-cyan-500/10 rounded-2xl group hover:border-cyan-500/40 transition-all">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-[11px] font-bold text-cyan-50 truncate w-3/4">{asset.name}</span>
-                    <span className="text-[8px] bg-cyan-950 px-1.5 py-0.5 rounded text-cyan-600 font-black uppercase">{asset.type}</span>
-                  </div>
-                  {asset.url && <div className="mb-2 text-[8px] text-emerald-500 font-black uppercase tracking-tighter flex items-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></div>Local Source Ready</div>}
-                  <button onClick={() => handleImport(asset)} className="w-full py-2 bg-cyan-600/10 hover:bg-cyan-600 text-cyan-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Inject</button>
+          <div className="h-full flex flex-col overflow-y-auto no-scrollbar p-6">
+            <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-50 border-b border-white/5 pb-8 mb-8">Matrix Inspector</h3>
+
+            {/* Inspector Controls */}
+            {selectedObjectId ? (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                <div className="p-8 bg-[#050a15] rounded-[2rem] border border-cyan-500/10">
+                  <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest block mb-2">Selected Entity</span>
+                  <span className="text-lg font-black text-cyan-50 uppercase tracking-widest">{sceneObjects.find(o => o.id === selectedObjectId)?.name}</span>
                 </div>
-              ))}
+                {['position', 'rotation', 'scale'].map(prop => (
+                  <div key={prop} className="space-y-4">
+                    <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">{prop} Modulation</span>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[0, 1, 2].map(i => (
+                        <input
+                          key={i} type="number" step="0.1"
+                          value={((sceneObjects.find(o => o.id === selectedObjectId) as any)[prop as keyof SceneObject] as number[])[i]}
+                          onChange={(e) => {
+                            const obj = sceneObjects.find(o => o.id === selectedObjectId);
+                            if (!obj) return;
+                            const next = [...(obj as any)[prop]];
+                            next[i] = parseFloat(e.target.value) || 0;
+                            onUpdateSceneObject(obj.id, { [prop]: next as any });
+                          }}
+                          className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-center text-xs font-mono text-cyan-400 outline-none focus:border-cyan-500"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Material Editor */}
+                <div className="space-y-4 pt-6 border-t border-cyan-900/30">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">Material Synthesis</span>
+                    <button onClick={() => handleMaterialUpdate('baseColor', '#' + Math.floor(Math.random() * 16777215).toString(16))} className="text-[8px] bg-cyan-900/40 hover:bg-cyan-500 hover:text-white px-2 py-1 rounded transition-all uppercase">RND Color</button>
+                  </div>
+                  <div className="flex space-x-2">
+                    <input type="color" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.baseColor || '#ffffff'} onChange={(e) => handleMaterialUpdate('baseColor', e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent border-none" />
+                    <div className="flex-1 space-y-2">
+                      <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.metallic || 0} onChange={(e) => handleMaterialUpdate('metallic', parseFloat(e.target.value))} className="w-full h-1 accent-cyan-500" title="Metallic" />
+                      <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.roughness || 0.5} onChange={(e) => handleMaterialUpdate('roughness', parseFloat(e.target.value))} className="w-full h-1 accent-emerald-500" title="Roughness" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI Hot-Functions */}
+                <div className="space-y-4 pt-4">
+                  <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">Neural Actions</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={handleRandomize} className="py-3 bg-cyan-900/30 hover:bg-cyan-600/30 border border-cyan-500/30 rounded-xl text-[9px] font-black uppercase text-cyan-400 transition-all flex items-center justify-center gap-2 group">
+                      <span className="group-hover:scale-110 transition-transform">🎲</span> Chaos
+                    </button>
+                    <button onClick={() => handleAiAction('GROUND')} className="py-3 bg-emerald-900/30 hover:bg-emerald-600/30 border border-emerald-500/30 rounded-xl text-[9px] font-black uppercase text-emerald-400 transition-all flex items-center justify-center gap-2 group">
+                      <span className="group-hover:scale-110 transition-transform">⬇️</span> Ground
+                    </button>
+                    <button onClick={() => setIsAnnotating(true)} className="col-span-2 py-3 bg-purple-900/30 hover:bg-purple-600/30 border border-purple-500/30 rounded-xl text-[9px] font-black uppercase text-purple-400 transition-all flex items-center justify-center gap-2 group">
+                      <span className="group-hover:scale-110 transition-transform">✏️</span> Annotate / Sketch
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-40 opacity-20 text-center space-y-4 border-2 border-dashed border-white/10 rounded-2xl">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Select an Entity</p>
+              </div>
+            )}
+
+            <div className="mt-8 pt-8 border-t border-cyan-900/40">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Asset Registry</h4>
+                <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-cyan-500/10 rounded-lg text-cyan-400 transition-all" title="Import Local Model (.glb, .gltf)"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".glb,.gltf" />
+              </div>
+              <div className="space-y-3">
+                {assets.map(asset => (
+                  <div key={asset.id} className="p-4 bg-cyan-950/20 border border-cyan-500/10 rounded-2xl group hover:border-cyan-500/40 transition-all">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-[11px] font-bold text-cyan-50 truncate w-3/4">{asset.name}</span>
+                      <span className="text-[8px] bg-cyan-950 px-1.5 py-0.5 rounded text-cyan-600 font-black uppercase">{asset.type}</span>
+                    </div>
+                    {asset.url && <div className="mb-2 text-[8px] text-emerald-500 font-black uppercase tracking-tighter flex items-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></div>Local Source Ready</div>}
+                    <button onClick={() => handleImport(asset)} className="w-full py-2 bg-cyan-600/10 hover:bg-cyan-600 text-cyan-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Inject</button>
+                  </div>
+                ))}
+              </div>
             </div>
-          </>
+          </div>
         );
       case 'world':
         return (
@@ -715,74 +785,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
 
       {(!isFullscreen) && (
         <div className="w-[420px] bg-[#0a1222] border-l border-cyan-900/40 p-10 space-y-10 shrink-0 overflow-y-auto no-scrollbar">
-          <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-50 border-b border-white/5 pb-8">Matrix Inspector</h3>
-          {selectedObjectId ? (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-              <div className="p-8 bg-[#050a15] rounded-[2rem] border border-cyan-500/10">
-                <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest block mb-2">Selected Entity</span>
-                <span className="text-lg font-black text-cyan-50 uppercase tracking-widest">{sceneObjects.find(o => o.id === selectedObjectId)?.name}</span>
-              </div>
-              {['position', 'rotation', 'scale'].map(prop => (
-                <div key={prop} className="space-y-4">
-                  <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">{prop} Modulation</span>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[0, 1, 2].map(i => (
-                      <input
-                        key={i} type="number" step="0.1"
-                        value={((sceneObjects.find(o => o.id === selectedObjectId) as any)[prop])[i]}
-                        onChange={(e) => {
-                          const obj = sceneObjects.find(o => o.id === selectedObjectId);
-                          if (!obj) return;
-                          const next = [...(obj as any)[prop]];
-                          next[i] = parseFloat(e.target.value) || 0;
-                          onUpdateSceneObject(obj.id, { [prop]: next as any });
-                        }}
-                        className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-center text-xs font-mono text-cyan-400 outline-none focus:border-cyan-500"
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {/* Material Editor */}
-              <div className="space-y-4 pt-6 border-t border-cyan-900/30">
-                <div className="flex justify-between items-center">
-                  <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">Material Synthesis</span>
-                  <button onClick={() => handleMaterialUpdate('baseColor', '#' + Math.floor(Math.random() * 16777215).toString(16))} className="text-[8px] bg-cyan-900/40 hover:bg-cyan-500 hover:text-white px-2 py-1 rounded transition-all uppercase">RND Color</button>
-                </div>
-                <div className="flex space-x-2">
-                  <input type="color" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.baseColor || '#ffffff'} onChange={(e) => handleMaterialUpdate('baseColor', e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent border-none" />
-                  <div className="flex-1 space-y-2">
-                    <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.metallic || 0} onChange={(e) => handleMaterialUpdate('metallic', parseFloat(e.target.value))} className="w-full h-1 accent-cyan-500" title="Metallic" />
-                    <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.roughness || 0.5} onChange={(e) => handleMaterialUpdate('roughness', parseFloat(e.target.value))} className="w-full h-1 accent-emerald-500" title="Roughness" />
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Hot-Functions */}
-              <div className="space-y-4 pt-4">
-                <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">Neural Actions</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={handleRandomize} className="py-3 bg-cyan-900/30 hover:bg-cyan-600/30 border border-cyan-500/30 rounded-xl text-[9px] font-black uppercase text-cyan-400 transition-all flex items-center justify-center gap-2 group">
-                    <span className="group-hover:scale-110 transition-transform">🎲</span> Chaos
-                  </button>
-                  <button onClick={() => handleAiAction('GROUND')} className="py-3 bg-emerald-900/30 hover:bg-emerald-600/30 border border-emerald-500/30 rounded-xl text-[9px] font-black uppercase text-emerald-400 transition-all flex items-center justify-center gap-2 group">
-                    <span className="group-hover:scale-110 transition-transform">⬇️</span> Ground
-                  </button>
-                  <button onClick={() => setIsAnnotating(true)} className="col-span-2 py-3 bg-purple-900/30 hover:bg-purple-600/30 border border-purple-500/30 rounded-xl text-[9px] font-black uppercase text-purple-400 transition-all flex items-center justify-center gap-2 group">
-                    <span className="group-hover:scale-110 transition-transform">✏️</span> Annotate / Sketch
-                  </button>
-                </div>
-
-              </div>
-
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full opacity-20 text-center space-y-6">
-              <svg className="w-12 h-12 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em]">Awaiting Entity Handshake</p>
-            </div>
-          )}
+          {renderSidebarContent()}
         </div>
       )}
 

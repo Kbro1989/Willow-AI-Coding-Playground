@@ -3,7 +3,7 @@ import React, { useState, Suspense, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stage, Grid, Environment } from '@react-three/drei';
 import * as THREE from 'three';
-import { Box, Code as CodeIcon, Play, RefreshCw, Layers, BoxSelect, Cpu, PenTool, Eye, Settings } from 'lucide-react';
+import { Box, Code as CodeIcon, Play, RefreshCw, Layers, BoxSelect, Cpu, PenTool, Eye, Settings, Wand2 } from 'lucide-react';
 import ModelAnnotator from '../ModelAnnotator';
 import { SkeletonGenerator } from '../../services/mesh/skeletonGenerator';
 import { MeshBuilder } from '../../services/mesh/meshBuilder';
@@ -13,6 +13,7 @@ const ModelStudio: React.FC = () => {
     const [generatedMesh, setGeneratedMesh] = useState<THREE.Mesh | null>(null);
     const [skeletonData, setSkeletonData] = useState<any>(null);
     const [texturePrompt, setTexturePrompt] = useState('');
+    const [meshPrompt, setMeshPrompt] = useState(''); // New state for mesh prompt
     const [isProcessing, setIsProcessing] = useState(false);
 
     const handleSkeletonExport = (data: any) => {
@@ -76,7 +77,49 @@ const ModelStudio: React.FC = () => {
             setGeneratedMesh(new THREE.Mesh(generatedMesh.geometry, newMaterial)); // Trigger re-render
         } catch (error) {
             console.error('[ModelStudio] Texture generation failed:', error);
-            alert('Failed to generate AI texture');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleGenerateMeshAI = async () => {
+        if (!meshPrompt.trim()) return;
+        setIsProcessing(true);
+        try {
+            const { routeNexus } = await import('../../backend/routeToModel');
+            const response = await routeNexus({
+                type: '3d',
+                prompt: meshPrompt
+            });
+
+            if (response instanceof ReadableStream) { throw new Error('Streaming not supported'); }
+
+            const modelResponse = response as any;
+            if (modelResponse.modelUrl) {
+                // Load the GLB
+                const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader');
+                const loader = new GLTFLoader();
+                const gltf = await loader.loadAsync(modelResponse.modelUrl);
+                // Extract first mesh or scene
+                const root = gltf.scene;
+                // Traverse to find a mesh if needed, or just set root
+                let mesh: THREE.Mesh | null = null;
+                root.traverse((child) => {
+                    if ((child as THREE.Mesh).isMesh && !mesh) {
+                        mesh = child as THREE.Mesh;
+                    }
+                });
+
+                if (mesh) {
+                    setGeneratedMesh(mesh);
+                    setMode('preview');
+                } else {
+                    console.warn('No mesh found in GLB');
+                }
+            }
+        } catch (e) {
+            console.error('AI Mesh Gen failed:', e);
+            alert('AI Mesh Generation Failed');
         } finally {
             setIsProcessing(false);
         }
@@ -164,6 +207,27 @@ const ModelStudio: React.FC = () => {
                                 className="w-full px-3 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
                             >
                                 {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <span>🎨 Generate Texture</span>}
+                            </button>
+                        </div>
+                    )}
+
+                    {mode === 'preview' && (
+                        <div className="absolute bottom-4 left-4 z-20 w-64 space-y-3 bg-[#0a1222]/80 p-4 rounded-xl border border-purple-900/30 backdrop-blur">
+                            <span className="text-[10px] font-black uppercase text-purple-400 flex items-center gap-2">
+                                <Wand2 size={12} /> AI Mesh Generator
+                            </span>
+                            <textarea
+                                value={meshPrompt}
+                                onChange={(e) => setMeshPrompt(e.target.value)}
+                                placeholder="e.g. A futuristic Cyberpunk crate, low poly..."
+                                className="w-full bg-slate-900/50 border border-white/10 rounded-lg p-2 text-xs text-white h-16 outline-none focus:border-purple-500 transition-all"
+                            />
+                            <button
+                                onClick={handleGenerateMeshAI}
+                                disabled={isProcessing || !meshPrompt.trim()}
+                                className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+                            >
+                                {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <span>🔮 Generate Mesh</span>}
                             </button>
                         </div>
                     )}

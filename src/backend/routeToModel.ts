@@ -112,7 +112,9 @@ export const routeNexus = async (request: ModelRequest): Promise<NexusResponse |
  */
 export const processAndRoute = async (type: '3d' | 'media' | 'code', prompt: string) => {
     // This combines routing with post-processing logic from our backend processors
-    const response = await routeNexus({ type: type === '3d' ? 'image' : type as any, prompt });
+    // If type is 3d, pass it as 3d to the router (which now supports it)
+    const requestType = type === '3d' ? '3d' : (type === 'media' ? 'image' : 'code');
+    const response = await routeNexus({ type: requestType as any, prompt });
 
     // Future: Add automated enhancement logic here (e.g. upscaling after generation)
     return response;

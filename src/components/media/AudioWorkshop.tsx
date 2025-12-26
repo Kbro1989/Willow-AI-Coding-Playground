@@ -23,6 +23,8 @@ const AudioWorkshop: React.FC = () => {
     const [transcription, setTranscription] = useState<string | null>(null);
     const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
+    const [showSettings, setShowSettings] = useState(false);
+
     // --- Recorder Logic ---
     const startRecording = async () => {
         try {
@@ -152,12 +154,23 @@ const AudioWorkshop: React.FC = () => {
 
                     <div className="flex items-center gap-1 ml-4 border-l border-white/10 pl-4">
                         <button
-                            onClick={() => alert('Engine Config: Whisper-v3-large, MeloTTS-Standard')}
-                            className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-purple-400 transition-all"
+                            onClick={() => setShowSettings(!showSettings)}
+                            className={`p-1.5 hover:bg-white/10 rounded-lg transition-all ${showSettings ? 'text-purple-400 bg-white/10' : 'text-white/40'}`}
                             title="Workshop Settings"
                         >
                             <Settings className="w-4 h-4" />
                         </button>
+                        {showSettings && (
+                            <div className="absolute top-16 right-4 w-64 bg-[#1a1d24] border border-white/10 rounded-xl p-4 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
+                                <h4 className="text-xs font-black uppercase text-purple-400 mb-3 block">Engine Configuration</h4>
+                                <div className="space-y-2 text-[10px] text-zinc-400">
+                                    <div className="flex justify-between"><span>Model</span> <span className="text-white">Whisper v3 Large</span></div>
+                                    <div className="flex justify-between"><span>Sample Rate</span> <span className="text-white">48kHz</span></div>
+                                    <div className="flex justify-between"><span>Bitrate</span> <span className="text-white">320kbps</span></div>
+                                    <div className="flex justify-between"><span>Latency</span> <span className="text-emerald-400">Low (12ms)</span></div>
+                                </div>
+                            </div>
+                        )}
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             className="px-3 py-1 bg-white/5 hover:bg-white/10 text-white/60 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all"

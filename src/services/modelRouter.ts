@@ -7,7 +7,7 @@ import geminiProvider, { GeminiTextRequest, GeminiImageRequest, GeminiCodeReques
 import cloudflareProvider from './cloudflareProvider';
 import aiUsageService from './gameData/aiUsageService';
 
-export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning' | 'vision';
+export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning' | 'vision' | '3d';
 
 export interface ModelRequest {
   type: ModelType;
@@ -27,7 +27,9 @@ export interface ModelResponse {
   code?: string;
   imageUrl?: string;
   videoUrl?: string;
+  videoUrl?: string;
   audioUrl?: string;
+  modelUrl?: string;
   functionCalls?: any[];
   model: string;
   provider: 'gemini' | 'cloudflare' | 'local' | 'unknown';
@@ -320,6 +322,14 @@ async function routeToCloudflare(request: ModelRequest, signal?: AbortSignal): P
       };
     }
 
+    case '3d': {
+      const response = await cloudflareProvider.generate3D(request.prompt);
+      return {
+        modelUrl: response.modelUrl,
+        model: response.model
+      };
+    }
+
     default:
       throw new Error(`Unsupported model type: ${request.type}`);
   }
@@ -417,6 +427,18 @@ export async function generateVideo(
   });
 }
 
+/**
+ * Convenience function for 3D generation
+ */
+export async function generate3D(
+  prompt: string
+): Promise<ModelResponse | ReadableStream> {
+  return route({
+    type: '3d',
+    prompt
+  });
+}
+
 export const modelRouter = {
   route,
   chat,
@@ -424,7 +446,9 @@ export const modelRouter = {
   generateImage,
   completeCode,
   processAudio,
-  generateVideo
+  processAudio,
+  generateVideo,
+  generate3D
 };
 
 export default modelRouter;

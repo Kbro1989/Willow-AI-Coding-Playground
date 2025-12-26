@@ -2,7 +2,13 @@ import React from 'react';
 import { Library, Database, Search, Filter } from 'lucide-react';
 import RSMVBrowser from '../RSMVBrowser';
 
-const Registry: React.FC = () => {
+import { GameAsset } from '../../types';
+
+interface RegistryProps {
+    onImport?: (asset: GameAsset) => void;
+}
+
+const Registry: React.FC<RegistryProps> = ({ onImport }) => {
     return (
         <div className="h-full flex flex-col bg-[#050a15]">
             <div className="p-6 border-b border-white/5 bg-black/20 flex items-center justify-between">
@@ -24,7 +30,17 @@ const Registry: React.FC = () => {
             <div className="flex-1 overflow-hidden">
                 <RSMVBrowser
                     onSelectModel={(m) => console.log('Selected:', m)}
-                    onImportModel={(m) => console.log('Importing:', m)}
+                    onImportModel={(m) => {
+                        const asset: GameAsset = {
+                            id: `rsmv-${Date.now()}`,
+                            name: (m as any).name || 'RSMV Model',
+                            type: 'mesh',
+                            url: (m as any).url || '',
+                            tags: ['rsmv', 'registry-import']
+                        };
+                        onImport?.(asset);
+                        console.log('[REGISTRY] Imported asset:', asset);
+                    }}
                 />
             </div>
         </div>
