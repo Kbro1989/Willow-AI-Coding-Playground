@@ -463,7 +463,7 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <div className={`flex h-screen w-full bg-[#050a15] text-white/90 overflow-hidden font-sans select-none transition-all duration-700 ${isPresenting ? 'presentation-active' : ''}`}>
+      <div className={`flex h-screen w-full bg-[#050a15] text-white/90 overflow-hidden font-sans transition-all duration-700 ${isPresenting ? 'presentation-active' : ''}`}>
         {!isPresenting && (
           <div style={{ width: `${sidebarWidth}px` }} className="flex flex-col z-20 relative shrink-0 transition-transform duration-500">
             <Sidebar

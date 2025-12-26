@@ -2,8 +2,8 @@ name = "antigravity-engine"
 main = "dist/worker.js"
 compatibility_date = "2025-02-14"
 
-# Account ID from user memory
-account_id = "6872653edcee9c787c1b783173793"
+# Account ID from user credentials
+account_id = "6872653edcee9c791787c1b783173793"
 
 # Production deployment
 workers_dev = true
@@ -11,11 +11,11 @@ workers_dev = true
 # KV Namespaces for session and data storage
 [[kv_namespaces]]
 binding = "SESSION_KV"
-id = "placeholder_session_kv_id"
+id = "d2115d86d630412a92875739f813eeea"  # ASSET_NAMESPACE
 
 [[kv_namespaces]]
 binding = "CACHE_KV"
-id = "placeholder_cache_kv_id"
+id = "58fba013729b43cc9024c7ee86e2b82b"  # VARIABLES
 
 # R2 Buckets for media storage
 [[r2_buckets]]
