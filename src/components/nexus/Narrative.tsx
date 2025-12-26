@@ -2,7 +2,11 @@ import React from 'react';
 import { PenTool, BookOpen, Quote, Sparkles } from 'lucide-react';
 import Copywriter from '../Copywriter';
 
-const Narrative: React.FC = () => {
+interface NarrativeProps {
+    onRunAction?: (action: string) => void;
+}
+
+const Narrative: React.FC<NarrativeProps> = ({ onRunAction }) => {
     return (
         <div className="h-full flex flex-col bg-[#050a15]">
             <div className="p-6 border-b border-white/5 bg-black/20 flex items-center justify-between">
@@ -14,7 +18,10 @@ const Narrative: React.FC = () => {
                     <p className="text-slate-400 text-xs mt-1">Autonomous Narrative Synthesis & World Lore Weaver</p>
                 </div>
                 <div className="flex gap-4">
-                    <button className="px-4 py-2 bg-pink-500/10 text-pink-400 border border-pink-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-pink-500 hover:text-white transition-all">
+                    <button
+                        onClick={() => onRunAction?.('SYNTHESIZE_PLOT')}
+                        className="px-4 py-2 bg-pink-500/10 text-pink-400 border border-pink-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-pink-500 hover:text-white transition-all"
+                    >
                         Synthesize Plot Branch
                     </button>
                 </div>

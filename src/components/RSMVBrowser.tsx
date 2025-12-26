@@ -114,7 +114,7 @@ const ALL_MODELS: Record<GameSource, RSMVModelEntry[]> = {
 // 3D PREVIEW COMPONENT
 // =============================================================================
 
-const ModelPreview: React.FC<{ model: RSMVModelEntry | null }> = ({ model }) => {
+const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean }> = ({ model, wireframe }) => {
   const meshRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -159,6 +159,7 @@ const ModelPreview: React.FC<{ model: RSMVModelEntry | null }> = ({ model }) => 
             roughness={0.3}
             emissive={color}
             emissiveIntensity={0.1}
+            wireframe={wireframe}
           />
         </mesh>
         <mesh geometry={geometry} scale={1.05}>
@@ -185,10 +186,11 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   const [selectedModel, setSelectedModel] = useState<RSMVModelEntry | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(false);
+  const [wireframe, setWireframe] = useState(false);
+  const controlsRef = useRef<any>(null);
 
   // Get models for current game source
   const models = useMemo(() => ALL_MODELS[gameSource] || [], [gameSource]);
-
 
   // Filter models
   const filteredModels = useMemo(() => {
@@ -210,6 +212,12 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   const handleImportModel = () => {
     if (selectedModel) {
       onImportModel?.(selectedModel);
+    }
+  };
+
+  const handleResetView = () => {
+    if (controlsRef.current) {
+      controlsRef.current.reset();
     }
   };
 
@@ -377,14 +385,14 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
         <div className="flex-1 relative">
           <Canvas shadows>
             <PerspectiveCamera makeDefault position={[5, 5, 5]} fov={50} />
-            <OrbitControls makeDefault enableDamping dampingFactor={0.05} />
+            <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.05} />
             <Environment preset="night" />
             <ambientLight intensity={0.3} />
             <pointLight position={[10, 10, 10]} intensity={1} castShadow />
             <spotLight position={[-5, 5, 5]} angle={0.5} intensity={0.5} penumbra={1} />
 
             <Suspense fallback={null}>
-              <ModelPreview model={selectedModel} />
+              <ModelPreview model={selectedModel} wireframe={wireframe} />
             </Suspense>
 
             <gridHelper args={[20, 20, '#00f2ff', '#0a1222']} />
@@ -392,10 +400,18 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
 
           {/* Overlay Controls */}
           <div className="absolute top-4 right-4 flex flex-col gap-2">
-            <button className="p-3 bg-[#0a1222]/90 backdrop-blur-lg border border-cyan-900/30 rounded-xl text-cyan-400 hover:bg-cyan-600 hover:text-white transition-all" title="Reset View">
+            <button
+              onClick={handleResetView}
+              className="p-3 bg-[#0a1222]/90 backdrop-blur-lg border border-cyan-900/30 rounded-xl text-cyan-400 hover:bg-cyan-600 hover:text-white transition-all shadow-xl"
+              title="Reset View"
+            >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             </button>
-            <button className="p-3 bg-[#0a1222]/90 backdrop-blur-lg border border-cyan-900/30 rounded-xl text-cyan-400 hover:bg-cyan-600 hover:text-white transition-all" title="Wireframe">
+            <button
+              onClick={() => setWireframe(!wireframe)}
+              className={`p-3 bg-[#0a1222]/90 backdrop-blur-lg border rounded-xl transition-all shadow-xl ${wireframe ? 'bg-cyan-600 text-white border-cyan-400' : 'border-cyan-900/30 text-cyan-400 hover:bg-cyan-600 hover:text-white'}`}
+              title="Wireframe"
+            >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>
             </button>
           </div>
@@ -462,7 +478,13 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
                   >
                     📥 Import to Scene
                   </button>
-                  <button className="px-4 py-3 bg-cyan-950/50 hover:bg-cyan-950 text-cyan-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-cyan-900/30">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedModel.id.toString());
+                      alert(`Copied ID: ${selectedModel.id}`);
+                    }}
+                    className="px-4 py-3 bg-cyan-950/50 hover:bg-cyan-950 text-cyan-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-cyan-900/30"
+                  >
                     📋 Copy ID
                   </button>
                 </div>

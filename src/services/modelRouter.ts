@@ -27,7 +27,6 @@ export interface ModelResponse {
   code?: string;
   imageUrl?: string;
   videoUrl?: string;
-  videoUrl?: string;
   audioUrl?: string;
   modelUrl?: string;
   functionCalls?: any[];
@@ -216,7 +215,22 @@ async function routeToGemini(request: ModelRequest, signal?: AbortSignal): Promi
       };
     }
 
-    // Video/Audio handled in geminiService.ts usually, but if added here:
+    case 'video': {
+      const response = await geminiProvider.generateVideo(request.prompt);
+      return {
+        videoUrl: response.videoUrl,
+        model: response.model
+      };
+    }
+
+    case 'audio': {
+      const response = await geminiProvider.generateAudio(request.prompt);
+      return {
+        audioUrl: response.audioUrl,
+        model: response.model
+      };
+    }
+
     default:
       throw new Error(`Unsupported model type for Gemini Router: ${request.type}`);
   }
@@ -439,6 +453,15 @@ export async function generate3D(
   });
 }
 
+/**
+ * Aliases for Chat.tsx compatibility
+ */
+export const generateCinematic = generateVideo;
+
+export const synthesizeSpeech = async (text: string): Promise<ModelResponse | ReadableStream> => {
+  return processAudio(text, 'tts');
+};
+
 export const modelRouter = {
   route,
   chat,
@@ -446,9 +469,10 @@ export const modelRouter = {
   generateImage,
   completeCode,
   processAudio,
-  processAudio,
   generateVideo,
-  generate3D
+  generate3D,
+  generateCinematic,
+  synthesizeSpeech
 };
 
 export default modelRouter;

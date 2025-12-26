@@ -28,14 +28,18 @@ export const videoProcessing = {
                 enhancedPrompt = `cinematic movie scene, 8k resolution, photorealistic, ${prompt}`;
         }
 
-        // Call model router (which delegates to Cloudflare SVD)
+        // Call model router (which delegates to Cloudflare SVD or Gemini Veo)
         const result = await modelRouter.route({
             type: 'video',
             prompt: enhancedPrompt
         });
 
+        if (result instanceof ReadableStream) {
+            throw new Error('Streaming not supported for video generation');
+        }
+
         return {
-            videoUrl: result.imageUrl || '', // modelRouter returns videoUrl in imageUrl field for compat
+            videoUrl: result.videoUrl || result.imageUrl || '',
             model: result.model,
             prompt: enhancedPrompt
         };

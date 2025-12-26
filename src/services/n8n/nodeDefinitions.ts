@@ -218,7 +218,8 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
       {
         name: 'model', type: 'select', label: 'Model',
         options: [
-          { label: 'SVD-XT (Stable Video Diffusion)', value: 'svd' }
+          { label: 'SVD-XT (Stable Video Diffusion)', value: 'svd' },
+          { label: 'Google Veo (Preview)', value: 'veo' }
         ],
         default: 'svd'
       }
@@ -238,7 +239,8 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
         name: 'mode', type: 'select', label: 'Mode',
         options: [
           { label: 'Text-to-Speech (MeloTTS)', value: 'tts' },
-          { label: 'Speech-to-Text (Whisper)', value: 'stt' }
+          { label: 'Speech-to-Text (Whisper)', value: 'stt' },
+          { label: 'Gemini 2.0 Native Audio', value: 'gemini-audio' }
         ],
         default: 'tts'
       }

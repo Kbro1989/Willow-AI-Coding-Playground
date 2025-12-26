@@ -605,9 +605,28 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                   <span className="text-[10px] font-black text-cyan-50">{p.name}</span>
                   <div className={`w-2 h-2 rounded-full ${p.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'}`}></div>
                 </div>
-                <div className="flex justify-between text-[9px] text-slate-500 uppercase tracking-widest">
+                <div className="flex justify-between text-[9px] text-slate-500 uppercase tracking-widest mb-3">
                   <span>{p.provider}</span>
                   <span>{p.latency}ms</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      onRunAction(`RUN_PIPELINE_${p.id}`);
+                      // Mock status update for feedback
+                      setLocalPipelines(prev => prev.map(pi => pi.id === p.id ? { ...pi, status: 'offline' } : pi));
+                      setTimeout(() => setLocalPipelines(prev => prev.map(pi => pi.id === p.id ? { ...pi, status: 'online' } : pi)), 2000);
+                    }}
+                    className="flex-1 py-2 bg-emerald-600/20 hover:bg-emerald-600 hover:text-white text-emerald-500 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                  >
+                    Run
+                  </button>
+                  <button
+                    onClick={() => setLocalPipelines(prev => prev.filter(pi => pi.id !== p.id))}
+                    className="px-3 py-2 bg-rose-600/20 hover:bg-rose-600 hover:text-white text-rose-500 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}

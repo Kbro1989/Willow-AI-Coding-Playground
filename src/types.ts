@@ -130,6 +130,7 @@ export interface Message {
   imageUrl?: string;
   videoUrl?: string;
   audioUrl?: string;
+  modelUrl?: string;
   annotatedImageUrl?: string;
   engineActions?: EngineAction[];
   groundingChunks?: GroundingChunk[];

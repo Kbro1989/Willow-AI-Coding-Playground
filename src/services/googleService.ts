@@ -48,6 +48,10 @@ Format: Markdown.`;
             systemPrompt // System prompt
         );
 
+        if (response instanceof ReadableStream) {
+            throw new Error('Streaming not supported for copy generation');
+        }
+
         return response.content || "No content generated.";
     } catch (error) {
         console.error('[Google] Copy generation error:', error);

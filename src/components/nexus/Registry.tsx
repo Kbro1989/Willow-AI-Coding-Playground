@@ -36,7 +36,8 @@ const Registry: React.FC<RegistryProps> = ({ onImport }) => {
                             name: (m as any).name || 'RSMV Model',
                             type: 'mesh',
                             url: (m as any).url || '',
-                            tags: ['rsmv', 'registry-import']
+                            tags: ['rsmv', 'registry-import'],
+                            status: 'optimized'
                         };
                         onImport?.(asset);
                         console.log('[REGISTRY] Imported asset:', asset);

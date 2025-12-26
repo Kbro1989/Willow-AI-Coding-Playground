@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Settings, Shield, User, Key, Cpu } from 'lucide-react';
 import ApiKeyManager from '../ApiKeyManager';
 
 const Config: React.FC = () => {
+    const [showKeyManager, setShowKeyManager] = useState(false);
+
     return (
         <div className="h-full flex flex-col bg-[#050a15] p-6 overflow-y-auto custom-scrollbar">
             <div className="mb-8 border-b border-white/5 pb-6 flex items-center justify-between">
@@ -25,7 +27,16 @@ const Config: React.FC = () => {
                         Secret Injection & API Keys
                     </div>
                     <div className="bg-black/20 border border-white/5 rounded-2xl p-6">
-                        <ApiKeyManager onClose={() => { }} />
+                        {!showKeyManager ? (
+                            <button
+                                onClick={() => setShowKeyManager(true)}
+                                className="px-6 py-3 bg-cyan-900/40 hover:bg-cyan-600/40 border border-cyan-500/30 rounded-xl text-xs font-black uppercase tracking-widest text-cyan-400 transition-all flex items-center gap-2"
+                            >
+                                <Key className="w-4 h-4" /> Manage API Keys
+                            </button>
+                        ) : (
+                            <ApiKeyManager onClose={() => setShowKeyManager(false)} />
+                        )}
                     </div>
                 </section>
 

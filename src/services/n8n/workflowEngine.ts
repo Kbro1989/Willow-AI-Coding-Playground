@@ -145,52 +145,58 @@ export class WorkflowEngine {
         return { data: node.parameters.value || node.parameters.text };
 
       case 'ai_text':
-        const textResponse = (await modelRouter.route({
+        const textResponse = await modelRouter.route({
           type: 'text',
           prompt: inputs.prompt || node.parameters.prompt || '',
           systemPrompt: 'You are a helpful AI assistant.',
           options: { signal }
-        })) as ModelResponse;
+        });
+        if (textResponse instanceof ReadableStream) throw new Error('Streaming not supported in workflows');
         return { text: textResponse.content };
 
       case 'ai_image':
-        const imageResponse = (await modelRouter.route({
+        const imageResponse = await modelRouter.route({
           type: 'image',
           prompt: inputs.prompt || node.parameters.prompt || '',
           options: { signal }
-        })) as ModelResponse;
+        });
+        if (imageResponse instanceof ReadableStream) throw new Error('Streaming not supported in workflows');
         return { imageUrl: imageResponse.imageUrl };
 
       case 'ai_code':
-        const codeResponse = (await modelRouter.route({
+        const codeResponse = await modelRouter.route({
           type: 'code',
           prompt: inputs.prompt || node.parameters.prompt || '',
           language: node.parameters.language || 'typescript',
           options: { signal }
-        })) as ModelResponse;
+        });
+        if (codeResponse instanceof ReadableStream) throw new Error('Streaming not supported in workflows');
         return { code: codeResponse.code };
 
       case 'ai_reasoning':
-        const reasoningResponse = (await modelRouter.chat(
+        const reasoningResponse = await modelRouter.chat(
           `Think step-by-step:\n\n${inputs.problem || ''}`,
           [],
           'You are a reasoning AI. Break down complex problems.'
-        )) as ModelResponse;
+        );
+        if (reasoningResponse instanceof ReadableStream) throw new Error('Streaming not supported in workflows');
         return { solution: reasoningResponse.content };
 
       case 'ai_video':
-        const videoResponse = (await modelRouter.generateVideo(
+        const videoResponse = await modelRouter.generateVideo(
           inputs.prompt || node.parameters.prompt || ''
-        )) as ModelResponse;
-        return { videoUrl: videoResponse.imageUrl }; // modelRouter maps video to imageUrl for generic compat
+        );
+        if (videoResponse instanceof ReadableStream) throw new Error('Streaming not supported in workflows');
+        return { videoUrl: videoResponse.videoUrl || videoResponse.imageUrl };
 
       case 'ai_audio':
         const audioMode = node.parameters.mode || 'tts';
-        const audioResponse = (await modelRouter.processAudio(
+        const audioResponse = await modelRouter.processAudio(
           inputs.input || node.parameters.input || '',
           audioMode
-        )) as ModelResponse;
-        return { output: audioResponse.content };
+        );
+        if (audioResponse instanceof ReadableStream) throw new Error('Streaming not supported in workflows');
+        return { output: audioResponse.audioUrl || audioResponse.content };
 
       case 'ai_logic_refactor':
         const { behaviorSynthesis } = await import('../../services/behaviorSynthesisService');

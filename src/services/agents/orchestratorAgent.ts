@@ -4,7 +4,7 @@
  * Delegates to specialized agents and coordinates multi-step execution
  */
 
-import { modelRouter } from '../modelRouter';
+import { modelRouter, ModelResponse } from '../modelRouter';
 import { createFile } from '../bridgeService';
 import { allTools } from '../toolDefinitions';
 import { analyzeImage } from '../visionService';
@@ -149,9 +149,11 @@ Create a detailed execution plan to fully implement this request. Include ALL fi
 
   try {
     const response = await modelRouter.chat(prompt, request.history, systemPrompt);
+    if (response instanceof ReadableStream) throw new Error('Streaming not supported in orchestrator');
 
+    const res = response as ModelResponse;
     // Parse plan from response
-    const jsonMatch = response.content?.match(/\{[\s\S]*\}/);
+    const jsonMatch = res.content?.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const plan = JSON.parse(jsonMatch[0]) as ExecutionPlan;
       return plan;
@@ -232,9 +234,11 @@ Generate complete, working code. Respond with JSON:
 
   try {
     const response = await modelRouter.chat(prompt, [], systemPrompt);
+    if (response instanceof ReadableStream) throw new Error('Streaming not supported in code agent');
 
+    const res = response as ModelResponse;
     // Parse files from response
-    const jsonMatch = response.content?.match(/\{[\s\S]*\}/);
+    const jsonMatch = res.content?.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('No files generated');
     }
@@ -286,9 +290,11 @@ ${context}
 Design the algorithm or logic. Return implementation code.`;
 
   const response = await modelRouter.chat(prompt, [], systemPrompt);
+  if (response instanceof ReadableStream) throw new Error('Streaming not supported in reasoning agent');
 
+  const res = response as ModelResponse;
   return {
-    algorithm: response.content || ''
+    algorithm: res.content || ''
   };
 }
 
@@ -300,8 +306,10 @@ async function executeImageTask(task: Task, context: string): Promise<{ files: C
   const prompt = task.description.replace(/^generate\s+/i, '');
 
   const response = await modelRouter.generateImage(prompt);
+  if (response instanceof ReadableStream) throw new Error('Streaming not supported in image agent');
 
-  if (!response.imageUrl) {
+  const res = response as ModelResponse;
+  if (!res.imageUrl) {
     throw new Error('Image generation failed');
   }
 

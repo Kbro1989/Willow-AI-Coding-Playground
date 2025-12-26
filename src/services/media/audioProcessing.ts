@@ -28,8 +28,13 @@ const audioProcessing = {
                 options: { audioMode: 'stt' }
             });
 
+            if (response instanceof ReadableStream) {
+                throw new Error('Streaming not supported for transcription');
+            }
+
+            const res = response as ModelResponse;
             return {
-                text: response.content || '',
+                text: res.content || '',
             };
         } catch (error) {
             console.error('[MediaService] Transcription Failed:', error);
@@ -50,13 +55,23 @@ const audioProcessing = {
                 options: { audioMode: 'tts' }
             });
 
-            // Response content should be base64 audio
-            if (!response.content) throw new Error('No audio content returned');
+            if (response instanceof ReadableStream) {
+                throw new Error('Streaming not supported for speech synthesis');
+            }
+
+            const res = response as ModelResponse;
+
+            // Response might have audioUrl directly (Gemini Native) or content as base64 (Cloudflare)
+            if (res.audioUrl) {
+                return { audioUrl: res.audioUrl };
+            }
+
+            if (!res.content) throw new Error('No audio content returned');
 
             // Check if it already has data URI prefix
-            const audioData = response.content.startsWith('data:')
-                ? response.content
-                : `data:audio/mp3;base64,${response.content}`;
+            const audioData = res.content.startsWith('data:')
+                ? res.content
+                : `data:audio/mp3;base64,${res.content}`;
 
             return {
                 audioUrl: audioData

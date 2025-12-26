@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import BehaviorTreeEditor from '../BehaviorTreeEditor';
 import { behaviorSynthesis } from '../../services/behaviorSynthesisService';
+import { SceneObject } from '../../types';
 import { Bot, Zap, History, Database, Cpu, Brain, Sparkles, MessageSquare } from 'lucide-react';
 
-const Behavior: React.FC = () => {
+interface BehaviorProps {
+    sceneObjects?: SceneObject[];
+}
+
+const Behavior: React.FC<BehaviorProps> = ({ sceneObjects = [] }) => {
     const [activeTree, setActiveTree] = useState<any[]>([]);
     const [isRefactoring, setIsRefactoring] = useState(false);
     const [goal, setGoal] = useState('');
@@ -101,9 +106,11 @@ const Behavior: React.FC = () => {
                             Entity Registry Sync
                         </h3>
                         <div className="space-y-2">
-                            <EntityStatusItem name="follower_bot_01" status="IDLE" />
-                            <EntityStatusItem name="player_proxy" status="ACTIVE" />
-                            <EntityStatusItem name="environmental_controller" status="SLEEP" />
+                            {sceneObjects.length > 0 ? sceneObjects.map(obj => (
+                                <EntityStatusItem key={obj.id} name={obj.name} status={obj.visible ? 'ACTIVE' : 'SLEEP'} />
+                            )) : (
+                                <div className="text-[10px] text-slate-600 italic px-2">No active entities detected in Matrix</div>
+                            )}
                         </div>
                     </div>
                 </div>

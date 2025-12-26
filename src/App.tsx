@@ -219,6 +219,8 @@ const App: React.FC = () => {
 
       // Delay slightly to ensure image message arrives first (if async)
       setTimeout(() => chatRef.current?.sendMessage(prompt), 100);
+    } else if (action === 'SYNTHESIZE_PLOT') {
+      chatRef.current?.sendMessage("Synthesize a new story or plot branch based on the current world and director state.");
     }
   }, [addLog]);
 
@@ -379,11 +381,11 @@ const App: React.FC = () => {
 
               {activeView === 'forge' && <Forge />}
               {activeView === 'pipelines' && <N8NWorkflow />}
-              {activeView === 'behavior' && <Behavior />}
-              {activeView === 'narrative' && <Narrative />}
+              {activeView === 'behavior' && <Behavior sceneObjects={sceneObjects} />}
+              {activeView === 'narrative' && <Narrative onRunAction={handleRunAction} />}
               {activeView === 'assets' && <Registry onImport={handleImportAsset} />}
-              {activeView === 'world' && <World />}
-              {activeView === 'data' && <Persistence />}
+              {activeView === 'world' && <World worldConfig={worldConfig} onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))} />}
+              {activeView === 'data' && <Persistence variableData={variableData} sceneObjects={sceneObjects} assets={assets} engineLogs={engineLogs} />}
               {activeView === 'collab' && <Link />}
               {activeView === 'diagnostics' && <DiagnosticsPanel />}
               {activeView === 'deploy' && <Deploy />}

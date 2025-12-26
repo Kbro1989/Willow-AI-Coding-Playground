@@ -7,6 +7,7 @@ import { Box, Code as CodeIcon, Play, RefreshCw, Layers, BoxSelect, Cpu, PenTool
 import ModelAnnotator from '../ModelAnnotator';
 import { SkeletonGenerator } from '../../services/mesh/skeletonGenerator';
 import { MeshBuilder } from '../../services/mesh/meshBuilder';
+import { NexusResponse } from '../../backend/routeToModel';
 
 const ModelStudio: React.FC = () => {
     const [mode, setMode] = useState<'annotate' | 'preview' | 'code'>('annotate');
@@ -59,9 +60,10 @@ const ModelStudio: React.FC = () => {
                 throw new Error('Streaming not supported for texture generation');
             }
 
+            const res = response as NexusResponse;
             const textureLoader = new THREE.TextureLoader();
             const texture = await new Promise<THREE.Texture>((resolve) => {
-                textureLoader.load(`data:image/png;base64,${response.content}`, resolve);
+                textureLoader.load(`data:image/png;base64,${res.content}`, resolve);
             });
 
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -94,24 +96,24 @@ const ModelStudio: React.FC = () => {
 
             if (response instanceof ReadableStream) { throw new Error('Streaming not supported'); }
 
-            const modelResponse = response as any;
-            if (modelResponse.modelUrl) {
+            const res = response as NexusResponse;
+            if (res.modelUrl) {
                 // Load the GLB
-                const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader');
+                const { GLTFLoader } = await import('three-stdlib');
                 const loader = new GLTFLoader();
-                const gltf = await loader.loadAsync(modelResponse.modelUrl);
+                const gltf = await loader.loadAsync(res.modelUrl);
                 // Extract first mesh or scene
                 const root = gltf.scene;
                 // Traverse to find a mesh if needed, or just set root
-                let mesh: THREE.Mesh | null = null;
+                let foundMesh: THREE.Mesh | null = null;
                 root.traverse((child) => {
-                    if ((child as THREE.Mesh).isMesh && !mesh) {
-                        mesh = child as THREE.Mesh;
+                    if ((child as any).isMesh && !foundMesh) {
+                        foundMesh = child as THREE.Mesh;
                     }
                 });
 
-                if (mesh) {
-                    setGeneratedMesh(mesh);
+                if (foundMesh) {
+                    setGeneratedMesh(foundMesh);
                     setMode('preview');
                 } else {
                     console.warn('No mesh found in GLB');

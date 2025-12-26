@@ -14,7 +14,13 @@ const Link: React.FC = () => {
                     <p className="text-slate-400 text-xs mt-1">Cross-Link Presence & Shared Brainstorming Canvas</p>
                 </div>
                 <div className="flex gap-4">
-                    <button className="px-4 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all">
+                    <button
+                        onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            alert('Session Link Copied to Clipboard');
+                        }}
+                        className="px-4 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all"
+                    >
                         Invite Contributor
                     </button>
                 </div>

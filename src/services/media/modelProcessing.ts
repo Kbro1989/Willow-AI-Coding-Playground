@@ -42,6 +42,10 @@ const modelProcessing = {
                 tier: 'standard' // Try Cloudflare Qwen first (it's good at coding)
             });
 
+            if (response instanceof ReadableStream) {
+                throw new Error('Streaming not supported for 3D script generation');
+            }
+
             // Clean up code (strip markdown blocks if present)
             let cleanCode = response.code || '';
             cleanCode = cleanCode.replace(/```tsx?/g, '').replace(/```/g, '').trim();
@@ -70,6 +74,10 @@ const modelProcessing = {
                 systemPrompt: SYSTEM_PROMPT_3D,
                 tier: 'standard'
             });
+
+            if (response instanceof ReadableStream) {
+                throw new Error('Streaming not supported for 3D script modification');
+            }
 
             let cleanCode = response.code || '';
             cleanCode = cleanCode.replace(/```tsx?/g, '').replace(/```/g, '').trim();

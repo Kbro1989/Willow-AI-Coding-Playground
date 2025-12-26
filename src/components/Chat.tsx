@@ -4,8 +4,6 @@ import { ideTools } from '../services/geminiService';
 import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPreferences, Extension, SceneObject, PhysicsConfig, WorldConfig, RenderConfig, CompositingConfig, SimulationState, EngineAction, EngineLog } from '../types';
 // Hybrid: Cloudflare for text/images now through modelRouter, Gemini for live audio/video
 import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
-// Hybrid: Cloudflare for text/images now through modelRouter, Gemini for live audio/video
-import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
 import { cloudlareLimiter as limiter } from '../services/cloudflareService';
 import { modelRouter, ModelResponse, generate3D, generateImage, generateCinematic, synthesizeSpeech } from '../services/modelRouter';
 import { localBridgeClient } from '../services/localBridgeService'; // Import local bridge client
