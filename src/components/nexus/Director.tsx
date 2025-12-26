@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { directorMemory, MemoryEntry } from '../../services/directorMemoryService';
 import { sessionService, SessionMetrics } from '../../services/sessionService';
+import { logTask } from '../../services/loggingService';
 import { Brain, Database, Shield, Zap, Info, Plus, Trash2, Activity } from 'lucide-react';
 
 const Director: React.FC = () => {
@@ -9,10 +10,27 @@ const Director: React.FC = () => {
     const [newGuidance, setNewGuidance] = useState('');
 
     useEffect(() => {
-        setMemories([]); // Future: Load from service
+        // Hydrate from service
+        const loadMemories = () => {
+            const current = directorMemory.getAll();
+            if (current.length === 0) {
+                // Init defaults if empty
+                directorMemory.addMemory("Nexus Execution Doctrine v1.2: Stabilize Control Plane.", 'project', 1.0);
+                directorMemory.addMemory("System initialized. Monitoring session telemetry.", 'session', 0.5);
+                setMemories(directorMemory.getAll());
+            } else {
+                setMemories(current);
+            }
+        };
+
+        loadMemories();
         const unsubSession = sessionService.subscribe(setMetrics);
+        // Poll for memory updates (simple approach for now)
+        const interval = setInterval(() => setMemories(directorMemory.getAll()), 2000);
+
         return () => {
             unsubSession();
+            clearInterval(interval);
         };
     }, []);
 
@@ -20,7 +38,23 @@ const Director: React.FC = () => {
         if (!newGuidance.trim()) return;
         await directorMemory.addMemory(newGuidance, 'project', 1.0, ['guidance']);
         setNewGuidance('');
-        // Trigger re-render of memories list if needed
+        setMemories(directorMemory.getAll());
+    };
+
+    const handleDelete = (id: string) => {
+        directorMemory.removeMemory(id);
+        setMemories(directorMemory.getAll());
+    };
+
+    const handleAudit = async () => {
+        await logTask({
+            taskId: 'manual-audit',
+            step: 'DIRECTOR_TRIGGERED',
+            status: 'success',
+            timestamp: Date.now(),
+            metadata: { metrics }
+        });
+        alert('Global Audit Logged to Nexus Control Plane.'); // Visual feedback
     };
 
     return (
@@ -78,10 +112,16 @@ const Director: React.FC = () => {
                         </div>
 
                         <div className="space-y-3">
-                            {/* Static examples for now */}
-                            <MemoryItem scope="project" content="Nexus Execution Doctrine v1.2: Stabilize Control Plane before UI polish." importance={1.0} />
-                            <MemoryItem scope="session" content="User is working on 3D terrain sculpting in the Matrix." importance={0.8} />
-                            <MemoryItem scope="project" content="Rule #2: No direct AI calls from UI components." importance={0.9} />
+                            {memories.map(mem => (
+                                <MemoryItem
+                                    key={mem.id}
+                                    id={mem.id}
+                                    scope={mem.scope}
+                                    content={mem.content}
+                                    importance={mem.importance}
+                                    onDelete={handleDelete}
+                                />
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -108,7 +148,7 @@ const Director: React.FC = () => {
                         <p className="text-[11px] text-cyan-300 leading-relaxed mb-4">
                             Director is analyzing current system telemetry. No anomalies detected in current execution trace.
                         </p>
-                        <button className="w-full py-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-[10px] font-black uppercase text-cyan-400 hover:bg-cyan-500/20 transition-all">
+                        <button onClick={handleAudit} className="w-full py-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-[10px] font-black uppercase text-cyan-400 hover:bg-cyan-500/20 transition-all active:scale-95">
                             Trigger Global Audit
                         </button>
                     </div>
@@ -128,7 +168,7 @@ const HudStat = ({ label, value, icon, color = 'text-cyan-400' }: { label: strin
     </div>
 );
 
-const MemoryItem = ({ scope, content, importance }: { scope: string, content: string, importance: number }) => (
+const MemoryItem = ({ id, scope, content, importance, onDelete }: { id: string, scope: string, content: string, importance: number, onDelete: (id: string) => void }) => (
     <div className="p-4 bg-black/40 border border-white/5 rounded-2xl flex items-start gap-4 hover:border-cyan-500/20 transition-all group">
         <div className={`mt-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${scope === 'project' ? 'bg-purple-500/20 text-purple-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
             {scope}
@@ -142,7 +182,7 @@ const MemoryItem = ({ scope, content, importance }: { scope: string, content: st
                 <span className="text-[9px] text-slate-600 font-bold">Imp: {importance.toFixed(1)}</span>
             </div>
         </div>
-        <button className="opacity-0 group-hover:opacity-100 p-2 text-slate-600 hover:text-red-500 transition-all">
+        <button onClick={() => onDelete(id)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-600 hover:text-red-500 transition-all">
             <Trash2 className="w-3 h-3" />
         </button>
     </div>

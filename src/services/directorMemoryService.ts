@@ -50,6 +50,10 @@ class DirectorMemoryService {
         return entry;
     }
 
+    getAll(): MemoryEntry[] {
+        return [...this.projectMemory, ...this.sessionMemory, ...this.ephemeralMemory].sort((a, b) => b.timestamp - a.timestamp);
+    }
+
     /**
      * Get context summary for prompt injection
      */
@@ -68,6 +72,13 @@ class DirectorMemoryService {
     clear(scope: MemoryScope) {
         if (scope === 'session') this.sessionMemory = [];
         if (scope === 'ephemeral') this.ephemeralMemory = [];
+    }
+
+    removeMemory(id: string) {
+        this.sessionMemory = this.sessionMemory.filter(m => m.id !== id);
+        this.projectMemory = this.projectMemory.filter(m => m.id !== id);
+        this.ephemeralMemory = this.ephemeralMemory.filter(m => m.id !== id);
+        // DB sync would require delete logic (future)
     }
 
     private async syncToProjectDb(entry: MemoryEntry) {
