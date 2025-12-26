@@ -300,3 +300,109 @@ declare global {
     }
   }
 }
+
+// Game Database Types (from InstantDB schema)
+export interface Character {
+  id: string;
+  userId: string;
+  name: string;
+  class: string;
+  level: number;
+  experience: number;
+  health: number;
+  maxHealth: number;
+  mana: number;
+  maxMana: number;
+  currentLocation: string;
+  isOnline: boolean;
+  playTime: number;
+  createdAt: number;
+  lastPlayedAt?: number;
+}
+
+export interface Location {
+  id: string;
+  name: string;
+  description: string;
+  type: 'town' | 'dungeon' | 'wilderness';
+  difficulty: number;
+  minLevel: number;
+  isSafeZone: boolean;
+  pvpEnabled: boolean;
+}
+
+export interface GameEvent {
+  id: string;
+  type: 'generated_content' | 'system_event' | 'player_action';
+  category: 'code' | 'media' | '3d_model' | 'text';
+  title: string;
+  description: string;
+  source: string;
+  createdAt: number;
+  createdBy: string;
+  isPublic: boolean;
+  qualityScore?: number;
+}
+
+export interface AIUsageMetrics {
+  id: string;
+  model: string;
+  provider: 'gemini' | 'cloudflare' | 'local';
+  taskType: 'text' | 'image' | 'code' | 'audio' | 'video';
+  inputTokens: number;
+  outputTokens: number;
+  cost: number;
+  duration: number;
+  success: boolean;
+  userId?: string;
+  timestamp: number;
+}
+
+export interface Quest {
+  id: string;
+  title: string;
+  description: string;
+  type: 'main' | 'side' | 'daily';
+  minLevel: number;
+  difficulty: number;
+  isRepeatable: boolean;
+  aiGenerated: boolean;
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  description: string;
+  type: 'weapon' | 'armor' | 'consumable';
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  value: number;
+  stackable: boolean;
+  isTradable: boolean;
+  aiGenerated: boolean;
+}
+
+export interface UserAsset {
+  id: string;
+  name: string;
+  type: 'image' | 'video' | 'audio' | '3d_model';
+  format: string;
+  url: string;
+  thumbnail?: string;
+  size: number;
+  ownerId: string;
+  isPublic: boolean;
+  downloads: number;
+  likes: number;
+  createdAt: number;
+  aiGenerated: boolean;
+}
+
+export interface GameSession {
+  id: string;
+  userId: string;
+  characterId?: string;
+  startTime: number;
+  endTime?: number;
+  duration?: number;
+  isActive: boolean;
+}
