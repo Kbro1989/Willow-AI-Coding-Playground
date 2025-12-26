@@ -12,11 +12,12 @@ import type { AIUsageMetrics } from '../../types';
 export interface AIUsageParams {
     model: string;
     provider: 'gemini' | 'cloudflare' | 'local' | 'unknown';
-    taskType: 'text' | 'image' | 'code' | 'video' | 'audio' | '3d_model';
+    taskType: 'text' | 'image' | 'code' | 'video' | 'audio' | '3d_model' | 'reasoning' | 'vision' | '3d';
     inputTokens: number;
     outputTokens: number;
     cost?: number;
     duration?: number;
+    latency?: number; // Alias for duration
     success?: boolean;
     userId?: string;
 }
@@ -48,7 +49,7 @@ export async function logAIUsage(params: AIUsageParams): Promise<string> {
             inputTokens: params.inputTokens,
             outputTokens: params.outputTokens,
             cost: params.cost || 0,
-            duration: params.duration || 0,
+            duration: params.latency || params.duration || 0,
             success: params.success !== false,
             userId: params.userId || null,
             timestamp: Date.now(),

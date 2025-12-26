@@ -206,14 +206,26 @@ export interface BuildInfo {
   buildPrompt?: string;
 }
 
-export interface GameAsset {
+export interface UserAsset {
   id: string;
   name: string;
-  type: 'mesh' | 'texture' | 'audio' | 'script';
-  status: 'raw' | 'processing' | 'optimized';
-  url?: string;
+  type: 'image' | 'video' | 'audio' | '3d_model' | 'mesh' | 'texture' | 'script';
+  format: string;
+  url: string;
+  thumbnail?: string;
+  size: number;
+  ownerId: string;
+  isPublic: boolean;
+  downloads: number;
+  likes: number;
+  status?: 'raw' | 'processing' | 'optimized';
   tags?: string[];
+  createdAt: number;
+  aiGenerated: boolean;
+  [key: string]: any;
 }
+
+export type GameAsset = UserAsset;
 
 export interface PipelineConfig {
   id: string;
@@ -386,21 +398,6 @@ export interface Item {
   aiGenerated: boolean;
 }
 
-export interface UserAsset {
-  id: string;
-  name: string;
-  type: 'image' | 'video' | 'audio' | '3d_model';
-  format: string;
-  url: string;
-  thumbnail?: string;
-  size: number;
-  ownerId: string;
-  isPublic: boolean;
-  downloads: number;
-  likes: number;
-  createdAt: number;
-  aiGenerated: boolean;
-}
 
 export interface GameSession {
   id: string;

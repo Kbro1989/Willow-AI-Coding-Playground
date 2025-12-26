@@ -41,6 +41,8 @@
  */
 
 export { default as aiUsageService } from './aiUsageService';
+export { default as characterService } from './characterService';
+export { default as collaborativeSync } from './collaborativeSyncService';
 
 // Export types for use in components
 export type {

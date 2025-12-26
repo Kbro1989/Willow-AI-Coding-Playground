@@ -87,12 +87,16 @@ export class WorkflowEngine {
         // Get inputs for this node
         const inputs = this.getNodeInputs(node, workflow);
 
-        // Execute node
-        const output = await this.executeNode(node, inputs, abortController.signal);
-
-        // Store output
-        this.context.nodeOutputs.set(node.id, output);
-        await logTask({ taskId: jobId, step: `NODE_${node.id}`, status: 'success', timestamp: Date.now() });
+        // Execute node with potential self-correction
+        try {
+          const output = await this.executeNodeWithRetry(node, inputs, abortController.signal, jobId);
+          // Store output
+          this.context.nodeOutputs.set(node.id, output);
+          await logTask({ taskId: jobId, step: `NODE_${node.id}`, status: 'success', timestamp: Date.now() });
+        } catch (nodeError) {
+          console.error(`[WORKFLOW] Node ${node.id} failed definitively:`, nodeError);
+          throw nodeError; // Re-throw to stop workflow
+        }
       }
 
       await logTask({ taskId: jobId, step: 'COMPLETE', status: 'success', duration: Date.now() - startTime, timestamp: Date.now() });
@@ -111,6 +115,65 @@ export class WorkflowEngine {
       };
     } finally {
       nexusBus.completeJob(jobId);
+    }
+  }
+
+  /**
+   * Execute a node with one automated retry if it fails
+   */
+  private async executeNodeWithRetry(node: WorkflowNode, inputs: Record<string, any>, signal: AbortSignal, jobId: string, depth = 0): Promise<any> {
+    try {
+      return await this.executeNode(node, inputs, signal);
+    } catch (error) {
+      if (depth > 0) throw error; // Only retry once
+
+      console.warn(`[WORKFLOW] Node ${node.id} (${node.type}) failed. Reflecting for self-correction...`);
+      await logTask({
+        taskId: jobId,
+        step: `NODE_${node.id}_REFLECTION`,
+        status: 'pending',
+        metadata: { error: String(error) },
+        timestamp: Date.now()
+      });
+
+      // AI Reflection: Explain the error and suggest parameters
+      const reflection = await modelRouter.chat(
+        `The workflow node of type "${node.type}" failed with error: "${String(error)}".
+        Current parameters: ${JSON.stringify(node.parameters)}
+        Connected inputs: ${JSON.stringify(inputs)}
+        
+        Analyze why it failed and suggest improved parameters in JSON format.`,
+        [],
+        'You are a systems diagnostic AI. Provide a JSON object with "analysis" string and "newParameters" object.'
+      );
+
+      if (!(reflection instanceof ReadableStream)) {
+        try {
+          const suggestion = JSON.parse(reflection.content || '{}');
+          console.log(`[WORKFLOW] AI Reflection for ${node.id}:`, suggestion.analysis);
+
+          await logTask({
+            taskId: jobId,
+            step: `NODE_${node.id}_RETRY`,
+            status: 'pending',
+            metadata: { analysis: suggestion.analysis },
+            timestamp: Date.now()
+          });
+
+          // Create a patched node with new parameters
+          const patchedNode = {
+            ...node,
+            parameters: { ...node.parameters, ...suggestion.newParameters }
+          };
+
+          return await this.executeNodeWithRetry(patchedNode, inputs, signal, jobId, depth + 1);
+        } catch (e) {
+          console.error('[WORKFLOW] Reflection parsing failed:', e);
+          throw error; // Throw original error if reflection fails
+        }
+      }
+
+      throw error;
     }
   }
 

@@ -117,6 +117,8 @@ const _schema = i.schema({
             isPublic: i.boolean().indexed(),
             downloads: i.number(),
             likes: i.number(),
+            status: i.string().optional(), // 'raw', 'processing', 'optimized'
+            tags: i.string().optional(), // JSON array or comma-separated
             createdAt: i.number().indexed(),
             aiGenerated: i.boolean().indexed(),
         }),

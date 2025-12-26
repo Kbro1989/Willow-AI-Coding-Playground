@@ -19,8 +19,10 @@ export interface ModelRequest {
   language?: string;
   context?: string;
   options?: any;
-  tier?: 'standard' | 'premium'; // default: 'standard' (Cloudflare)
+  tier?: 'standard' | 'premium';
   grounding?: boolean;
+  bundle?: boolean;
+  subRequests?: ModelRequest[];
 }
 
 export interface ModelResponse {
@@ -54,12 +56,31 @@ import { nexusBus } from './nexusCommandBus';
 import sessionService from './sessionService';
 
 export async function route(request: ModelRequest): Promise<ModelResponse | ReadableStream> {
+  const startTime = Date.now();
+
+  // 1. Handle Bundled Requests (Multi-modal)
+  if (request.bundle && request.subRequests) {
+    console.log(`[MODEL] Processing bundled request with ${request.subRequests.length} steps...`);
+    const results = await Promise.all(request.subRequests.map(sr => route({ ...sr, options: { ...sr.options, ...request.options } })));
+
+    // Merge results into a single response
+    return {
+      content: results.map(r => (r as ModelResponse).content).filter(Boolean).join('\n---\n'),
+      imageUrl: (results.find(r => (r as ModelResponse).imageUrl) as ModelResponse)?.imageUrl,
+      videoUrl: (results.find(r => (r as ModelResponse).videoUrl) as ModelResponse)?.videoUrl,
+      code: (results.find(r => (r as ModelResponse).code) as ModelResponse)?.code,
+      model: 'composite-bundle',
+      provider: 'unknown',
+      latency: Date.now() - startTime
+    };
+  }
+
+  const signal = request.options?.signal;
   // Check session quota
   if (sessionService.isOverQuota()) {
     throw new Error('[NEXUS_QUOTA] Session hard cost limit reached. Please reset session or increase quotas.');
   }
 
-  const startTime = Date.now();
   const tier = request.tier || 'standard';
   const stream = request.options?.stream === true;
 

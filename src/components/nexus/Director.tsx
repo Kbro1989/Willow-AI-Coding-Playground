@@ -57,6 +57,13 @@ const Director: React.FC = () => {
         alert('Global Audit Logged to Nexus Control Plane.'); // Visual feedback
     };
 
+    const handleStressTest = async () => {
+        const { diagnosticService } = await import('../../services/diagnosticService');
+        const results = await diagnosticService.runStressTest(5);
+        alert(`Stress Test Complete: ${results.success}/${results.total} flows verified.`);
+        setMemories(directorMemory.getAll());
+    };
+
     return (
         <div className="h-full flex flex-col bg-[#050a15] text-cyan-50 font-mono">
             {/* Header / Session HUD */}
@@ -105,9 +112,9 @@ const Director: React.FC = () => {
                                     value={newGuidance}
                                     onChange={(e) => setNewGuidance(e.target.value)}
                                     placeholder="e.g. Always use functional patterns for 3D shaders..."
-                                    className="flex-1 bg-black/40 border border-cyan-500/20 rounded-xl px-4 py-2 text-sm text-cyan-100 placeholder:text-cyan-900 focus:outline-none focus:border-cyan-400"
+                                    className="flex-1 nexus-input"
                                 />
-                                <button onClick={addGuidance} className="bg-cyan-500 text-black px-6 py-2 rounded-xl text-xs font-black uppercase hover:bg-cyan-400 transition-colors">
+                                <button onClick={addGuidance} className="nexus-btn-primary px-8 py-2 text-xs font-black uppercase tracking-widest">
                                     Inject
                                 </button>
                             </div>
@@ -150,9 +157,14 @@ const Director: React.FC = () => {
                         <p className="text-[11px] text-cyan-300 leading-relaxed mb-4">
                             Director is analyzing current system telemetry. No anomalies detected in current execution trace.
                         </p>
-                        <button onClick={handleAudit} className="w-full py-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-[10px] font-black uppercase text-cyan-400 hover:bg-cyan-500/20 transition-all active:scale-95">
-                            Trigger Global Audit
-                        </button>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={handleAudit} className="nexus-btn-primary py-3 text-[10px] font-black uppercase tracking-[0.2em]">
+                                Trigger Audit
+                            </button>
+                            <button onClick={handleStressTest} className="nexus-btn-accent py-3 text-[10px] font-black uppercase tracking-[0.2em]">
+                                Run Stress Test
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

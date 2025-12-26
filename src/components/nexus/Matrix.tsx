@@ -109,19 +109,19 @@ const Matrix: React.FC = () => {
                                     AI Media Synthesis
                                 </h3>
                                 <div className="p-4 bg-purple-950/10 border border-purple-500/20 rounded-2xl space-y-3">
-                                    <div className="text-[9px] text-purple-400 font-bold uppercase">Generate PBR Material</div>
+                                    <label className="nexus-label !text-purple-400">Generate PBR Material</label>
                                     <textarea
                                         value={matPrompt}
                                         onChange={(e) => setMatPrompt(e.target.value)}
                                         placeholder="Describe a 3D material... (e.g. Scratched obsidian with lava veins)"
-                                        className="w-full bg-black/40 border border-purple-500/20 rounded-xl p-3 text-xs text-purple-50 focus:outline-none focus:border-purple-500/50 min-h-[80px]"
+                                        className="nexus-textarea w-full h-24 resize-none"
                                     />
                                     <button
                                         onClick={handleGenMaterial}
                                         disabled={isGeneratingMat || !matPrompt.trim()}
-                                        className="w-full py-2 bg-purple-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-400 transition-colors disabled:opacity-50"
+                                        className="w-full nexus-btn-accent py-3 font-black uppercase tracking-widest"
                                     >
-                                        {isGeneratingMat ? 'Synthesizing...' : 'Generate Texture'}
+                                        {isGeneratingMat ? 'Synthesizing...' : 'Ignite Texture'}
                                     </button>
                                 </div>
                             </div>
@@ -139,7 +139,7 @@ const Matrix: React.FC = () => {
                                                 <div className="w-full h-full bg-amber-500 shadow-[0_0_8px_#f59e0b]"></div>
                                             </div>
                                         </div>
-                                        <button className="w-full py-2 bg-amber-600/20 border border-amber-500/30 text-amber-400 rounded-xl text-[9px] font-black uppercase tracking-widest nexus-btn hover:bg-amber-600 hover:text-white">Recalculate Bounds</button>
+                                        <button className="w-full py-3 nexus-btn-primary text-[9px] font-black uppercase tracking-widest">Recalculate Bounds</button>
                                     </div>
                                 </div>
                             )}
