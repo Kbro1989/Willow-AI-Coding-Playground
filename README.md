@@ -1,201 +1,106 @@
-# Antigravity Engine v4.2 PRO
+# 🌌 Antigravity Engine
 
-An AI-powered code editor and game development environment with advanced features including multi-model AI integration, 3D game development tools, and real-time collaboration capabilities.
+[![Status](https://img.shields.io/badge/Status-Gold_Master-cyan.svg)](https://github.com/your-repo)
+[![Engine](https://img.shields.io/badge/Engine-React_18_+_Three.js-blue.svg)](https://reactjs.org)
+[![AI](https://img.shields.io/badge/AI-Gemini_2.0_Flash-purple.svg)](https://deepmind.google/technologies/gemini/)
 
-## 🚀 Features
-
-### Core Components
-- **API Key Manager**: Hot-swap AI API keys when rate limits hit
-- **Behavior Tree Editor**: Visual AI logic editor with real-time debugging
-- **Antigravity Director**: Advanced chat interface with multi-turn AI orchestration
-- **Code Editor**: AI-powered code completion with real-time auditing and refactoring
-- **Game Dashboard**: 3D viewport with VR/AR support for game development
-- **The Forge**: Multi-model AI interface for text, code, images, audio, and video generation
-- **Pipeline Builder**: Visual workflow editor (n8n-style) for creating AI pipelines
-- **Extension Registry**: Manage and install extensions
-
-### Game Persistence & Data 🎮
-- **Character System**: Full character CRUD with progression and inventory
-- **World Management**: Locations, quests, and NPC systems
-- **Asset Management**: User-generated and AI-generated media library
-- **AI Usage Tracking**: Cost analytics and model performance monitoring
-- **InstantDB Integration**: Real-time database with comprehensive game schema
-
-### Creative Suite 🎨
-- **Image Studio**: AI background removal, upscaling, & generation (SDXL/Flux)
-- **Audio Workshop**: Speech-to-Text & Text-to-Speech synthesis (Whisper/MeloTTS)
-- **Video Studio**: Cinematic text-to-video generation (Stable Video Diffusion)
-- **Model Studio**: Code-to-3D asset generation
-- **Code Library**: Reusable snippet management with injection API
-- **Collaborative Canvas**: Infinite whiteboard with real-time multiplayer cursors
-
-### AI Integration
-- **Multi-Provider Support**: Gemini, Cloudflare AI, Local Ollama models
-- **Smart Routing**: Automatic provider selection based on availability and task type
-- **Rate Limiting**: Built-in rate limiting and API key management
-- **Reflective Agent**: Self-correcting AI that verifies code changes and fixes diagnostics automatically
-- **Live Director**: Real-time voice and video AI interactions
-
-### 3D Game Development
-- **WebGL/Three.js**: High-performance 3D rendering
-- **VR/AR Support**: WebXR integration for immersive experiences
-- **Real-time Physics**: Configurable physics simulation
-- **Asset Pipeline**: Import and manage 3D models, textures, and materials
-- **Terrain Generation**: Procedural world generation with sculpting tools
-
-### Development Tools
-- **Real-time Collaboration**: WebSocket-based live editing
-- **Version Control**: Built-in project versioning and build system
-- **Diagnostics**: Real-time system monitoring and performance metrics
-- **Code Intelligence**: AI-powered code completion, auditing, and refactoring
-
-## 🛠️ Technology Stack
-
-### Frontend
-- **React 18** with TypeScript
-- **Three.js** for 3D rendering
-- **@react-three/fiber** for React Three.js integration
-- **Tailwind CSS** for styling
-- **WebXR** for VR/AR support
-
-### AI Services
-- **Google Gemini** for text and image generation
-- **Cloudflare Workers AI** for model hosting
-- **Local Ollama** for offline AI capabilities
-- **Live Director** for real-time AI interactions
-
-### Build Tools
-- **Vite** for fast development and building
-- **ESLint** and **Prettier** for code quality
-- **Cloudflare Workers** for edge deployment
-- **wrangler** for Workers deployment and management
-
-### Database & Storage
-- **InstantDB** for real-time game data persistence
-- **Cloudflare KV** for session and cache storage
-- **Cloudflare R2** for media and asset storage
-
-## 📦 Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/Kbro1989/Willow-AI-Coding-Playground
-cd antigravity-engine
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build:all
-
-# Deploy to Cloudflare Workers
-npm run deploy
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-Create a `.env` file in the root directory:
-
-```env
-REACT_APP_GEMINI_API_KEY=your_gemini_api_key_here
-REACT_APP_CLOUDFLARE_API_KEY=your_cloudflare_api_key_here
-REACT_APP_ENVIRONMENT=development
-```
-
-### API Keys
-Use the built-in API Key Manager to configure:
-- Google Gemini API keys
-- Cloudflare Workers AI credentials
-- Custom AI provider endpoints
-
-## 🎮 Usage
-
-### Getting Started
-1. **Launch the Application**: Start the development server and open in browser
-2. **Configure AI Keys**: Use the API Key Manager to set up your AI providers
-3. **Create a Project**: Start with the code editor or game dashboard
-4. **Explore Features**: Try different tabs - Editor, Director, Matrix, Forge
-
-### Code Development
-1. **Editor Tab**: Write code with AI-assisted completions
-2. **Director Tab**: Chat with AI to generate code, assets, or get help
-3. **Real-time Feedback**: See diagnostics and suggestions as you type
-
-### Game Development
-1. **Matrix Tab**: Open the 3D game development environment
-2. **Import Assets**: Load 3D models, textures, and materials
-3. **Scene Building**: Add objects, configure physics, and set up lighting
-4. **Testing**: Run and test your game in real-time
-
-### AI Workflows
-1. **Forge Tab**: Access multi-model AI capabilities
-2. **Pipeline Tab**: Create visual AI workflows
-3. **Behavior Tab**: Design AI behaviors with visual trees
-
-## 📁 Project Structure
-
-```
-src/
-├── components/          # React components
-│   ├── ApiKeyManager.tsx
-│   ├── BehaviorTreeEditor.tsx
-│   ├── Chat.tsx
-│   ├── Editor.tsx
-│   ├── Forge.tsx
-│   ├── GameDashboard.tsx
-│   └── PipelineBuilder.tsx
-├── services/           # AI and utility services
-│   ├── modelRouter.ts
-│   ├── geminiService.ts
-│   ├── cloudflareService.ts
-│   └── gameData/      # Game database services
-│       ├── characterService.ts
-│       ├── aiUsageService.ts
-│       ├── assetService.ts
-│       └── index.ts
-├── types.ts           # TypeScript type definitions
-├── instant.schema.ts  # InstantDB game schema
-├── App.tsx            # Main application component
-└── index.tsx          # Application entry point
-
-buildScripts/          # Build automation
-├── buildWorker.js     # Cloudflare Worker bundling
-└── copyAssets.js      # Asset deployment
-
-wrangler.toml          # Cloudflare Workers config
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- **Three.js Community** for the excellent 3D library
-- **React Team** for the amazing React framework
-- **Google AI** for Gemini API
-- **Cloudflare** for Workers AI platform
-- **Ollama** for local AI capabilities
-
-## 🔗 Links
-
-- [Google Gemini API](https://ai.google.dev/)
-- [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
-- [Three.js Documentation](https://threejs.org/docs/)
-- [React Documentation](https://react.dev/)
+**The Antigravity Engine** is a next-generation "Operating System for Creation." It fuses a high-performance 3D spatial interface with an advanced AI agentic core, allowing developers and artists to build, dream, and deploy in a unified "Nexus" environment.
 
 ---
 
-**Antigravity Engine v4.2 PRO** - Empowering developers with AI-assisted creation tools.
+## 🚀 Key Features
+
+### 🧠 The Nexus Core
+- **Agentic OS**: An AI-driven operating system that understands your project context.
+- **Context Awareness**: The engine tracks your active files, node graphs, and narrative to provide relevant suggestions via the **Assistant Overlay**.
+- **Multi-Step Pipelines**: Chain atomic AI tasks (e.g., *Ideation -> Text -> Image -> 3D*) using the `PipelineService`.
+
+### 🕸️ The Matrix (Spatial Graph)
+- **Visual Programming**: Drag-and-drop neural nodes to architect AI logic flows.
+- **Persistence**: Save and load complex graph configurations to the cloud via **InstantDB**.
+- **Real-time Visualization**: See data flow through your network in a 3D interface.
+
+### ⚒️ The Forge (Media Studio)
+- **Generative Asset Creation**: unified studio for AI media generation.
+    - **Image**: Text-to-Image (Imagen 3).
+    - **Audio**: Text-to-Speech & SFX.
+    - **Video**: Generative Video (Veo Preview).
+    - **3D**: Text-to-3D asset generation.
+- **Lazy Optimization**: Heavy 3D viewports automatically suspend when off-screen to save performance.
+
+### 🌍 The World Builder
+- **Procedural Generation**: Sculpt terrains and biomes with AI assistance.
+- **Physics Simulation**: Real-time interaction with the environment.
+
+---
+
+## 🛠️ Setup & Installation
+
+### Prerequisites
+- Node.js 18+
+- A Google Gemini API Key (for AI features)
+
+### Quick Start
+
+1.  **Clone & Install**
+    ```bash
+    git clone https://github.com/your-username/antigravity-engine.git
+    cd antigravity-engine
+    npm install
+    ```
+
+2.  **Environment Setup**
+    Create a `.env` file in the root:
+    ```env
+    VITE_GEMINI_API_KEY=your_gemini_api_key_here
+    VITE_INSTANT_APP_ID=your_instantdb_app_id_here
+    ```
+
+3.  **Launch the Bridge (File System Access)**
+    The engine requires a local bridge to read/write files to your disk.
+    ```bash
+    node bridge/server.js
+    ```
+
+4.  **Ignite the Engine**
+    In a separate terminal:
+    ```bash
+    npm run dev
+    ```
+    Open `http://localhost:5173` to enter the Nexus.
+
+---
+
+## 🏗️ Architecture
+
+The engine is built on a modular Service-Oriented Architecture (SOA):
+
+- **`contextService`**: Aggregates state from Editor, Graph, and Narrative.
+- **`pipelineService`**: Orchestrates multi-step generative workflows.
+- **`graphStateService`**: Manages persistence of node graphs in InstantDB.
+- **`directorMemoryService`**: Tracks session history and long-term project memory.
+- **`localBridgeService`**: WebSocket bridge for safe local file system operations.
+
+---
+
+## ⌨️ Keybindings
+
+| Key Combo | Action |
+| :--- | :--- |
+| `Ctrl + Space` | Toggle AI Assistant / Omni-bar |
+| `Ctrl + S` | Save Active File & Graph |
+| `Ctrl + \`` | Toggle Integrated Terminal |
+| `Alt + 1-4` | Switch Views (Director, Editor, Matrix, Forge) |
+
+---
+
+## 🤝 Contribution
+
+We welcome Architects. Please fork the repository and submit PRs for:
+- New `PipelineStep` types.
+- Optimized 3D shaders.
+- UI Themes.
+
+---
+
+*Built with ❤️ by The Antigravity Team.*
