@@ -29,9 +29,13 @@ class CollaborativeSyncService {
      */
     async updatePresence(userId: string, data: Partial<Presence>) {
         try {
+            // Strip userId from data if present to avoid "id already exists" conflict,
+            // as userId is being used as the record ID in tx.presence[userId]
+            const { userId: _, ...safeData } = data;
+
             await db.transact([
                 tx.presence[userId].update({
-                    ...data,
+                    ...safeData,
                     // Map activeTab to activeView if needed, or just include both
                     activeView: data.activeView || data.activeTab,
                     lastActive: Date.now()

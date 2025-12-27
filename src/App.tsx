@@ -132,7 +132,6 @@ const App: React.FC = () => {
       if (Math.random() > 0.1) return;
 
       collaborativeSync.updatePresence(user.id, {
-        userId: user.id,
         userName: user.email?.split('@')[0] || 'Unknown User',
         cursorX: e.clientX,
         cursorY: e.clientY,
