@@ -80,9 +80,14 @@ class CloudflareProvider {
       }
 
       const data = await response.json() as any;
+      const content = data.response || data.text || data.result;
+
+      if (!content && !data.functionCalls) {
+        throw new Error('CLOUDFLARE_EMPTY_RESPONSE');
+      }
 
       return {
-        content: data.response || data.text,
+        content: content || '',
         model: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
         tokensUsed: data.tokensUsed || data.usage?.total_tokens
       };
@@ -118,9 +123,14 @@ class CloudflareProvider {
       }
 
       const data = await response.json() as any;
+      const code = data.completion || data.code || data.response || data.result;
+
+      if (!code) {
+        throw new Error('CLOUDFLARE_CODE_GEN_EMPTY');
+      }
 
       return {
-        code: data.completion || data.code || data.response,
+        code,
         model: '@cf/qwen/qwen2.5-coder-32b-instruct'
       };
     } catch (error) {
@@ -150,9 +160,14 @@ class CloudflareProvider {
       }
 
       const data = await response.json() as any;
+      const solution = data.response || data.text || data.result;
+
+      if (!solution) {
+        throw new Error('CLOUDFLARE_REASONING_EMPTY');
+      }
 
       return {
-        solution: data.response || data.text,
+        solution,
         model: '@cf/qwq/qwq-32b-preview'
       };
     } catch (error) {

@@ -90,11 +90,31 @@ class GeminiProvider {
       const result = await chat.sendMessage(request.prompt);
       const response = result.response;
 
-      // Extract function calls if present
+      // Extract parts safely
+      const candidates = response.candidates || [];
+      if (candidates.length === 0 || !candidates[0].content) {
+        const finishReason = candidates[0]?.finishReason;
+        if (finishReason === 'SAFETY') throw new Error('BLOCKED_BY_SAFETY');
+        if (finishReason === 'RECITATION') throw new Error('BLOCKED_BY_RECITATION');
+        throw new Error('EMPTY_RESPONSE');
+      }
+
+      // Check for content or function calls
+      let text = '';
+      try {
+        text = response.text();
+      } catch (e) {
+        console.warn('[GEMINI] Failed to extract text:', e);
+      }
+
       const functionCalls = response.functionCalls?.() || [];
 
+      if (!text && functionCalls.length === 0) {
+        throw new Error('EMPTY_RESPONSE_OR_BLOCKED');
+      }
+
       return {
-        content: response.text(),
+        content: text,
         functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
         model: modelId,
         tokensUsed: response.usageMetadata?.totalTokenCount
@@ -162,7 +182,14 @@ class GeminiProvider {
         : request.prompt;
 
       const result = await model.generateContent(prompt);
-      const code = result.response.text();
+      const response = result.response;
+
+      const candidates = response.candidates || [];
+      if (candidates.length === 0 || !candidates[0].content) {
+        throw new Error('CODE_GEN_BLOCKED_OR_EMPTY');
+      }
+
+      const code = response.text();
 
       return {
         code,
