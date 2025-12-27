@@ -60,6 +60,7 @@ import { nexusBus } from './services/nexusCommandBus';
 import { localBridgeClient } from './services/localBridgeService';
 import { collaborativeSync } from './services/gameData/collaborativeSyncService';
 import { contextService } from './services/ai/contextService';
+import { syncSessionState } from './services/userPreferencesService';
 
 // Media components (Forge migration targets)
 import AudioWorkshop from './components/media/AudioWorkshop';
@@ -87,10 +88,6 @@ const App: React.FC = () => {
     return (saved as ActiveView) || 'dashboard';
   });
 
-  // Persist active view
-  useEffect(() => {
-    localStorage.setItem('nexus_active_view', activeView);
-  }, [activeView]);
 
   const [aiMode, setAiMode] = useState<AIModelMode>('assist');
   const [projectEnv, setProjectEnv] = useState<ProjectEnv>('dev');
@@ -141,6 +138,14 @@ const App: React.FC = () => {
   const [variableData, setVariableData] = useState<Record<string, any>>({});
   const [extensions, setExtensions] = useState<Extension[]>(initialExtensions);
   const [projectVersion, setProjectVersion] = useState<string>('v4.2.0');
+
+  // Persist active view to Cloud and LocalStorage
+  useEffect(() => {
+    localStorage.setItem('nexus_active_view', activeView);
+    if (user?.id) {
+      syncSessionState(user.id, { activeView, activeFile: project.activeFile || undefined });
+    }
+  }, [activeView, user?.id, project.activeFile]);
 
   // --- UI/UX State ---
   const [sidebarWidth, setSidebarWidth] = useState(320);
