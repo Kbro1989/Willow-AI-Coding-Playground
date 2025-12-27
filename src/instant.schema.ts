@@ -164,6 +164,15 @@ const _schema = i.schema({
             createdAt: i.number(),
             updatedAt: i.number().indexed(),
         }),
+
+        // AI Director Memories
+        memories: i.entity({
+            content: i.string(),
+            scope: i.string().indexed(), // 'session', 'project', 'ephemeral'
+            importance: i.number(),
+            timestamp: i.number().indexed(),
+            tags: i.string().optional(), // JSON array of tags
+        }),
     },
     links: {
         // System links

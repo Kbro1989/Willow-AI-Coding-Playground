@@ -21,7 +21,7 @@ export const PrimaryNav: React.FC<PrimaryNavProps> = ({ activeView, setActiveVie
 
     React.useEffect(() => {
         const unsubBus = nexusBus.subscribe(() => setJobs(nexusBus.getJobs()));
-        const unsubBridge = localBridgeClient.onStatusChange(setBridge);
+        const unsubBridge = localBridgeClient.onStatusChange((s) => setBridge(s));
         return () => { unsubBus(); unsubBridge(); };
     }, []);
 

@@ -489,6 +489,13 @@ const App: React.FC = () => {
                     case 'forge': return <div className="h-full w-full overflow-hidden"><LazyViewport><Forge /></LazyViewport></div>;
                     case 'pipelines': return <div className="h-full w-full overflow-hidden"><N8NWorkflow /></div>;
                     case 'behavior': return <div className="h-full w-full overflow-hidden"><Behavior sceneObjects={sceneObjects} /></div>;
+                    case 'narrative': return <div className="h-full w-full overflow-hidden"><Narrative /></div>;
+                    case 'assets': return <div className="h-full w-full overflow-hidden"><Registry /></div>;
+                    case 'world': return <div className="h-full w-full overflow-hidden"><World /></div>;
+                    case 'data': return <div className="h-full w-full overflow-hidden"><Persistence /></div>;
+                    case 'collab': return <div className="h-full w-full overflow-hidden"><Link /></div>;
+                    case 'deploy': return <div className="h-full w-full overflow-hidden"><Deploy /></div>;
+                    case 'settings': return <div className="h-full w-full overflow-hidden"><Config /></div>;
                     case 'rsmv': return <div className="h-full w-full overflow-hidden"><RSMVBrowser /></div>;
                     case 'shader': return (
                       <div className="h-full w-full overflow-hidden border-t border-cyan-900/30">

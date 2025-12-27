@@ -18,7 +18,7 @@ const DiagnosticsPanel: React.FC = () => {
       setJobs(nexusBus.getJobs());
     });
     const unsubSession = sessionService.subscribe(setMetrics);
-    const unsubBridge = localBridgeClient.onStatusChange(setBridgeStatus);
+    const unsubBridge = localBridgeClient.onStatusChange((status) => setBridgeStatus(status));
 
     return () => {
       unsubBus();

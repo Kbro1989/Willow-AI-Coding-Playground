@@ -23,8 +23,20 @@ class DirectorMemoryService {
     }
 
     private async loadProjectMemory() {
-        // Future: Fetch from InstantDB
         console.log('[MEMORY] Initializing persistent project context...');
+        db.subscribeQuery({ memories: {} }, (resp) => {
+            if (resp.data && resp.data.memories) {
+                this.projectMemory = resp.data.memories.map((m: any) => ({
+                    id: m.id,
+                    scope: m.scope as MemoryScope,
+                    content: m.content,
+                    importance: m.importance,
+                    timestamp: m.timestamp,
+                    tags: m.tags ? JSON.parse(m.tags) : []
+                }));
+                console.log(`[MEMORY] Synced ${this.projectMemory.length} project memories from cloud.`);
+            }
+        });
     }
 
     /**
@@ -91,7 +103,7 @@ class DirectorMemoryService {
                     scope: entry.scope,
                     importance: entry.importance,
                     timestamp: entry.timestamp,
-                    tags: entry.tags
+                    tags: JSON.stringify(entry.tags)
                 })
             ]);
         } catch (error) {
