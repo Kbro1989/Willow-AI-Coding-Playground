@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
+import ErrorBoundary from './ErrorBoundary';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, PerspectiveCamera, Html, Float } from '@react-three/drei';
 import * as THREE from 'three';
@@ -94,20 +95,21 @@ const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean 
       case 'npcs': return '#ff6b6b';
       case 'objects': return '#10b981';
       case 'models': return '#a855f7';
-      default: return '#ffffff';
     }
   }, [model.category]);
 
   return (
     <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-      <group ref={meshRef}>
-        <mesh geometry={geometry}>
-          <meshStandardMaterial color={color} metalness={0.6} roughness={0.3} emissive={color} emissiveIntensity={0.1} wireframe={wireframe} />
-        </mesh>
-        <mesh geometry={geometry} scale={1.05}>
-          <meshBasicMaterial color={color} transparent opacity={0.1} wireframe />
-        </mesh>
-      </group>
+      <ErrorBoundary fallback={<mesh><icosahedronGeometry args={[1, 0]} /><meshStandardMaterial color="#333" wireframe /></mesh>}>
+        <group ref={meshRef}>
+          <mesh geometry={geometry}>
+            <meshStandardMaterial color={color} metalness={0.6} roughness={0.3} emissive={color} emissiveIntensity={0.1} wireframe={wireframe} />
+          </mesh>
+          <mesh geometry={geometry} scale={1.05}>
+            <meshBasicMaterial color={color} transparent opacity={0.1} wireframe />
+          </mesh>
+        </group>
+      </ErrorBoundary>
     </Float>
   );
 };

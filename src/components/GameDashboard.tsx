@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { AnnotationOverlay } from './AnnotationOverlay';
+import ErrorBoundary from './ErrorBoundary';
 import { Canvas, useFrame, useThree, ThreeElements } from '@react-three/fiber';
 import { OrbitControls, Sky, Environment, ContactShadows, PerspectiveCamera, Float, Stars, Grid, Gltf } from '@react-three/drei';
 import { XR, createXRStore } from '@react-three/xr';
@@ -231,7 +232,9 @@ const LiveObject: React.FC<{ obj: SceneObject, isSelected: boolean, onSelect: ()
       onClick={(e) => { e.stopPropagation(); onSelect(); if (obj.behaviors?.includes('trigger')) triggerActiveRef.current = !triggerActiveRef.current; }}
       visible={obj.visible}
     >
-      {getGeometry()}
+      <ErrorBoundary fallback={<mesh><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="red" wireframe /></mesh>}>
+        {getGeometry()}
+      </ErrorBoundary>
       {isSelected && (
         <>
           <mesh scale={[1.1, 1.1, 1.1]}>

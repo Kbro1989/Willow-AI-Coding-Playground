@@ -8,6 +8,7 @@ import ModelAnnotator from '../ModelAnnotator';
 import { SkeletonGenerator } from '../../services/mesh/skeletonGenerator';
 import { MeshBuilder } from '../../services/mesh/meshBuilder';
 import { NexusResponse } from '../../backend/routeToModel';
+import ErrorBoundary from '../ErrorBoundary';
 
 const ModelStudio: React.FC = () => {
     const [mode, setMode] = useState<'annotate' | 'preview' | 'code'>('annotate');
@@ -181,7 +182,9 @@ const ModelStudio: React.FC = () => {
                         <Suspense fallback={null}>
                             <Stage environment="city" intensity={0.6}>
                                 {generatedMesh ? (
-                                    <primitive object={generatedMesh} />
+                                    <ErrorBoundary fallback={<mesh><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="red" wireframe /></mesh>}>
+                                        <primitive object={generatedMesh} />
+                                    </ErrorBoundary>
                                 ) : (
                                     <mesh visible={mode === 'preview'}>
                                         <boxGeometry args={[1, 1, 1]} />

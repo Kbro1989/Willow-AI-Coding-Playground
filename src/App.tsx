@@ -296,17 +296,36 @@ const App: React.FC = () => {
 
   // --- Persistence & Initialization ---
   useEffect(() => {
+    // Utility to recursively strip blob URLs from restored state
+    // Blobs are session-bound and invalid after a reload
+    const stripBlobUrls = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(stripBlobUrls);
+
+      const result = { ...obj };
+      for (const key in result) {
+        if (typeof result[key] === 'string' && result[key].startsWith('blob:')) {
+          result[key] = undefined; // Strip invalid blob
+        } else if (typeof result[key] === 'object') {
+          result[key] = stripBlobUrls(result[key]);
+        }
+      }
+      return result;
+    };
+
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        const ws = JSON.parse(saved) as Workspace;
+        const rawWs = JSON.parse(saved);
+        const ws = stripBlobUrls(rawWs) as Workspace;
+
         setProject(ws.project);
-        setSceneObjects(ws.sceneObjects);
-        setPhysics(ws.physics);
-        setWorldConfig(ws.worldConfig);
-        setRenderConfig(ws.renderConfig);
-        setCompositingConfig(ws.compositingConfig);
-        setSimulation(ws.simulation || { status: 'stopped', time: 0 });
+        setSceneObjects(ws.sceneObjects || []);
+        setPhysics(ws.physics || { gravity: -9.81, friction: 0.6, atmosphere: 'normal', timeScale: 1.0 });
+        setWorldConfig(ws.worldConfig || { seed: 999, terrainScale: 1.0, biome: 'cyber', vegetationDensity: 0.8, waterLevel: 0.1, atmosphereDensity: 0.2, brushSize: 20.0, brushStrength: 0.7, activeTool: 'none', syntheticEnvironment: 'none' });
+        setRenderConfig(ws.renderConfig || { engine: 'WebGPU', resolution: '4K', samples: 128, denoising: true, shadowMapRes: 2048 });
+        setCompositingConfig(ws.compositingConfig || { bloom: 2.0, exposure: 1.2, vignette: 0.6, chromaticAberration: 0.15, tonemapping: 'ACES' });
+        setSimulation(ws.simulation || { status: 'stopped', time: 0, activeBehaviors: [] });
         setChatMessages(ws.messages || []);
         setSculptHistory(ws.sculptHistory || []);
         setAssets(ws.assets || []);
