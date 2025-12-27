@@ -64,6 +64,16 @@ const Config: React.FC = () => {
                         ))}
                     </div>
                 </section>
+
+                <section>
+                    <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-emerald-400 mb-6 border-l-2 border-emerald-400 pl-4">
+                        <GitBranch className="w-4 h-4" />
+                        Project Versioning & Branching
+                    </div>
+                    <div className="bg-black/20 border border-white/5 rounded-2xl p-6">
+                        <GitBranchManager />
+                    </div>
+                </section>
             </div>
         </div>
     );
