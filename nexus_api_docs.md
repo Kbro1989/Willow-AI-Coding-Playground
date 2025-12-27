@@ -50,20 +50,37 @@ Automated project continuity and cloud backups.
 
 ---
 
-## 5. Nexus Routing Layer (`routeToModel.ts`)
+## 5. Nexus Routing Layer (`modelRouter.ts`)
 The primary gateway for all AI-enabled task execution.
 
 ### Function
-- `routeNexus(task: NexusTask): Promise<any>`
-  Automatically classifies the task (VISION, CODE, MEDIA, etc.) and routes it to the appropriate model provider (Gemini, Cloudflare, etc.) using strictly enforced Nexus pipelines.
+- `route(request: ModelRequest): Promise<ModelResponse>`
+  Automatically classifies the task (TEXT, VISION, CODE) and routes it to the appropriate model provider (Gemini, Cloudflare, etc.) using strictly enforced Nexus pipelines. Includes failover logic.
 
 ---
 
-## 6. Director Memory (`directorMemoryService.ts`)
-Persistent session-wide awareness for the AI Director.
+## 6. Workflow Engine (`workflowEngine.ts`)
+Nodes-based execution environment for complex media and logic pipelines.
+
+### Supported Nodes
+- **Media**: `ai_video`, `ai_audio`, `transform_upscale`
+- **Logic**: `ai_logic_refactor`, `filter`, `loop`
+- **IO**: `file_writer`, `http`, `discord`
+
+---
+
+## 7. Context Service (`contextService.ts`)
+The "Brain" that aggregates engine state for AI consumption.
 
 ### Methods
-- `addKnowledge(content: string, type: 'scene' | 'logic' | 'asset'): void`
-  Informs the Director of new situational context.
-- `getSummary(): string`
-  Provides a condensed view of the current engine state for LLM injection.
+- `getUnifiedContext(): Promise<string>`
+  Gathers data from the Editor, Matrix (Scene Graph), and Narrative engine to form a coherent system prompt.
+
+---
+
+## 8. User Preferences (`userPreferencesService.ts`)
+Cloud synchronization for UI state.
+
+### Methods
+- `syncSessionState(userId: string, data: { activeView?: ActiveView ... }): void`
+  Persists the user's current view and active file to the `presence` entity in InstantDB, allowing session roaming.
