@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "compatibility_date": "2025-10-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/index.ts",
+  "name": "antigravity-bridge-relay",
+  "workers_dev": true,
+  "migrations": [
+    {
+      "new_sqlite_classes": ["BridgeSession"],
+      "tag": "v1"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "BridgeSession",
+        "name": "BRIDGE_SESSIONS"
+      }
+    ]
+  },
+  "observability": {
+    "enabled": true
+  }
+}

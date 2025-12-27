@@ -295,12 +295,14 @@ export interface Workspace {
 }
 
 export enum ModelKey {
-  COMMANDER = 'gemini-3-pro-preview',
-  ARTIST = 'gemini-2.5-flash-image',
-  LITE = 'gemini-flash-lite-latest',
-  LIVE_AUDIO = 'gemini-2.5-flash-native-audio-preview-09-2025',
-  TTS = 'gemini-2.5-flash-preview-tts',
-  VEO = 'veo-3.1-fast-generate-preview'
+  COMMANDER = 'gemini-2.0-flash-pro',
+  ARTIST = 'gemini-2.0-flash-exp',
+  LITE = 'gemini-2.0-flash-exp',
+  LIVE_AUDIO = 'gemini-2.0-flash-exp',
+  TTS = 'gemini-2.0-flash-exp',
+  VEO = 'gemini-2.0-flash-exp',
+  CLOUDFLARE_CHAT = '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  CLOUDFLARE_CODE = '@cf/qwen/qwen2.5-coder-32b-instruct'
 }
 
 export type AgentTask = 'reasoning' | 'coding' | 'asset_gen' | 'cinematic' | 'optimization' | 'sprint_planning' | 'world_grounding' | 'ide_test_runtime';
@@ -412,7 +414,7 @@ export interface GameSession {
 export type ActiveView =
   | 'dashboard' | 'director' | 'editor' | 'matrix' | 'forge'
   | 'pipelines' | 'behavior' | 'assets' | 'world' | 'data'
-  | 'collab' | 'diagnostics' | 'deploy' | 'settings' | 'narrative';
+  | 'collab' | 'diagnostics' | 'deploy' | 'settings' | 'narrative' | 'rsmv' | 'shader';
 
 export type AIModelMode = 'assist' | 'co-pilot' | 'autonomous' | 'read-only';
 

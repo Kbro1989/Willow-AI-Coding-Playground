@@ -32,7 +32,7 @@ export const PrimaryNav: React.FC<PrimaryNavProps> = ({ activeView, setActiveVie
     ];
 
     return (
-        <div className="w-16 bg-[#0a1222] border-r border-cyan-500/10 flex flex-col items-center py-4 gap-4 shrink-0 z-40">
+        <div className="w-16 bg-[#0a1222] border-r border-cyan-500/10 flex flex-col items-center py-4 gap-2 shrink-0 z-40 overflow-y-auto overflow-x-hidden scrollbar-hide">
             <Zap className="w-6 h-6 text-cyan-400 mb-4 animate-pulse" fill="currentColor" />
             {navItems.map(item => (
                 <button

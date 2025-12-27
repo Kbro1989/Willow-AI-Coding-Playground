@@ -1,12 +1,23 @@
-/**
- * RSMV Model Browser - Browse, view, and understand RuneScape 3D models
- * Integrates with RSMV (RuneApps Model Viewer) for cache access
- */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, PerspectiveCamera, Html, Float, Sky } from '@react-three/drei';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Environment, PerspectiveCamera, Html, Float } from '@react-three/drei';
 import * as THREE from 'three';
+import {
+  LayoutGrid,
+  List,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Grid3X3,
+  Download,
+  Search,
+  Box,
+  User,
+  Home,
+  Package,
+  Activity
+} from 'lucide-react';
 
 // =============================================================================
 // TYPES
@@ -27,8 +38,8 @@ export interface RSMVModelEntry {
   description?: string;
   tags?: string[];
   examine?: string;
-  filePath?: string; // For Morrowind/Fallout NIF files
-  modelUrl?: string; // URL for Gltf or other model format
+  filePath?: string;
+  modelUrl?: string;
 }
 
 export interface RSMVBrowserProps {
@@ -44,64 +55,22 @@ const GAME_SOURCES: { key: GameSource; label: string; icon: string; count: strin
   { key: 'fallout', label: 'Fallout NV', icon: '☢️', count: '~10,000', color: 'emerald' },
 ];
 
-// =============================================================================
-// MOCK DATA BY GAME SOURCE
-// =============================================================================
-
 const RUNESCAPE_MODELS: RSMVModelEntry[] = [
-  // Items
   { id: 4151, name: 'Abyssal whip', category: 'items', gameSource: 'runescape', vertexCount: 342, materialCount: 2, tags: ['weapon', 'melee', 'slayer'], examine: 'A weapon from the abyss.' },
   { id: 11694, name: 'Armadyl godsword', category: 'items', gameSource: 'runescape', vertexCount: 1024, materialCount: 3, tags: ['weapon', 'melee', 'godsword'], examine: 'A very powerful godsword.' },
   { id: 1050, name: 'Santa hat', category: 'items', gameSource: 'runescape', vertexCount: 128, materialCount: 1, tags: ['holiday', 'rare'], examine: 'Ho ho ho!' },
   { id: 11286, name: 'Draconic visage', category: 'items', gameSource: 'runescape', vertexCount: 512, materialCount: 2, tags: ['rare', 'dragon'], examine: 'This could be attached to an anti-dragon shield.' },
-  { id: 995, name: 'Coins', category: 'items', gameSource: 'runescape', vertexCount: 64, materialCount: 1, tags: ['currency'], examine: 'Lovely money!' },
-  { id: 6585, name: 'Amulet of fury', category: 'items', gameSource: 'runescape', vertexCount: 256, materialCount: 2, tags: ['jewelry', 'amulet'], examine: 'A dragonstone amulet.' },
-  { id: 11832, name: 'Bandos chestplate', category: 'items', gameSource: 'runescape', vertexCount: 768, materialCount: 3, tags: ['armor', 'melee', 'bandos'], examine: 'Bandos blessed this armor.' },
-  { id: 4708, name: 'Ahrim\'s hood', category: 'items', gameSource: 'runescape', vertexCount: 384, materialCount: 2, tags: ['armor', 'magic', 'barrows'], examine: 'A magic hood from Barrows.' },
-  // NPCs
-  { id: 1, name: 'Man', category: 'npcs', gameSource: 'runescape', vertexCount: 512, materialCount: 1, examine: 'One of many.', modelUrl: 'https://example.com/man.glb' },
-  { id: 50, name: 'King Black Dragon', category: 'npcs', gameSource: 'runescape', vertexCount: 2048, materialCount: 3, examine: 'A very big dragon.', modelUrl: 'https://example.com/kbd.glb' },
-  { id: 2881, name: 'Dagannoth Supreme', category: 'npcs', gameSource: 'runescape', vertexCount: 2048, materialCount: 4, boneCount: 32, tags: ['boss', 'slayer'], description: 'The magic-based Dagannoth King.' },
-  { id: 494, name: 'King Black Dragon', category: 'npcs', gameSource: 'runescape', vertexCount: 4096, materialCount: 6, boneCount: 48, tags: ['boss', 'dragon'], description: 'A fearsome three-headed dragon.' },
-  { id: 2042, name: 'Zulrah', category: 'npcs', gameSource: 'runescape', vertexCount: 3072, materialCount: 5, boneCount: 24, tags: ['boss', 'snake'], description: 'The solo boss snake.' },
-  { id: 3127, name: 'TzTok-Jad', category: 'npcs', gameSource: 'runescape', vertexCount: 5120, materialCount: 8, boneCount: 56, tags: ['boss', 'tzhaar'], description: 'The fire cape guardian.' },
-  // Objects
-  { id: 10063, name: 'Crystal tree', category: 'objects', gameSource: 'runescape', vertexCount: 1536, materialCount: 3, tags: ['woodcutting', 'crystal'], description: 'A magical crystalline tree.' },
-  { id: 11744, name: 'Bank booth', category: 'objects', gameSource: 'runescape', vertexCount: 512, materialCount: 2, tags: ['banking', 'furniture'], description: 'Access your bank here.' },
-  // Raw Models
-  { id: 1000, name: 'Model 1000', category: 'models', gameSource: 'runescape', vertexCount: 256, materialCount: 1, tags: ['raw'] },
-  { id: 2500, name: 'Model 2500', category: 'models', gameSource: 'runescape', vertexCount: 512, materialCount: 2, tags: ['raw'] },
+  { id: 50, name: 'King Black Dragon', category: 'npcs', gameSource: 'runescape', vertexCount: 4096, materialCount: 6, boneCount: 48, tags: ['boss', 'dragon'], description: 'A fearsome three-headed dragon.' },
 ];
 
 const MORROWIND_MODELS: RSMVModelEntry[] = [
-  // Characters
   { id: 1, name: 'Frost Atronach', category: 'npcs', gameSource: 'morrowind', vertexCount: 3200, materialCount: 4, boneCount: 24, tags: ['daedra', 'summon'], filePath: 'Meshes/Atronach_Frost.nif' },
-  { id: 2, name: 'Dancing Girl', category: 'npcs', gameSource: 'morrowind', vertexCount: 1800, materialCount: 3, boneCount: 42, tags: ['npc', 'animation'], filePath: 'Meshes/anim_dancingGirl.nif' },
-  { id: 3, name: 'Spriggan Summon', category: 'npcs', gameSource: 'morrowind', vertexCount: 2400, materialCount: 3, boneCount: 18, tags: ['creature', 'nature'], filePath: 'Meshes/spriggan_summon.NIF' },
-  { id: 4, name: 'Werewolf Morph', category: 'npcs', gameSource: 'morrowind', vertexCount: 1200, materialCount: 2, boneCount: 32, tags: ['creature', 'bloodmoon'], filePath: 'Meshes/were_morph.NIF' },
-  // Objects
   { id: 101, name: 'Torch Fire', category: 'objects', gameSource: 'morrowind', vertexCount: 128, materialCount: 1, tags: ['light', 'fire'], filePath: 'Meshes/torchfire.nif' },
-  { id: 102, name: 'Shrine FX', category: 'objects', gameSource: 'morrowind', vertexCount: 512, materialCount: 2, tags: ['temple', 'effect'], filePath: 'Meshes/In_OM_shrineFX.NIF' },
-  { id: 103, name: 'Blizzard', category: 'objects', gameSource: 'morrowind', vertexCount: 2048, materialCount: 3, tags: ['weather', 'bloodmoon'], filePath: 'Meshes/Blizzard.NIF' },
-  { id: 104, name: 'Lava Steam', category: 'objects', gameSource: 'morrowind', vertexCount: 768, materialCount: 2, tags: ['environment', 'volcano'], filePath: 'Meshes/lavasteam.nif' },
-  // Items
-  { id: 201, name: 'Editor Marker', category: 'items', gameSource: 'morrowind', vertexCount: 64, materialCount: 1, tags: ['debug', 'editor'], filePath: 'Meshes/EditorMarker.nif' },
-  { id: 202, name: 'Blood Splat', category: 'items', gameSource: 'morrowind', vertexCount: 256, materialCount: 1, tags: ['effect', 'combat'], filePath: 'Meshes/BloodSplat.nif' },
 ];
 
 const FALLOUT_MODELS: RSMVModelEntry[] = [
-  // Characters
   { id: 1, name: 'Securitron', category: 'npcs', gameSource: 'fallout', vertexCount: 4500, materialCount: 6, boneCount: 28, tags: ['robot', 'vegas'], description: 'Mr. House\'s robotic army.' },
-  { id: 2, name: 'Deathclaw', category: 'npcs', gameSource: 'fallout', vertexCount: 6800, materialCount: 5, boneCount: 56, tags: ['creature', 'dangerous'], description: 'A terrifying mutant.' },
-  { id: 3, name: 'Cazador', category: 'npcs', gameSource: 'fallout', vertexCount: 2200, materialCount: 3, boneCount: 24, tags: ['creature', 'insect'], description: 'Giant mutated wasps.' },
-  { id: 4, name: 'Super Mutant', category: 'npcs', gameSource: 'fallout', vertexCount: 5200, materialCount: 4, boneCount: 48, tags: ['mutant', 'hostile'], description: 'FEV-mutated human.' },
-  // Items
   { id: 101, name: 'Pip-Boy 3000', category: 'items', gameSource: 'fallout', vertexCount: 1800, materialCount: 4, tags: ['wrist', 'computer'], description: 'Your personal computer.' },
-  { id: 102, name: 'Nuka-Cola', category: 'items', gameSource: 'fallout', vertexCount: 256, materialCount: 2, tags: ['drink', 'consumable'], description: 'The refreshing taste of the post-apocalypse.' },
-  { id: 103, name: 'Laser Rifle', category: 'items', gameSource: 'fallout', vertexCount: 1200, materialCount: 3, tags: ['weapon', 'energy'], description: 'A powerful energy weapon.' },
-  // Objects
-  { id: 201, name: 'Lucky 38', category: 'objects', gameSource: 'fallout', vertexCount: 12000, materialCount: 8, tags: ['building', 'vegas'], description: 'Mr. House\'s casino tower.' },
-  { id: 202, name: 'Radiation Barrel', category: 'objects', gameSource: 'fallout', vertexCount: 384, materialCount: 2, tags: ['hazard', 'container'], description: 'Glowing radioactive waste.' },
 ];
 
 const ALL_MODELS: Record<GameSource, RSMVModelEntry[]> = {
@@ -110,35 +79,15 @@ const ALL_MODELS: Record<GameSource, RSMVModelEntry[]> = {
   fallout: FALLOUT_MODELS,
 };
 
-// =============================================================================
-// 3D PREVIEW COMPONENT
-// =============================================================================
-
 const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean }> = ({ model, wireframe }) => {
   const meshRef = useRef<THREE.Group>(null);
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += 0.01;
-    }
+  useFrame(() => {
+    if (meshRef.current) meshRef.current.rotation.y += 0.01;
   });
 
-  if (!model) {
-    return (
-      <Html center>
-        <div className="text-cyan-500 text-xs font-bold uppercase tracking-widest animate-pulse">
-          Select a model
-        </div>
-      </Html>
-    );
-  }
+  if (!model) return <Html center><div className="text-cyan-500 text-xs font-bold uppercase tracking-widest animate-pulse">Select a model</div></Html>;
 
-  // Placeholder geometry - in production, load actual RSMV model
-  const geometry = useMemo(() => {
-    const geo = new THREE.IcosahedronGeometry(2, Math.min(Math.floor((model.vertexCount || 100) / 100), 4));
-    return geo;
-  }, [model.id, model.vertexCount]);
-
+  const geometry = useMemo(() => new THREE.IcosahedronGeometry(2, Math.min(Math.floor((model.vertexCount || 100) / 100), 4)), [model.id, model.vertexCount]);
   const color = useMemo(() => {
     switch (model.category) {
       case 'items': return '#00f2ff';
@@ -153,14 +102,7 @@ const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean 
     <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
       <group ref={meshRef}>
         <mesh geometry={geometry}>
-          <meshStandardMaterial
-            color={color}
-            metalness={0.6}
-            roughness={0.3}
-            emissive={color}
-            emissiveIntensity={0.1}
-            wireframe={wireframe}
-          />
+          <meshStandardMaterial color={color} metalness={0.6} roughness={0.3} emissive={color} emissiveIntensity={0.1} wireframe={wireframe} />
         </mesh>
         <mesh geometry={geometry} scale={1.05}>
           <meshBasicMaterial color={color} transparent opacity={0.1} wireframe />
@@ -170,11 +112,7 @@ const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean 
   );
 };
 
-// =============================================================================
-// MAIN COMPONENT
-// =============================================================================
-
-import { getRsmvModels } from '../services/rsmvService';
+import { getRsmvModels, verifyJagexLauncher } from '../services/rsmvService';
 
 const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   onSelectModel,
@@ -191,9 +129,20 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [models, setModels] = useState<RSMVModelEntry[]>([]);
   const [wireframe, setWireframe] = useState(false);
+  const [isLauncherLinked, setIsLauncherLinked] = useState(false);
+  const [analysisText, setAnalysisText] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedReferenceIdx, setSelectedReferenceIdx] = useState(0);
+  const [activeActionTab, setActiveActionTab] = useState<'details' | 'nexus' | 'metrics'>('details');
   const controlsRef = useRef<any>(null);
 
-  // Fetch models whenever source or category changes
+  const REFERENCE_MODELS = [
+    { name: 'Primary (High Poly)', path: 'C:\\Users\\Destiny\\Desktop\\Pick of Gods\\3D model\\model.glb' },
+    { name: 'Optimized (Low Poly)', path: 'C:\\Users\\Destiny\\Desktop\\Pick of Gods\\3D model\\model2.stl' }
+  ];
+
+  useEffect(() => { verifyJagexLauncher().then(setIsLauncherLinked); }, []);
+
   useEffect(() => {
     let isMounted = true;
     const fetchModels = async () => {
@@ -201,382 +150,304 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
       setError(null);
       try {
         const data = await getRsmvModels(gameSource, category);
-        if (isMounted) {
-          // If no live data, fallback to mocks for demonstration if needed, 
-          // but for Phase 24 we prioritize live data.
-          setModels(data.length > 0 ? data : ALL_MODELS[gameSource] || []);
-        }
+        if (isMounted) setModels(data.length > 0 ? data : ALL_MODELS[gameSource] || []);
       } catch (err) {
         if (isMounted) {
           setError('Failed to sync with Nexus Registry');
-          setModels(ALL_MODELS[gameSource] || []); // Fallback on error
+          setModels(ALL_MODELS[gameSource] || []);
         }
       } finally {
         if (isMounted) setIsLoading(false);
       }
     };
-
     fetchModels();
     return () => { isMounted = false; };
   }, [gameSource, category]);
 
-
   const ITEMS_PER_PAGE = 40;
-  const [currentPage, setCurrentPage] = useState(1);
+  const filteredModels = useMemo(() => models.filter(m =>
+    !searchQuery ||
+    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.id.toString().includes(searchQuery) ||
+    m.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
+  ), [models, searchQuery]);
 
-  // Filter and Paginate models
-  const { paginatedModels, totalPages } = useMemo(() => {
-    const filtered = models.filter(m => {
-      const matchesSearch = !searchQuery ||
-        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.id.toString().includes(searchQuery) ||
-        m.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesSearch;
-    });
+  const totalPages = Math.ceil(filteredModels.length / ITEMS_PER_PAGE);
+  const paginatedModels = filteredModels.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    const total = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const handleSelectModel = (model: RSMVModelEntry) => { setSelectedModel(model); onSelectModel?.(model); };
+  const handleImportModel = () => { if (selectedModel) onImportModel?.(selectedModel); };
+  const handleResetView = () => { if (controlsRef.current) controlsRef.current.reset(); };
 
-    return { paginatedModels: paginated, totalPages: total };
-  }, [models, searchQuery, currentPage]);
-
-  const handleSelectModel = (model: RSMVModelEntry) => {
-    setSelectedModel(model);
-    onSelectModel?.(model);
-  };
-
-  const handleImportModel = () => {
-    if (selectedModel) {
-      onImportModel?.(selectedModel);
+  const handleCompareWithReference = async () => {
+    if (!selectedModel) return;
+    setIsLoading(true);
+    setAnalysisText(`Analyzing "${REFERENCE_MODELS[selectedReferenceIdx].name}"...`);
+    try {
+      const { modelRouter } = await import('../services/modelRouter');
+      const response = await modelRouter.route({
+        type: 'text',
+        prompt: `Compare RSMV Asset "${selectedModel.name}" with reference model. Focus on topography and optimization.`,
+        tier: 'premium'
+      });
+      setAnalysisText(('content' in response ? response.content : 'Analysis failed.') || 'No content returned.');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleResetView = () => {
-    if (controlsRef.current) {
-      controlsRef.current.reset();
+  const handleOrchestrate = async (type: 'image' | 'video' | '3d') => {
+    if (!selectedModel) return;
+    setIsLoading(true);
+    setAnalysisText(`Orchestrating ${type} synthesis for "${selectedModel.name}"...`);
+    try {
+      const { modelRouter } = await import('../services/modelRouter');
+      const response = await modelRouter.orchestrateMedia(
+        type as any,
+        `Generate a high-fidelity ${type} asset based on the RuneScape model: ${selectedModel.name}. ${selectedModel.examine || ''}`,
+        `Game Source: ${selectedModel.gameSource}, Category: ${selectedModel.category}`
+      );
+      setAnalysisText(response.content || 'Synthesis complete.');
+      if (response.imageUrl || response.videoUrl || response.modelUrl) {
+        console.log(`[ORCHESTRATION] Asset Generated:`, response.imageUrl || response.videoUrl || response.modelUrl);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const categories: { key: ModelCategory; label: string; icon: string }[] = [
-    { key: 'items', label: 'Items', icon: '🎒' },
-    { key: 'npcs', label: 'NPCs', icon: '👹' },
-    { key: 'objects', label: 'Objects', icon: '🏠' },
-    { key: 'models', label: 'Raw Models', icon: '📦' },
+  const categories: { key: ModelCategory; label: string; icon: React.ReactNode }[] = [
+    { key: 'items', label: 'Items', icon: <Package className="w-4 h-4" /> },
+    { key: 'npcs', label: 'NPCs', icon: <User className="w-4 h-4" /> },
+    { key: 'objects', label: 'Objects', icon: <Home className="w-4 h-4" /> },
+    { key: 'models', label: 'Raw Models', icon: <Box className="w-4 h-4" /> },
   ];
 
   return (
-    <div className="flex h-full bg-[#050a15] text-white">
-      {/* Sidebar - Game Sources, Categories & Search */}
-      <div className="w-72 border-r border-cyan-900/30 flex flex-col">
-        {/* Header */}
+    <div className="flex h-full bg-[#050a15] text-white overflow-hidden">
+      <div className="w-72 border-r border-cyan-900/30 flex flex-col bg-[#0a1222]/50">
         <div className="p-4 border-b border-cyan-900/30 bg-gradient-to-r from-cyan-950/50 to-transparent">
           <h2 className="text-lg font-black uppercase tracking-widest text-cyan-400 flex items-center gap-2">
-            <span>🗃️</span> Model Browser
+            <Box className="w-5 h-5" /> Model Browser
           </h2>
           <p className="text-[9px] text-slate-500 uppercase tracking-wider mt-1">Multi-Game Asset Library</p>
         </div>
 
-        {/* Game Source Tabs */}
-        <div className="p-3 border-b border-cyan-900/30 bg-[#0a1222]/50">
+        <div className="p-3 border-b border-cyan-900/30">
           <div className="flex gap-1">
             {GAME_SOURCES.map(gs => (
               <button
                 key={gs.key}
                 onClick={() => { setGameSource(gs.key); setSelectedModel(null); setCurrentPage(1); }}
-                className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${gameSource === gs.key
-                  ? `bg-${gs.color}-600 text-white shadow-lg`
-                  : 'bg-cyan-950/30 text-slate-500 hover:text-cyan-400 hover:bg-cyan-950/50'
-                  }`}
-                style={gameSource === gs.key ? {
-                  backgroundColor: gs.color === 'cyan' ? '#0891b2' : gs.color === 'amber' ? '#d97706' : '#059669'
-                } : {}}
+                className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${gameSource === gs.key ? 'bg-cyan-600 text-white' : 'bg-cyan-950/30 text-slate-500 hover:text-cyan-400'}`}
+                style={gameSource === gs.key ? { backgroundColor: gs.color === 'cyan' ? '#0891b2' : gs.color === 'amber' ? '#d97706' : '#059669' } : {}}
               >
                 <span className="text-lg">{gs.icon}</span>
                 <span className="text-[8px] font-bold uppercase tracking-wider">{gs.label}</span>
-                <span className="text-[7px] opacity-70">{gs.count}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Search */}
         <div className="p-4 border-b border-cyan-900/30">
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder="Search by name, ID, or tag..."
-              className="w-full bg-[#0a1222] border border-cyan-900/40 rounded-xl px-4 py-3 text-xs text-cyan-50 placeholder-slate-600 outline-none focus:border-cyan-500 transition-all"
+              placeholder="Search assets..."
+              className="w-full bg-black/40 border border-cyan-900/40 rounded-xl px-4 py-2.5 text-xs text-cyan-50 outline-none focus:border-cyan-500"
             />
-            <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-600" />
           </div>
         </div>
 
-        {/* Categories */}
         <div className="p-4 space-y-2">
-          <h3 className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3">Categories</h3>
+          <h3 className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">Categories</h3>
           {categories.map(cat => (
             <button
               key={cat.key}
-              onClick={() => { setCategory(cat.key); setCurrentPage(1); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${category === cat.key
-                ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20'
-                : 'bg-cyan-950/30 text-slate-400 hover:bg-cyan-950/50 hover:text-cyan-400'
-                }`}
+              onClick={() => { setCategory(cat.key as any); setCurrentPage(1); }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${category === cat.key ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:bg-cyan-950/30'}`}
             >
-              <span className="text-lg">{cat.icon}</span>
+              {cat.icon}
               <span className="text-xs font-bold uppercase tracking-wider">{cat.label}</span>
-              <span className="ml-auto text-[9px] bg-black/30 px-2 py-1 rounded-full">
-                {models.filter(m => m.category === cat.key).length || 0}
-              </span>
             </button>
           ))}
         </div>
 
-        {/* Model List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar border-t border-cyan-900/30 flex flex-col">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar border-t border-cyan-900/30">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-              {isLoading ? 'Syncing...' : `Results (${models.length})`}
+              {isLoading ? 'Syncing...' : `Results (${filteredModels.length})`}
             </h3>
             <div className="flex gap-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-cyan-600 text-white' : 'text-slate-500 hover:text-cyan-400'}`}
-              >
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z" /></svg>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-cyan-600 text-white' : 'text-slate-500 hover:text-cyan-400'}`}
-              >
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z" /></svg>
-              </button>
+              <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-cyan-600 text-white' : 'text-slate-500'}`}><LayoutGrid className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-cyan-600 text-white' : 'text-slate-500'}`}><List className="w-3.5 h-3.5" /></button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto no-scrollbar space-y-2">
-            {isLoading ? (
-              <div className="space-y-2 py-10 flex flex-col items-center justify-center opacity-50">
-                <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
-                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400 animate-pulse">Syncing Cache</div>
-              </div>
-            ) : error ? (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
-                <div className="text-red-400 text-[10px] font-bold uppercase">{error}</div>
-                <button
-                  onClick={() => setModels(ALL_MODELS[gameSource])}
-                  className="mt-2 text-[9px] text-red-300 underline font-black uppercase"
-                >
-                  Use Offline Registry
-                </button>
-              </div>
-            ) : paginatedModels.length > 0 ? (
-              <>
-                {viewMode === 'grid' ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {paginatedModels.map(model => (
-                      <button
-                        key={`${model.category}-${model.id}`}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('application/json', JSON.stringify({
-                            type: 'rsmv-model',
-                            id: model.id,
-                            name: model.name,
-                            category: model.category,
-                            modelUrl: model.modelUrl
-                          }));
-                        }}
-                        onClick={() => handleSelectModel(model)}
-                        className={`p-3 rounded-xl text-left transition-all border ${selectedModel?.id === model.id && selectedModel?.category === model.category
-                          ? 'border-cyan-500 bg-cyan-950/50 shadow-lg shadow-cyan-500/10'
-                          : 'border-cyan-900/30 bg-cyan-950/20 hover:border-cyan-700/50'
-                          }`}
-                      >
-                        <div className="text-[9px] text-cyan-600 font-mono mb-1">#{model.id}</div>
-                        <div className="text-[10px] font-bold text-cyan-50 truncate">{model.name}</div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {paginatedModels.map(model => (
-                      <button
-                        key={`${model.category}-${model.id}`}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('application/json', JSON.stringify({
-                            type: 'rsmv-model',
-                            id: model.id,
-                            name: model.name,
-                            category: model.category,
-                            modelUrl: model.modelUrl
-                          }));
-                        }}
-                        onClick={() => handleSelectModel(model)}
-                        className={`w-full p-3 rounded-xl text-left transition-all flex items-center gap-3 border ${selectedModel?.id === model.id && selectedModel?.category === model.category
-                          ? 'border-cyan-500 bg-cyan-950/50'
-                          : 'border-transparent hover:bg-cyan-950/30'
-                          }`}
-                      >
-                        <div className="text-[9px] text-cyan-600 font-mono w-12">#{model.id}</div>
-                        <div className="text-[10px] font-bold text-cyan-50 flex-1 truncate">{model.name}</div>
-                        <div className="text-[8px] text-slate-500">{model.vertexCount}v</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="pt-4 border-t border-cyan-900/30 flex items-center justify-between gap-2">
-                    <button
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      className="p-2 bg-cyan-950 rounded-lg text-cyan-400 disabled:opacity-20 hover:bg-cyan-600 hover:text-white transition-all"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                    </button>
-                    <div className="text-[10px] font-black font-mono text-cyan-700">
-                      PAGE {currentPage} / {totalPages}
-                    </div>
-                    <button
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      className="p-2 bg-cyan-950 rounded-lg text-cyan-400 disabled:opacity-20 hover:bg-cyan-600 hover:text-white transition-all"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="py-20 text-center opacity-20">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">No Entities Found</div>
-              </div>
-            )}
+          <div className="space-y-2">
+            {paginatedModels.map(model => (
+              <button
+                key={`${model.category}-${model.id}`}
+                onClick={() => handleSelectModel(model)}
+                className={`w-full p-3 rounded-xl text-left border transition-all ${selectedModel?.id === model.id ? 'border-cyan-500 bg-cyan-950/50' : 'border-cyan-900/20 bg-black/20 hover:border-cyan-700/50'}`}
+              >
+                <div className="text-[8px] text-cyan-600 font-mono">#{model.id}</div>
+                <div className="text-[10px] font-bold text-cyan-50 truncate">{model.name}</div>
+              </button>
+            ))}
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-cyan-900/30">
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="p-1 disabled:opacity-20"><ChevronLeft className="w-4 h-4" /></button>
+              <span className="text-[9px] font-mono text-cyan-700 uppercase">Page {currentPage} / {totalPages}</span>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="p-1 disabled:opacity-20"><ChevronRight className="w-4 h-4" /></button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Main Content - 3D Preview */}
-      <div className="flex-1 flex flex-col">
-        {/* 3D Viewer */}
-        <div className="flex-1 relative">
+      <div className="flex-1 flex flex-col relative">
+        <div className="flex-1 bg-[#050a15]">
           <Canvas shadows>
             <PerspectiveCamera makeDefault position={[5, 5, 5]} fov={50} />
             <OrbitControls ref={controlsRef} makeDefault enableDamping dampingFactor={0.05} />
             <Environment preset="night" />
             <ambientLight intensity={0.3} />
             <pointLight position={[10, 10, 10]} intensity={1} castShadow />
-            <spotLight position={[-5, 5, 5]} angle={0.5} intensity={0.5} penumbra={1} />
-
             <Suspense fallback={null}>
               <ModelPreview model={selectedModel} wireframe={wireframe} />
             </Suspense>
-
             <gridHelper args={[20, 20, '#00f2ff', '#0a1222']} />
           </Canvas>
 
-          {/* Overlay Controls */}
           <div className="absolute top-4 right-4 flex flex-col gap-2">
-            <button
-              onClick={handleResetView}
-              className="p-3 bg-[#0a1222]/90 backdrop-blur-lg border border-cyan-900/30 rounded-xl text-cyan-400 hover:bg-cyan-600 hover:text-white transition-all shadow-xl"
-              title="Reset View"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-            </button>
-            <button
-              onClick={() => setWireframe(!wireframe)}
-              className={`p-3 bg-[#0a1222]/90 backdrop-blur-lg border rounded-xl transition-all shadow-xl ${wireframe ? 'bg-cyan-600 text-white border-cyan-400' : 'border-cyan-900/30 text-cyan-400 hover:bg-cyan-600 hover:text-white'}`}
-              title="Wireframe"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>
-            </button>
+            <button onClick={handleResetView} className="p-3 bg-[#0a1222]/90 backdrop-blur-lg border border-cyan-900/30 rounded-xl text-cyan-400 hover:bg-cyan-600 transition-all shadow-xl"><RotateCcw className="w-4 h-4" /></button>
+            <button onClick={() => setWireframe(!wireframe)} className={`p-3 bg-[#0a1222]/90 backdrop-blur-lg border rounded-xl transition-all shadow-xl ${wireframe ? 'bg-cyan-600 border-cyan-400' : 'border-cyan-900/30 text-cyan-400'}`}><Grid3X3 className="w-4 h-4" /></button>
           </div>
         </div>
 
-        {/* Model Info Panel */}
-        <div className="h-64 border-t border-cyan-900/30 bg-[#0a1222]/50 p-6 overflow-y-auto no-scrollbar">
+        <div className="h-72 border-t border-cyan-900/30 bg-[#0a1222]/80 backdrop-blur-2xl overflow-hidden flex flex-col">
           {selectedModel ? (
-            <div className="grid grid-cols-2 gap-6">
-              {/* Left - Details */}
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-black text-cyan-50">{selectedModel.name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[9px] bg-cyan-950 px-2 py-1 rounded text-cyan-400 font-bold uppercase">{selectedModel.category}</span>
-                    <span className="text-[9px] text-cyan-600 font-mono">ID: {selectedModel.id}</span>
-                  </div>
-                </div>
-
-                {selectedModel.examine && (
-                  <p className="text-sm text-slate-400 italic">"{selectedModel.examine}"</p>
-                )}
-
-                {selectedModel.description && (
-                  <p className="text-xs text-slate-500">{selectedModel.description}</p>
-                )}
-
-                {selectedModel.tags && selectedModel.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {selectedModel.tags.map(tag => (
-                      <span key={tag} className="text-[8px] bg-cyan-950/50 border border-cyan-900/30 px-2 py-1 rounded-full text-cyan-500 uppercase">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
+            <>
+              <div className="flex border-b border-cyan-900/20 bg-black/20">
+                {(['details', 'nexus', 'metrics'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveActionTab(tab)}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeActionTab === tab
+                      ? 'text-cyan-400 border-cyan-400 bg-cyan-400/5'
+                      : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-white/5'
+                      }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
               </div>
 
-              {/* Right - Metrics */}
-              <div className="space-y-3">
-                <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500">Model Metrics</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="p-3 bg-cyan-950/30 rounded-xl border border-cyan-900/20 text-center">
-                    <div className="text-xl font-black text-cyan-400">{selectedModel.vertexCount?.toLocaleString() || '?'}</div>
-                    <div className="text-[8px] text-slate-500 uppercase tracking-wider">Vertices</div>
-                  </div>
-                  <div className="p-3 bg-cyan-950/30 rounded-xl border border-cyan-900/20 text-center">
-                    <div className="text-xl font-black text-emerald-400">{selectedModel.materialCount || '?'}</div>
-                    <div className="text-[8px] text-slate-500 uppercase tracking-wider">Materials</div>
-                  </div>
-                  {selectedModel.boneCount !== undefined && (
-                    <div className="p-3 bg-cyan-950/30 rounded-xl border border-cyan-900/20 text-center">
-                      <div className="text-xl font-black text-purple-400">{selectedModel.boneCount}</div>
-                      <div className="text-[8px] text-slate-500 uppercase tracking-wider">Bones</div>
+              <div className="flex-1 p-6 overflow-y-auto scrollbar-hide">
+                {activeActionTab === 'details' && (
+                  <div className="grid grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-xl font-black text-cyan-50 mb-1">{selectedModel.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-cyan-600 text-white px-2 py-0.5 rounded font-black uppercase tracking-widest">{selectedModel.category}</span>
+                          <span className="text-[9px] text-cyan-600 font-mono">ASSET_ID_{selectedModel.id}</span>
+                        </div>
+                      </div>
+                      {selectedModel.examine && <p className="text-sm text-slate-400 italic">"{selectedModel.examine}"</p>}
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedModel.tags?.map(t => <span key={t} className="text-[8px] bg-cyan-950 text-cyan-500 border border-cyan-900/50 px-2 py-1 rounded-full uppercase font-bold">{t}</span>)}
+                      </div>
                     </div>
-                  )}
-                </div>
+                    <div className="flex flex-col justify-end gap-2">
+                      <button onClick={handleImportModel} className="w-full py-4 bg-gradient-to-r from-cyan-600 to-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/20 active:scale-[0.98] transition-all">
+                        <Download className="w-4 h-4" /> Finalize & Import to Scene
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-                {/* Actions */}
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={handleImportModel}
-                    className="flex-1 py-3 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-cyan-500/20"
-                  >
-                    📥 Import to Scene
-                  </button>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(selectedModel.id.toString());
-                      alert(`Copied ID: ${selectedModel.id}`);
-                    }}
-                    className="px-4 py-3 bg-cyan-950/50 hover:bg-cyan-950 text-cyan-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-cyan-900/30"
-                  >
-                    📋 Copy ID
-                  </button>
-                </div>
+                {activeActionTab === 'nexus' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="grid grid-cols-4 gap-3">
+                      <button onClick={() => handleOrchestrate('image')} className="group flex flex-col items-center gap-3 p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 rounded-2xl transition-all">
+                        <div className="p-3 bg-indigo-500/20 rounded-xl group-hover:scale-110 transition-transform text-indigo-400"><Package className="w-5 h-5" /></div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-indigo-300">Synth Image</span>
+                      </button>
+                      <button onClick={() => handleOrchestrate('3d')} className="group flex flex-col items-center gap-3 p-4 bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/20 rounded-2xl transition-all">
+                        <div className="p-3 bg-purple-500/20 rounded-xl group-hover:scale-110 transition-transform text-purple-400"><Grid3X3 className="w-5 h-5" /></div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-purple-300">Forge 3D</span>
+                      </button>
+                      <button onClick={() => handleOrchestrate('video')} className="group flex flex-col items-center gap-3 p-4 bg-fuchsia-600/10 hover:bg-fuchsia-600/20 border border-fuchsia-500/20 rounded-2xl transition-all">
+                        <div className="p-3 bg-fuchsia-500/20 rounded-xl group-hover:scale-110 transition-transform text-fuchsia-400"><Activity className="w-5 h-5" /></div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-fuchsia-300">Movie Gen</span>
+                      </button>
+                      <button onClick={() => handleOrchestrate('audio' as any)} className="group flex flex-col items-center gap-3 p-4 bg-cyan-600/10 hover:bg-cyan-600/20 border border-cyan-500/20 rounded-2xl transition-all">
+                        <div className="p-3 bg-cyan-500/20 rounded-xl group-hover:scale-110 transition-transform text-cyan-400"><User className="w-5 h-5" /></div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-cyan-300">Voice Synth</span>
+                      </button>
+
+                      {/* Schematic Placeholders (Front-end first) */}
+                      <button className="group flex flex-col items-center gap-3 p-4 bg-emerald-600/5 border border-emerald-500/10 rounded-2xl opacity-60 cursor-not-allowed grayscale">
+                        <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400"><Home className="w-5 h-5" /></div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-300">Material Forge</span>
+                      </button>
+                      <button className="group flex flex-col items-center gap-3 p-4 bg-orange-600/5 border border-orange-500/10 rounded-2xl opacity-60 cursor-not-allowed grayscale">
+                        <div className="p-3 bg-orange-500/10 rounded-xl text-orange-400"><Search className="w-5 h-5" /></div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-orange-300">Narrative AI</span>
+                      </button>
+                      <button className="group flex flex-col items-center gap-3 p-4 bg-blue-600/5 border border-blue-500/10 rounded-2xl opacity-60 cursor-not-allowed grayscale">
+                        <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400"><Activity className="w-5 h-5" /></div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-blue-300">Physics Tuner</span>
+                      </button>
+                      <button className="group flex flex-col items-center gap-3 p-4 bg-rose-600/5 border border-rose-500/10 rounded-2xl opacity-60 cursor-not-allowed grayscale">
+                        <div className="p-3 bg-rose-500/10 rounded-xl text-rose-400"><Box className="w-5 h-5" /></div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-rose-300">LOD Generator</span>
+                      </button>
+                    </div>
+
+                    <button onClick={handleCompareWithReference} className="w-full py-3 bg-amber-600/10 hover:bg-amber-600/20 border border-amber-600/30 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-500 flex items-center justify-center gap-2 transition-all">
+                      <Search className="w-4 h-4" /> Run Comparative AI Analytics
+                    </button>
+
+                    {analysisText && (
+                      <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl animate-in zoom-in duration-300">
+                        <div className="flex items-center gap-2 mb-2 text-amber-500">
+                          <Activity className="w-4 h-4" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em]">Nexus Insight</span>
+                        </div>
+                        <p className="text-[10px] text-amber-100/70 italic leading-relaxed">{analysisText}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeActionTab === 'metrics' && (
+                  <div className="grid grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <MetricCard label="Vertices" value={selectedModel.vertexCount} color="cyan" />
+                    <MetricCard label="Materials" value={selectedModel.materialCount} color="emerald" />
+                    <MetricCard label="Bones" value={selectedModel.boneCount} color="purple" />
+                    <div className="col-span-3 p-4 bg-cyan-950/20 border border-cyan-900/20 rounded-2xl text-[10px] text-cyan-500/60 leading-relaxed font-mono">
+                      // PERFORMANCE_TELEMETRY: Model complexity is {(selectedModel.vertexCount || 0) > 5000 ? 'HIGH' : 'OPTIMIZED'}.
+                      Draw calls estimated at {(selectedModel.materialCount || 1) * 2}.
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            </>
           ) : (
-            <div className="flex items-center justify-center h-full text-slate-500 text-sm">
-              Select a model to view details
+            <div className="flex flex-col items-center justify-center h-full opacity-30 grayscale text-center p-6">
+              <Package className="w-12 h-12 mb-4 text-cyan-900" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-cyan-900">Awaiting Asset Selection</p>
             </div>
           )}
         </div>
@@ -584,5 +455,12 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
     </div>
   );
 };
+
+const MetricCard: React.FC<{ label: string; value?: number; color: string }> = ({ label, value, color }) => (
+  <div className={`p-3 bg-black/40 rounded-xl border border-${color}-900/20 text-center`}>
+    <div className={`text-lg font-black text-${color}-400`}>{value?.toLocaleString() || '?'}</div>
+    <div className="text-[8px] text-slate-500 uppercase tracking-wider">{label}</div>
+  </div>
+);
 
 export default RSMVBrowser;

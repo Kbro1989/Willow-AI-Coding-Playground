@@ -19,44 +19,83 @@ interface CustomNodeProps {
     }
 }
 
-const CustomNodeComponent = ({ data }: CustomNodeProps) => {
+const CustomNodeComponent = ({ data, selected }: CustomNodeProps & { selected?: boolean }) => {
     const def = NODE_DEFINITIONS[data.type];
 
     return (
-        <div className="px-4 py-2 shadow-xl rounded-md bg-[#0a1222] border border-cyan-500/30 min-w-[150px]">
-            <div className="flex items-center border-b border-cyan-500/20 pb-2 mb-2">
-                <div className="text-xl mr-2">{def.icon}</div>
+        <div className={`px-5 py-4 rounded-3xl bg-[#0a1222]/80 border backdrop-blur-xl min-w-[200px] group transition-all duration-300 ${selected
+            ? 'border-cyan-400 shadow-[0_0_30px_rgba(0,242,255,0.25)] ring-1 ring-cyan-500/50'
+            : 'border-cyan-500/10 shadow-[0_10px_40px_rgba(0,0,0,0.4)] hover:border-cyan-500/30'
+            }`}>
+            {/* Glossy Header */}
+            <div className="flex items-center border-b border-cyan-500/10 pb-4 mb-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl mr-4 border transition-all duration-500 ${selected ? 'bg-cyan-500 text-black border-cyan-400 scale-110' : 'bg-cyan-500/5 text-cyan-400 border-cyan-500/10'
+                    }`}>
+                    {def.icon}
+                </div>
                 <div>
-                    <div className="text-sm font-bold text-cyan-400">{data.label}</div>
-                    <div className="text-[10px] text-slate-500 uppercase">{def.type}</div>
+                    <div className="text-[11px] font-black text-white uppercase tracking-[0.15em] mb-0.5">{data.label}</div>
+                    <div className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${selected ? 'bg-cyan-400 animate-pulse' : 'bg-cyan-900'}`}></span>
+                        <div className="text-[8px] text-cyan-600/80 font-black uppercase tracking-widest leading-none">{def.category}</div>
+                    </div>
                 </div>
             </div>
 
-            {/* Dynamic Inputs */}
-            {def.inputs.map((input, idx) => (
-                <div key={`in-${idx}`} className="relative h-6 flex items-center text-[10px] text-slate-400">
-                    <Handle
-                        type="target"
-                        position={Position.Left}
-                        id={input.name}
-                        style={{ background: '#06b6d4', width: '8px', height: '8px' }}
-                    />
-                    <span className="ml-3">{input.name}</span>
-                </div>
-            ))}
+            <div className="space-y-3">
+                {/* Dynamic Inputs */}
+                {def.inputs.map((input, idx) => (
+                    <div key={`in-${idx}`} className="relative h-10 flex items-center group/port">
+                        <Handle
+                            type="target"
+                            position={Position.Left}
+                            id={input.name}
+                            style={{
+                                background: selected ? '#22d3ee' : '#0891b2',
+                                width: '12px',
+                                height: '12px',
+                                left: '-10px',
+                                border: '2px solid #050a15',
+                                boxShadow: selected ? '0 0 10px #22d3ee' : 'none'
+                            }}
+                            className="transition-colors duration-300"
+                        />
+                        <div className="bg-black/40 border border-white/5 px-3 py-2 rounded-xl flex-1 flex items-center justify-between group-hover/port:border-cyan-500/30 transition-colors">
+                            <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{input.name}</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-cyan-500/20"></div>
+                        </div>
+                    </div>
+                ))}
 
-            {/* Dynamic Outputs */}
-            {def.outputs.map((output, idx) => (
-                <div key={`out-${idx}`} className="relative h-6 flex items-center justify-end text-[10px] text-slate-400">
-                    <span className="mr-3">{output.name}</span>
-                    <Handle
-                        type="source"
-                        position={Position.Right}
-                        id={output.name}
-                        style={{ background: '#10b981', width: '8px', height: '8px' }}
-                    />
-                </div>
-            ))}
+                {/* Dynamic Outputs */}
+                {def.outputs.map((output, idx) => (
+                    <div key={`out-${idx}`} className="relative h-10 flex items-center group/port">
+                        <div className="bg-black/40 border border-white/5 px-3 py-2 rounded-xl flex-1 flex items-center justify-between group-hover/port:border-emerald-500/30 transition-colors">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/20"></div>
+                            <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{output.name}</span>
+                        </div>
+                        <Handle
+                            type="source"
+                            position={Position.Right}
+                            id={output.name}
+                            style={{
+                                background: selected ? '#34d399' : '#059669',
+                                width: '12px',
+                                height: '12px',
+                                right: '-10px',
+                                border: '2px solid #050a15',
+                                boxShadow: selected ? '0 0 10px #34d399' : 'none'
+                            }}
+                            className="transition-colors duration-300"
+                        />
+                    </div>
+                ))}
+            </div>
+
+            {/* Interaction Glow Layer */}
+            {selected && (
+                <div className="absolute inset-0 rounded-3xl bg-cyan-500/5 pointer-events-none animate-pulse"></div>
+            )}
         </div>
     );
 };
@@ -81,32 +120,41 @@ const N8NWorkflow: React.FC = () => {
         event.dataTransfer.dropEffect = 'move';
     }, []);
 
+    const addNode = useCallback((type: NodeType, pos?: { x: number, y: number }) => {
+        const def = NODE_DEFINITIONS[type];
+        if (!def) return;
+
+        const id = `node_${Date.now()}`;
+        const newNode: Node = {
+            id,
+            type: 'custom',
+            position: pos || { x: 100, y: 100 },
+            data: {
+                label: def.label,
+                type,
+                parameters: Object.fromEntries(
+                    def.parameters.map(p => [p.name, p.default ?? ''])
+                ),
+                onParameterChange: (key: string, value: any) => {
+                    updateNodeParam(id, key, value);
+                }
+            },
+        };
+
+        setNodes((nds) => nds.concat(newNode));
+        setSelectedNode(newNode); // Auto-select on add
+    }, []);
+
     const onDrop = useCallback(
         (event: React.DragEvent) => {
             event.preventDefault();
             const type = event.dataTransfer.getData('application/reactflow');
             if (!type) return;
 
-            const position = { x: event.clientX - 300, y: event.clientY - 100 }; // Rough offset
-            const def = NODE_DEFINITIONS[type as NodeType];
-
-            const newNode: Node = {
-                id: `node_${Date.now()}`,
-                type: 'custom',
-                position,
-                data: {
-                    label: def.label,
-                    type,
-                    parameters: {},
-                    onParameterChange: (key: string, value: any) => {
-                        // Update logic would go here if lifted up
-                    }
-                },
-            };
-
-            setNodes((nds) => nds.concat(newNode));
+            const position = { x: event.clientX - 400, y: event.clientY - 100 }; // Better offset
+            addNode(type as NodeType, position);
         },
-        []
+        [addNode]
     );
 
     const handleExecute = async () => {
@@ -163,22 +211,35 @@ const N8NWorkflow: React.FC = () => {
 
     return (
         <div className="flex h-full w-full bg-[#050a15] text-slate-300">
-            {/* Sidebar / Palette */}
-            <div className="w-64 border-r border-cyan-900/30 p-4 flex flex-col gap-4 overflow-y-auto">
-                <div className="text-xs font-black uppercase tracking-widest text-cyan-500">Node Palette</div>
-                <div className="space-y-2">
+            {/* Sidebar / Palette - Compact "Floating" Dock */}
+            <div className="w-24 border-r border-white/5 p-4 flex flex-col items-center gap-6 overflow-y-auto bg-black/40 backdrop-blur-md">
+                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 rotate-180 [writing-mode:vertical-lr] mb-4">Neural Functions</div>
+                <div className="flex flex-col gap-4">
                     {Object.keys(NODE_DEFINITIONS).map(key => {
                         const def = NODE_DEFINITIONS[key as NodeType];
                         return (
-                            <div
+                            <button
                                 key={key}
+                                onClick={() => addNode(key as NodeType)}
                                 onDragStart={(event) => event.dataTransfer.setData('application/reactflow', key)}
                                 draggable
-                                className="p-3 bg-[#0a1222] border border-cyan-900/40 rounded cursor-grab hover:border-cyan-500/50 flex items-center gap-3 transition-colors"
+                                className="group relative w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center cursor-pointer hover:border-cyan-500 hover:bg-cyan-500/10 hover:shadow-[0_0_25px_rgba(0,242,255,0.3)] transition-all duration-300 active:scale-90"
+                                title={def.label}
                             >
-                                <span className="text-xl">{def.icon}</span>
-                                <div className="text-xs font-bold">{def.label}</div>
-                            </div>
+                                <span className="text-3xl group-hover:scale-110 transition-transform">{def.icon}</span>
+
+                                {/* Hover Tooltip (Enhanced) */}
+                                <div className="absolute left-full ml-6 px-4 py-3 bg-[#0a1222] border border-cyan-500/30 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100 pointer-events-none z-[100] transition-all duration-300 translate-x-[-10px] group-hover:translate-x-0 whitespace-nowrap backdrop-blur-3xl">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <span className="text-xl">{def.icon}</span>
+                                        <div className="text-xs font-black uppercase text-white tracking-widest">{def.label}</div>
+                                    </div>
+                                    <div className="text-[9px] text-slate-400 font-medium max-w-[200px] whitespace-normal leading-relaxed">{def.description}</div>
+                                    <div className="mt-2 text-[8px] font-black uppercase text-cyan-600 tracking-widest">Click to spawn • Drag to place</div>
+                                    {/* Arrow */}
+                                    <div className="absolute top-1/2 -left-1.5 -translate-y-1/2 border-8 border-transparent border-r-[#0a1222]"></div>
+                                </div>
+                            </button>
                         );
                     })}
                 </div>
@@ -218,21 +279,44 @@ const N8NWorkflow: React.FC = () => {
                     </div>
                     {selectedNode ? (
                         <div className="space-y-4">
-                            <div className="text-lg font-bold text-white">{selectedNode.data.label}</div>
-                            <div className="text-[10px] text-slate-500 uppercase font-mono">{selectedNode.id}</div>
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="text-xl font-bold text-white">{selectedNode.data.label}</div>
+                                <div className="flex gap-2">
+                                    <button
+                                        className="p-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all"
+                                        title="Test this node"
+                                    >
+                                        <Play size={12} />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setNodes(nds => nds.filter(n => n.id !== selectedNode.id));
+                                            setSelectedNode(null);
+                                        }}
+                                        className="p-2 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 transition-all"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="text-[10px] text-slate-500 uppercase font-mono mb-6 pb-4 border-b border-white/5">{selectedNode.id}</div>
 
                             {NODE_DEFINITIONS[selectedNode.data.type as NodeType]?.parameters.map(param => (
-                                <div key={param.name} className="space-y-1">
-                                    <label className="nexus-label !text-cyan-400">{param.label}</label>
+                                <div key={param.name} className="space-y-2">
+                                    <label className="nexus-label !text-cyan-400 flex justify-between">
+                                        {param.label}
+                                        {param.required && <span className="text-rose-500 text-[8px] animate-pulse">Required</span>}
+                                    </label>
                                     {param.type === 'textarea' || param.type === 'code' ? (
                                         <textarea
-                                            className="nexus-textarea w-full min-h-[120px] font-mono"
+                                            className="nexus-textarea w-full min-h-[160px] font-mono !p-3 !text-[11px]"
                                             value={selectedNode.data.parameters[param.name] || ''}
                                             onChange={(e) => updateNodeParam(selectedNode.id, param.name, e.target.value)}
+                                            placeholder={`Input ${param.label.toLowerCase()} here...`}
                                         />
                                     ) : param.type === 'select' ? (
                                         <select
-                                            className="nexus-input w-full"
+                                            className="nexus-input w-full !py-2.5"
                                             value={selectedNode.data.parameters[param.name] || param.default}
                                             onChange={(e) => updateNodeParam(selectedNode.id, param.name, e.target.value)}
                                         >
@@ -243,23 +327,14 @@ const N8NWorkflow: React.FC = () => {
                                     ) : (
                                         <input
                                             type={param.type === 'number' ? 'number' : 'text'}
-                                            className="nexus-input w-full"
+                                            className="nexus-input w-full !py-2.5"
                                             value={selectedNode.data.parameters[param.name] || ''}
                                             onChange={(e) => updateNodeParam(selectedNode.id, param.name, e.target.value)}
+                                            placeholder={`Enter ${param.label.toLowerCase()}...`}
                                         />
                                     )}
                                 </div>
                             ))}
-
-                            <button
-                                onClick={() => {
-                                    setNodes(nds => nds.filter(n => n.id !== selectedNode.id));
-                                    setSelectedNode(null);
-                                }}
-                                className="w-full py-2 bg-rose-500/20 text-rose-400 border border-rose-500/50 rounded text-xs uppercase hover:bg-rose-500/40 mt-4 flex items-center justify-center gap-2"
-                            >
-                                <Trash2 size={14} /> Delete Node
-                            </button>
                         </div>
                     ) : (
                         <div className="text-center text-slate-600 text-xs mt-10">Select a node to edit parameters</div>

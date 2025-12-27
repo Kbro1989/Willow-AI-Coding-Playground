@@ -10,6 +10,7 @@ export interface GeminiTextRequest {
   history?: Array<{ role: 'user' | 'model'; content: string }>;
   systemPrompt?: string;
   functionDeclarations?: FunctionDeclaration[];
+  model?: string;
 }
 
 export interface GeminiTextResponse {
@@ -73,7 +74,8 @@ class GeminiProvider {
     }
 
     try {
-      const model = this.client.getGenerativeModel({ model: 'gemini-2.0-flash-exp', systemInstruction: request.systemPrompt });
+      const modelId = request.model || 'gemini-2.0-flash-exp';
+      const model = this.client.getGenerativeModel({ model: modelId, systemInstruction: request.systemPrompt });
       if (request.functionDeclarations) {
         model.tools = [{ functionDeclarations: request.functionDeclarations }];
       }
@@ -94,7 +96,7 @@ class GeminiProvider {
       return {
         content: response.text(),
         functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
-        model: 'gemini-2.0-flash-exp',
+        model: modelId,
         tokensUsed: response.usageMetadata?.totalTokenCount
       };
     } catch (error: any) {

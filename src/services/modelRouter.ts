@@ -1,11 +1,7 @@
-/**
- * Unified Model Router
- * Routes requests to Gemini (paid) first, falls back to Cloudflare (free)
- */
-
 import geminiProvider, { GeminiTextRequest, GeminiImageRequest, GeminiCodeRequest } from './geminiProvider';
 import cloudflareProvider from './cloudflareProvider';
 import aiUsageService from './gameData/aiUsageService';
+import { ModelKey } from '../types';
 
 export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning' | 'vision' | '3d';
 
@@ -96,16 +92,12 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
   // Define Pipeline based on Request Type & Tier
   const pipeline: PipelineStep[] = [];
 
-  if (tier === 'premium' && geminiProvider.isAvailable()) {
+  // "Cloudflare First" Doctrine
+  // We prioritize Cloudflare for cost and latency, falling back to Gemini for high-reasoning or unsupported specialized types.
+  pipeline.push({ provider: 'cloudflare', executor: routeToCloudflare });
+
+  if (geminiProvider.isAvailable()) {
     pipeline.push({ provider: 'gemini', executor: routeToGemini });
-    // Fallback to Cloudflare Standard if Premium fails (e.g. Rate Limit)
-    pipeline.push({ provider: 'cloudflare', executor: routeToCloudflare });
-  } else {
-    // Standard Tier: Cloudflare First (Cost Saving), then Gemini
-    pipeline.push({ provider: 'cloudflare', executor: routeToCloudflare });
-    if (geminiProvider.isAvailable()) {
-      pipeline.push({ provider: 'gemini', executor: routeToGemini });
-    }
   }
 
   let finalResponse: ModelResponse | ReadableStream | undefined;
@@ -197,7 +189,8 @@ async function routeToGemini(request: ModelRequest, signal?: AbortSignal): Promi
         prompt: request.prompt,
         history: request.history,
         systemPrompt: request.systemPrompt,
-        functionDeclarations: request.functionDeclarations
+        functionDeclarations: request.functionDeclarations,
+        model: ModelKey.COMMANDER
       };
 
       const response = await geminiProvider.textChat(geminiRequest);
@@ -472,6 +465,53 @@ export async function generateVideo(
 }
 
 /**
+ * orchestrateMedia performs a 3-step Txt->Txt->Media chain for high precision.
+ * Step 1: Architectural Planning (Llama 3.3)
+ * Step 2: Technical Refinement (Qwen 2.5)
+ * Step 3: Media Generation
+ */
+export async function orchestrateMedia(
+  type: 'image' | 'video' | 'audio' | '3d',
+  prompt: string,
+  context?: string
+): Promise<ModelResponse> {
+  const startTime = Date.now();
+  console.log(`[ORCHESTRATOR] Starting ${type} orchestration for: ${prompt}`);
+
+  // Step 1: Planning
+  const planningResp = await route({
+    type: 'text',
+    prompt: `Act as a Technical Director. Plan the production of a ${type} asset for: "${prompt}". 
+    Context: ${context || 'General Game Development'}. 
+    Provide a detailed structural breakdown.`,
+    options: { model: ModelKey.CLOUDFLARE_CHAT } // Forced Cloudflare First
+  }) as ModelResponse;
+
+  // Step 2: Refinement / Prompt Engineering
+  const refinementResp = await route({
+    type: 'text',
+    prompt: `Refine the following production plan into a highly optimized technical prompt for a ${type} generation model:
+    PLAN: ${planningResp.content}
+    Output ONLY THE FINAL TECHNICAL PROMPT.`,
+    options: { model: ModelKey.CLOUDFLARE_CODE } // Precise Qwen coder for prompt engineering
+  }) as ModelResponse;
+
+  // Step 3: Final Media Generation
+  const finalMedia = await route({
+    type,
+    prompt: refinementResp.content || prompt,
+    tier: 'premium',
+    options: type === 'audio' ? { audioMode: 'tts' } : {}
+  }) as ModelResponse;
+
+  return {
+    ...finalMedia,
+    content: `[ORCHESTRATION_LOG]\nStep 1 (Plan): ${planningResp.content?.substring(0, 100)}...\nStep 2 (Prompt): ${refinementResp.content?.substring(0, 100)}...\n\nFinal Response attached.`,
+    latency: Date.now() - startTime
+  };
+}
+
+/**
  * Convenience function for 3D generation
  */
 export async function generate3D(
@@ -502,7 +542,8 @@ export const modelRouter = {
   generateVideo,
   generate3D,
   generateCinematic,
-  synthesizeSpeech
+  synthesizeSpeech,
+  orchestrateMedia
 };
 
 export default modelRouter;

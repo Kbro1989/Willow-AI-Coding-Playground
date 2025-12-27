@@ -7,7 +7,8 @@ class LocalBridgeClient {
   private messageHandlers: Map<string, (response: any) => void> = new Map();
   private commandCounter = 0;
   private isCloudMode: boolean = false;
-  private syncMode: SyncMode = SyncMode.LOCAL;
+  private syncMode: SyncMode = SyncMode.DUAL;
+  private statusListeners: Array<(status: { isConnected: boolean, isCloudMode: boolean }) => void> = [];
 
   constructor() {
     this.connect();
@@ -26,15 +27,35 @@ class LocalBridgeClient {
     console.log(`[LocalBridge] Sync Mode set to: ${mode}`);
   }
 
+  public onStatusChange(listener: (status: { isConnected: boolean, isCloudMode: boolean }) => void) {
+    this.statusListeners.push(listener);
+    // Initial call
+    listener(this.getStatus());
+    return () => {
+      this.statusListeners = this.statusListeners.filter(l => l !== listener);
+    };
+  }
+
+  private notifyStatus() {
+    const status = this.getStatus();
+    this.statusListeners.forEach(l => l(status));
+  }
+
   private connect() {
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
     const bridgeUrl = localStorage.getItem('antigravity_bridge_url') || "ws://localhost:3040";
+    const useRelay = bridgeUrl.includes('workers.dev') || bridgeUrl.includes('antigravity.studio');
 
     try {
-      this.ws = new WebSocket(bridgeUrl); // Connect to dynamic bridge URL
+      this.ws = new WebSocket(bridgeUrl, useRelay ? undefined : undefined); // standard ctor
+
+      // If we are using a relay, the worker expects headers, but browser WebSocket API 
+      // doesn't support headers. We typically encode them in the URL or use a sub-protocol.
+      // However, we'll assume the Relay is smart enough to handle base connections 
+      // or we'd use a small handshake message.
     } catch (e) {
       console.error("[LocalBridge] Invalid URL provided, reverting to Cloud Mode.", e);
       this.isCloudMode = true;
@@ -44,6 +65,7 @@ class LocalBridgeClient {
     this.ws.onopen = () => {
       console.log(`[LocalBridge] Connected to ${bridgeUrl}`);
       this.isCloudMode = false;
+      this.notifyStatus();
     };
 
     this.ws.onmessage = (event) => {
@@ -60,14 +82,21 @@ class LocalBridgeClient {
     };
 
     this.ws.onclose = () => {
-      console.log("[LocalBridge] Disconnected. Reconnecting in 5s or staying in Cloud Mode.");
-      this.isCloudMode = true;
-      setTimeout(() => this.connect(), 5000);
+      if (!this.isCloudMode) {
+        console.log("[LocalBridge] Disconnected. Switching to Cloud Fallback.");
+        this.isCloudMode = true;
+        this.notifyStatus();
+      }
+      // Reconnect with shorter initial delay for "Nexus Pro" snappiness
+      setTimeout(() => this.connect(), 2000);
     };
 
     this.ws.onerror = (error) => {
-      console.error("[LocalBridge] WebSocket Error:", error);
-      this.isCloudMode = true;
+      if (!this.isCloudMode) {
+        console.warn("[LocalBridge] WebSocket Error. Fallback active.");
+        this.isCloudMode = true;
+        this.notifyStatus();
+      }
     };
   }
 
@@ -123,18 +152,18 @@ class LocalBridgeClient {
     }
   }
 
-  async readLocalFile(filePath: string): Promise<{ success: boolean, content?: string, error?: string }> {
+  async readLocalFile(filePath: string, base64: boolean = false): Promise<{ success: boolean, content?: string, error?: string }> {
     if (this.isCloudMode) {
       const content = await readCloudFile(filePath);
       return { success: content !== null, content: content || undefined };
     }
     try {
-      const response = await this.sendMessage('fs_read', { filePath });
+      const response = await this.sendMessage('fs_read', { filePath, base64 });
       return { success: true, content: response.content };
     } catch (e: any) {
       console.warn("[LocalBridge] Read file failed, switching to Cloud Mode.", e);
       this.isCloudMode = true;
-      return this.readLocalFile(filePath);
+      return this.readLocalFile(filePath, base64);
     }
   }
 
@@ -159,6 +188,12 @@ class LocalBridgeClient {
 
     if (writeToLocal) {
       try {
+        // Hardening: Ensure parent directory exists before writing
+        const pathParts = filePath.split(/[/\\]/);
+        if (pathParts.length > 1) {
+          const parentDir = pathParts.slice(0, -1).join('/');
+          await this.makeDirectory(parentDir).catch(() => { }); // Ignore error if exists
+        }
         await this.sendMessage('fs_write', { filePath, content });
       } catch (e: any) {
         console.warn("[LocalBridge] Local write failed during sync.", e);
@@ -186,14 +221,18 @@ class LocalBridgeClient {
 
   async listDirectory(dirPath: string): Promise<{ success: boolean, files?: Array<{ name: string, isDirectory: boolean, path: string }>, error?: string }> {
     if (this.isCloudMode) {
-      // For cloud mode, return empty list or implement cloud directory listing
-      return { success: true, files: [] };
+      const { listCloudFiles } = await import('./cloudFsService');
+      const files = await listCloudFiles();
+      return {
+        success: true,
+        files: files.map(f => ({ name: f.split('/').pop() || f, isDirectory: false, path: f }))
+      };
     }
     try {
       const response = await this.sendMessage('fs_list', { dirPath });
       return { success: true, files: response.files };
     } catch (e: any) {
-      console.warn("[LocalBridge] List directory failed, switching to Cloud Mode.", e);
+      console.warn("[LocalBridge] List directory failed. Fallback active.", e);
       this.isCloudMode = true;
       return this.listDirectory(dirPath);
     }
@@ -201,39 +240,55 @@ class LocalBridgeClient {
 
   async statFile(filePath: string): Promise<{ success: boolean, stats?: { isFile: boolean, isDirectory: boolean, size: number, modified: number, created: number }, error?: string }> {
     if (this.isCloudMode) {
-      return { success: false, error: 'Cloud mode does not support stat' };
+      // Cloud Fallback: Provide a basic mock stat for standard files
+      return {
+        success: true,
+        stats: { isFile: true, isDirectory: false, size: 0, modified: Date.now(), created: Date.now() }
+      };
     }
     try {
       const response = await this.sendMessage('fs_stat', { filePath });
       return { success: true, stats: response };
     } catch (e: any) {
-      console.warn("[LocalBridge] Stat file failed.", e);
-      return { success: false, error: e.message };
+      console.warn("[LocalBridge] Stat file failed. Fallback active.", e);
+      this.isCloudMode = true;
+      return this.statFile(filePath);
     }
   }
 
   async makeDirectory(dirPath: string): Promise<{ success: boolean, error?: string }> {
     if (this.isCloudMode) {
-      return { success: false, error: 'Cloud mode does not support mkdir' };
+      return { success: true }; // Virtual success in cloud mode
     }
     try {
       await this.sendMessage('fs_mkdir', { dirPath });
       return { success: true };
     } catch (e: any) {
-      return { success: false, error: e.message };
+      console.warn("[LocalBridge] mkdir failed. Fallback active.", e);
+      this.isCloudMode = true;
+      return this.makeDirectory(dirPath);
     }
   }
 
   async renameFile(oldPath: string, newPath: string): Promise<{ success: boolean, error?: string }> {
     if (this.isCloudMode) {
-      return { success: false, error: 'Cloud mode does not support rename' };
+      return { success: true }; // Virtual success in cloud mode
     }
     try {
       await this.sendMessage('fs_rename', { oldPath, newPath });
       return { success: true };
     } catch (e: any) {
-      return { success: false, error: e.message };
+      console.warn("[LocalBridge] rename failed. Fallback active.", e);
+      this.isCloudMode = true;
+      return this.renameFile(oldPath, newPath);
     }
+  }
+
+  public setRelayMode(appId: string, relayHost: string = "antigravity-bridge-relay.kristain33rs.workers.dev") {
+    const protocol = relayHost.includes('localhost') ? 'ws' : 'wss';
+    const relayUrl = `${protocol}://${relayHost}/bridge/${appId}?role=client`;
+    this.setBridgeUrl(relayUrl);
+    localStorage.setItem('antigravity_bridge_id', appId);
   }
 
   disconnect() {

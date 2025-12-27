@@ -19,6 +19,7 @@ export interface AgentAPI {
     fs: {
         read: (path: string) => Promise<{ success: boolean; content?: string; error?: string }>;
         write: (path: string, content: string) => Promise<{ success: boolean; error?: string }>;
+        readBase64: (path: string) => Promise<{ success: boolean; content?: string; error?: string }>;
         delete: (path: string) => Promise<{ success: boolean; error?: string }>;
         list: (dirPath: string) => Promise<{ success: boolean; files?: Array<{ name: string, isDirectory: boolean, path: string }>; error?: string }>;
         mkdir: (dirPath: string) => Promise<{ success: boolean; error?: string }>;
@@ -65,6 +66,10 @@ export function initializeAgentAPI(): AgentAPI {
 
             write: async (path: string, content: string) => {
                 return await localBridgeClient.writeLocalFile(path, content);
+            },
+
+            readBase64: async (path: string) => {
+                return await localBridgeClient.readLocalFile(path, true); // Pass true for base64
             },
 
             delete: async (path: string) => {

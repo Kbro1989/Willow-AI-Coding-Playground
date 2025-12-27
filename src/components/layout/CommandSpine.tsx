@@ -4,6 +4,8 @@ import {
     Blocks, ChevronDown, Search, Undo2, Redo2, Cpu, Bell, ShieldAlert
 } from 'lucide-react';
 import { ProjectEnv, AIModelMode } from '../../types';
+import { localBridgeClient } from '../../services/localBridgeService';
+import { Network, Link2, Link2Off } from 'lucide-react';
 
 interface CommandSpineProps {
     projectEnv: ProjectEnv;
@@ -20,6 +22,21 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
     projectEnv, setProjectEnv, aiMode, setAiMode,
     showPerformanceHUD, setShowPerformanceHUD, isPanic, onPanic
 }) => {
+    const [bridgeStatus, setBridgeStatus] = React.useState(localBridgeClient.getStatus());
+
+    React.useEffect(() => {
+        return localBridgeClient.onStatusChange(s => setBridgeStatus({ ...s, syncMode: localBridgeClient.getStatus().syncMode }));
+    }, []);
+
+    const toggleRelay = () => {
+        const isCurrentlyRelay = localStorage.getItem('antigravity_bridge_url')?.includes('workers.dev');
+        if (isCurrentlyRelay) {
+            localBridgeClient.setBridgeUrl("ws://localhost:3040");
+        } else {
+            const appId = prompt("Enter Cloud App ID for Local Bridge (App ID 1):", "1");
+            if (appId) localBridgeClient.setRelayMode(appId);
+        }
+    };
     return (
         <div className="h-14 bg-[#0a1222] border-b border-cyan-500/20 flex items-center justify-between px-4 shrink-0 z-50 shadow-2xl">
             <div className="flex items-center gap-6">
@@ -46,6 +63,19 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                         </button>
                     ))}
                 </div>
+                <div className="h-8 w-px bg-white/5" />
+                <button
+                    onClick={toggleRelay}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${bridgeStatus.isConnected
+                            ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                            : 'bg-red-500/10 border-red-500/50 text-red-500'
+                        }`}
+                >
+                    {bridgeStatus.isConnected ? <Link2 className="w-3.5 h-3.5" /> : <Link2Off className="w-3.5 h-3.5" />}
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                        Neural Link: {bridgeStatus.isConnected ? (localStorage.getItem('antigravity_bridge_url')?.includes('workers.dev') ? 'RELAY' : 'DIRECT') : 'OFFLINE'}
+                    </span>
+                </button>
             </div>
             <div className="flex items-center gap-4">
                 <div className="relative group">

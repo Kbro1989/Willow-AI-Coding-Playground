@@ -38,7 +38,7 @@ const Forge: React.FC = () => {
 
             <div className="flex-1 flex overflow-hidden">
                 {/* Main Content Area */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 relative flex flex-col overflow-hidden">
                     {activeTab === 'image' && <ImageStudio />}
                     {activeTab === 'audio' && <AudioWorkshop />}
                     {activeTab === 'video' && <VideoStudio />}

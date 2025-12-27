@@ -74,8 +74,9 @@ function handleMessage(ws, data) {
             break;
 
         case 'fs_read':
-            console.log(`[READ] ${data.filePath}`);
-            fs.readFile(data.filePath, 'utf8', (err, content) => {
+            console.log(`[READ] ${data.filePath}${data.base64 ? ' (base64)' : ''}`);
+            const encoding = data.base64 ? 'base64' : 'utf8';
+            fs.readFile(data.filePath, encoding, (err, content) => {
                 if (err) sendResponse(false, {}, err.message);
                 else sendResponse(true, { content });
             });

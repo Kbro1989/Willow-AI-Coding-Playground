@@ -110,10 +110,22 @@ const App: React.FC = () => {
   const [assets, setAssets] = useState<GameAsset[]>([]);
   const [nodes, setNodes] = useState<NeuralNode[]>([]);
   const [edges, setEdges] = useState<NeuralEdge[]>([]);
+  const [bridgeStatus, setBridgeStatus] = useState({ isConnected: true, isCloudMode: false });
 
-  // --- Real-time Presence Tracking ---
+  // --- Real-time Presence Tracking & Bridge Monitoring ---
   useEffect(() => {
-    if (!user) return;
+    // 1. Bridge Status Monitoring
+    const unsubscribeStatus = localBridgeClient.onStatusChange(status => {
+      setBridgeStatus(status);
+      if (status.isCloudMode) {
+        addLog('Local Bridge Interruption. Cloud Fallback Active.', 'warn', 'Nexus');
+      } else if (status.isConnected) {
+        addLog('Local Bridge Restored. Dual-Sync Operational.', 'success', 'Nexus');
+      }
+    });
+
+    // 2. Presence Tracking
+    if (!user) return () => unsubscribeStatus();
 
     const handleMouseMove = (e: MouseEvent) => {
       // Throttle presence updates to avoid flooding InstantDB
@@ -135,7 +147,7 @@ const App: React.FC = () => {
   const [syncMode, setSyncMode] = useState<SyncMode>(SyncMode.LOCAL);
   const [stagedFiles, setStagedFiles] = useState<string[]>([]);
   const [commitHistory, setCommitHistory] = useState<GitCommit[]>([]);
-  const [variableData, setVariableData] = useState<Record<string, any>>({});
+  const [variableData, setVariableData] = useState<Record<string, unknown>>({});
   const [extensions, setExtensions] = useState<Extension[]>(initialExtensions);
   const [projectVersion, setProjectVersion] = useState<string>('v4.2.0');
 
@@ -236,14 +248,15 @@ const App: React.FC = () => {
     if (payload.edges) setEdges(payload.edges);
   }, []);
 
-  const handleSyncVariableData = useCallback((data: Record<string, any>) => {
+  const handleSyncVariableData = useCallback((data: Record<string, unknown>) => {
     setVariableData(prev => ({ ...prev, ...data }));
   }, []);
 
   const handleInjectScript = useCallback((path: string, content: string) => {
     addLog(`Script Injected: ${path}`, 'success', 'Kernel');
     // Direct Action: Write to persistent storage
-    (window as any).agentAPI?.fs.write(path, content).then((res: any) => {
+    interface AgentAPIResponse { success: boolean; error?: string; stats?: any }
+    (window as any).agentAPI?.fs.write(path, content).then((res: AgentAPIResponse) => {
       if (res.success) addLog(`File persisted: ${path}`, 'info', 'AgentFS');
       else addLog(`Persistence failure: ${path}`, 'error', 'AgentFS');
     });
@@ -372,57 +385,7 @@ const App: React.FC = () => {
           <main className="flex-1 relative overflow-hidden flex flex-col min-w-0">
             {/* Tab Content Cluster */}
             <div className="flex-1 relative overflow-hidden">
-              {activeView === 'dashboard' && <DiagnosticsPanel />}
-              {activeView === 'director' && (
-                <div className="h-full flex flex-col">
-                  <Director />
-                  <div className="h-1/3 border-t border-cyan-900/20">
-                    <Chat
-                      ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
-                      renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
-                      isOverwatchActive={true} messages={chatMessages} setMessages={setChatMessages}
-                      userPrefs={userPrefs} onFileUpdate={handleFileChange}
-                      onAddSceneObject={handleAddSceneObject}
-                      onUpdateSceneObject={handleUpdateSceneObject} onUpdatePhysics={(u) => setPhysics(p => ({ ...p, ...u }))}
-                      onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
-                      onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
-                      onRemoveSceneObject={(id) => setSceneObjects(prev => prev.filter(o => o.id !== id))}
-                      onInjectScript={handleInjectScript} onSyncVariableData={handleSyncVariableData}
-                      extensions={extensions} projectVersion={projectVersion} onUpdateVersion={setProjectVersion}
-                      onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
-                      onTriggerPresentation={() => setIsPresenting(true)}
-                      engineLogs={engineLogs}
-                    />
-                  </div>
-                </div>
-              )}
-              {activeView === 'editor' && (
-                <div className="flex h-full">
-                  <div style={{ width: `${sidebarWidth}px` }} className="relative shrink-0 flex flex-col border-r border-cyan-900/10">
-                    <Sidebar
-                      isOpen={true} setIsOpen={() => { }} files={project.files} activeFile={project.activeFile}
-                      onSelectFile={(p) => setProject(prev => ({ ...prev, activeFile: p }))}
-                      onCreateNode={handleCreateNode}
-                      stagedFiles={stagedFiles} onStage={(p) => setStagedFiles(prev => [...prev, p])} onUnstage={(p) => setStagedFiles(prev => prev.filter(f => f !== p))}
-                      onCommit={(m) => setCommitHistory(prev => [{ id: Date.now().toString(), message: m, author: 'Nexus Dev', timestamp: Date.now() }, ...prev])}
-                      commitHistory={commitHistory} tasks={tasks}
-                      onToggleTask={(id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))}
-                      onAddTasks={(nt) => setTasks(prev => [...prev, ...nt.map(t => ({ ...t, id: Math.random().toString(36), completed: false }))])}
-                      tokenMetrics={limiter.getMetrics()} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions} onUninstallExtension={handleUninstallExtension}
-                    />
-                    <div onMouseDown={() => setIsResizingSidebar(true)} className="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-50 group">
-                      <div className="w-px h-full bg-cyan-500/10 group-hover:bg-cyan-500 mx-auto transition-colors"></div>
-                    </div>
-                  </div>
-                  <div className="flex-1 flex flex-col relative min-w-0">
-                    <Editor content={activeFileContent} onChange={handleFileChange} filename={project.activeFile || ''} lastSaved={lastSaved} isSyncing={isSyncing} />
-                    <div className="h-64 border-t border-cyan-500/10 bg-black/40">
-                      <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              {/* Persistent Matrix Implementation to prevent WebGL Context Loss */}
+              {/* Persistent Matrix: Kept outside the map to prevent WebGL Context Loss */}
               <div className={`absolute inset-0 z-0 transition-opacity duration-300 ${activeView === 'matrix' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
                 <GameDashboard
                   onBuild={handleBuild} buildInfo={buildInfo} assets={assets} physics={physics} worldConfig={worldConfig} sceneObjects={sceneObjects}
@@ -441,25 +404,74 @@ const App: React.FC = () => {
                 />
               </div>
 
-              {activeView === 'forge' && (
-                <LazyViewport>
-                  <Forge />
-                </LazyViewport>
-              )}
-              {activeView === 'pipelines' && <N8NWorkflow />}
-              {activeView === 'behavior' && <Behavior sceneObjects={sceneObjects} />}
-              {activeView === 'narrative' && <Narrative onRunAction={handleRunAction} />}
-              {activeView === 'assets' && <Registry onImport={handleImportAsset} />}
-              {activeView === 'world' && (
-                <LazyViewport>
-                  <World worldConfig={worldConfig} onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))} />
-                </LazyViewport>
-              )}
-              {activeView === 'data' && <Persistence variableData={variableData} sceneObjects={sceneObjects} assets={assets} engineLogs={engineLogs} />}
-              {activeView === 'collab' && <Link />}
-              {activeView === 'diagnostics' && <DiagnosticsPanel />}
-              {activeView === 'deploy' && <Deploy />}
-              {activeView === 'settings' && <Config />}
+              {/* Dynamic Views */}
+              {(() => {
+                switch (activeView) {
+                  case 'dashboard': return <DiagnosticsPanel />;
+                  case 'diagnostics': return <DiagnosticsPanel />;
+                  case 'director': return (
+                    <div className="h-full flex flex-col">
+                      <Director />
+                      <div className="h-1/3 border-t border-cyan-900/20">
+                        <Chat
+                          ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
+                          renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
+                          isOverwatchActive={true} messages={chatMessages} setMessages={setChatMessages}
+                          userPrefs={userPrefs} onFileUpdate={handleFileChange}
+                          onAddSceneObject={handleAddSceneObject}
+                          onUpdateSceneObject={handleUpdateSceneObject} onUpdatePhysics={(u) => setPhysics(p => ({ ...p, ...u }))}
+                          onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
+                          onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
+                          onRemoveSceneObject={(id) => setSceneObjects(prev => prev.filter(o => o.id !== id))}
+                          onInjectScript={handleInjectScript} onSyncVariableData={handleSyncVariableData}
+                          extensions={extensions} projectVersion={projectVersion} onUpdateVersion={setProjectVersion}
+                          onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
+                          onTriggerPresentation={() => setIsPresenting(true)}
+                          engineLogs={engineLogs}
+                        />
+                      </div>
+                    </div>
+                  );
+                  case 'editor': return (
+                    <div className="flex h-full">
+                      <div style={{ width: `${sidebarWidth}px` }} className="relative shrink-0 flex flex-col border-r border-cyan-900/10">
+                        <Sidebar
+                          isOpen={true} setIsOpen={() => { }} files={project.files} activeFile={project.activeFile}
+                          onSelectFile={(p) => setProject(prev => ({ ...prev, activeFile: p }))}
+                          onCreateNode={handleCreateNode}
+                          stagedFiles={stagedFiles} onStage={(p) => setStagedFiles(prev => [...prev, p])} onUnstage={(p) => setStagedFiles(prev => prev.filter(f => f !== p))}
+                          onCommit={(m) => setCommitHistory(prev => [{ id: Date.now().toString(), message: m, author: 'Nexus Dev', timestamp: Date.now() }, ...prev])}
+                          commitHistory={commitHistory} tasks={tasks}
+                          onToggleTask={(id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))}
+                          onAddTasks={(nt) => setTasks(prev => [...prev, ...nt.map(t => ({ ...t, id: Math.random().toString(36), completed: false }))])}
+                          tokenMetrics={limiter.getMetrics()} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions} onUninstallExtension={handleUninstallExtension}
+                        />
+                        <div onMouseDown={() => setIsResizingSidebar(true)} className="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-50 group">
+                          <div className="w-px h-full bg-cyan-500/10 group-hover:bg-cyan-500 mx-auto transition-colors"></div>
+                        </div>
+                      </div>
+                      <div className="flex-1 flex flex-col relative min-w-0">
+                        <Editor content={activeFileContent} onChange={handleFileChange} filename={project.activeFile || ''} lastSaved={lastSaved} isSyncing={isSyncing} />
+                        <div className="h-64 border-t border-cyan-500/10 bg-black/40">
+                          <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                  case 'forge': return <LazyViewport><Forge /></LazyViewport>;
+                  case 'pipelines': return <N8NWorkflow />;
+                  case 'behavior': return <Behavior sceneObjects={sceneObjects} />;
+                  case 'rsmv': return <RSMVBrowser />;
+                  case 'shader': return (
+                    <ShaderGraph
+                      onCompile={(glsl: string) => addLog('Shader Compiled: ' + glsl.substring(0, 50) + '...', 'success', 'Compiler')}
+                      onApplyToObjects={(id: string) => addLog(`Applying shader to object ${id}`, 'info', 'Shader')}
+                    />
+                  );
+                  case 'matrix': return null; // Handled by persistent layer
+                  default: return <DiagnosticsPanel />;
+                }
+              })()}
             </div>
 
             {/* Overlays */}
@@ -496,6 +508,13 @@ const App: React.FC = () => {
                     <div className="h-full bg-purple-500 w-[60%] shadow-[0_0_10px_#a855f7]"></div>
                   </div>
                 </div>
+              </div>
+            )}
+            {bridgeStatus.isCloudMode && (
+              <div className="absolute bottom-4 right-4 z-[9999] px-3 py-1.5 bg-amber-500/20 border border-amber-500/50 rounded-full backdrop-blur-md flex items-center gap-2 animate-pulse shadow-lg shadow-amber-500/10">
+                <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-500">Cloud Fallback Active</span>
+                <span className="text-[8px] opacity-70 text-amber-300 font-mono text-center">RECONNECTING...</span>
               </div>
             )}
           </main>

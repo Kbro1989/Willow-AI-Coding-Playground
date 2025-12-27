@@ -1,68 +1,89 @@
 /**
  * Cloud File System Service
- * Interacts with the Cloudflare Worker for cloud-based file operations
+ * Fallback for when local bridge is unavailable.
+ * Uses Cloudflare R2 through the main worker API.
  */
 
-const WORKER_URL = 'https://ai-game-studio.kristain33rs.workers.dev';
+// The main Pages/Worker URL that hosts the app
+// In cloud-only mode, we use the deployed Pages functions
+const getWorkerUrl = () => {
+  // In production, use relative URL (same origin)
+  if (typeof window !== 'undefined' && window.location.hostname.includes('pages.dev')) {
+    return '';
+  }
+  // For local dev pointing to cloud, use the deployed URL
+  return 'https://willow-ai-coding-playground.pages.dev';
+};
 
+/**
+ * Cloud file storage - saves to R2 bucket via worker
+ */
 export const readCloudFile = async (path: string): Promise<string | null> => {
   try {
-    const response = await fetch(`${WORKER_URL}/api/cloud-fs${path}`);
+    const workerUrl = getWorkerUrl();
+    const response = await fetch(`${workerUrl}/api/storage/${encodeURIComponent(path)}`);
     if (!response.ok) {
       if (response.status === 404) {
-        console.warn(`[CLOUD_FS_SERVICE] File not found: ${path}`);
+        console.warn(`[CLOUD_FS] File not found: ${path}`);
         return null;
       }
-      throw new Error(`Failed to read cloud file: ${response.status}`);
+      throw new Error(`Failed to read: ${response.status}`);
     }
     return await response.text();
   } catch (error) {
-    console.error(`[CLOUD_FS_SERVICE] Error reading file ${path}:`, error);
+    console.error(`[CLOUD_FS] Read error (${path}):`, error);
     return null;
   }
 };
 
 export const writeCloudFile = async (path: string, content: string): Promise<{ success: boolean; message?: string }> => {
   try {
-    const response = await fetch(`${WORKER_URL}/api/cloud-fs${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
+    const workerUrl = getWorkerUrl();
+    const response = await fetch(`${workerUrl}/api/storage/${encodeURIComponent(path)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
       body: content,
     });
     if (!response.ok) {
-      throw new Error(`Failed to write cloud file: ${response.status}`);
+      throw new Error(`Failed to write: ${response.status}`);
     }
-    return await response.json();
+    return { success: true };
   } catch (error) {
-    console.error(`[CLOUD_FS_SERVICE] Error writing file ${path}:`, error);
+    console.error(`[CLOUD_FS] Write error (${path}):`, error);
     return { success: false, message: String(error) };
   }
 };
 
 export const deleteCloudFile = async (path: string): Promise<{ success: boolean; message?: string }> => {
   try {
-    const response = await fetch(`${WORKER_URL}/api/cloud-fs${path}`, {
+    const workerUrl = getWorkerUrl();
+    const response = await fetch(`${workerUrl}/api/storage/${encodeURIComponent(path)}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
-      throw new Error(`Failed to delete cloud file: ${response.status}`);
+      throw new Error(`Failed to delete: ${response.status}`);
     }
-    return await response.json();
+    return { success: true };
   } catch (error) {
-    console.error(`[CLOUD_FS_SERVICE] Error deleting file ${path}:`, error);
+    console.error(`[CLOUD_FS] Delete error (${path}):`, error);
     return { success: false, message: String(error) };
   }
 };
 
-export const listCloudFiles = async (): Promise<string[]> => {
+export const listCloudFiles = async (prefix?: string): Promise<string[]> => {
   try {
-    const response = await fetch(`${WORKER_URL}/api/cloud-fs`);
+    const workerUrl = getWorkerUrl();
+    const url = prefix
+      ? `${workerUrl}/api/storage?prefix=${encodeURIComponent(prefix)}`
+      : `${workerUrl}/api/storage`;
+    const response = await fetch(url);
     if (!response.ok) {
       return [];
     }
-    return await response.json() as string[];
+    const data = await response.json();
+    return Array.isArray(data) ? data : (data.files || []);
   } catch (error) {
-    console.error("[CLOUD_FS_SERVICE] Failed to list cloud files:", error);
+    console.error("[CLOUD_FS] List error:", error);
     return [];
   }
 };
