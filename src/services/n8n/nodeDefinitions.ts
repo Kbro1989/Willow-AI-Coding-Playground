@@ -6,7 +6,7 @@
 export type NodeType =
   | 'input' | 'prompt' | 'image_upload' | 'file_input' | 'variable'
   | 'ai_text' | 'ai_image' | 'ai_code' | 'ai_reasoning' | 'ai_video' | 'ai_audio' | 'ai_logic_refactor'
-  | 'transform' | 'filter' | 'loop' | 'merge'
+  | 'transform' | 'transform_upscale' | 'filter' | 'loop' | 'merge'
   | 'file_writer' | '3d_export' | 'git_commit' | 'deploy'
   | 'cloudflare' | 'github' | 'discord' | 'http';
 
@@ -272,6 +272,26 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
         name: 'code', type: 'code', label: 'Transform Code',
         default: 'return data;',
         required: true
+      }
+    ]
+  },
+
+  transform_upscale: {
+    type: 'transform_upscale',
+    category: 'processing',
+    label: 'Upscale Image',
+    icon: '🔍',
+    description: 'Enhance image resolution',
+    inputs: [{ name: 'image', type: 'object', required: true }],
+    outputs: [{ name: 'upscaledImage', type: 'object', required: true }],
+    parameters: [
+      {
+        name: 'factor', type: 'select', label: 'Scale Factor',
+        options: [
+          { label: '2x', value: 2 },
+          { label: '4x', value: 4 }
+        ],
+        default: 2
       }
     ]
   },

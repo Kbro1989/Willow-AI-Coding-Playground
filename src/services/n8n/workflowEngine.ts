@@ -284,6 +284,11 @@ export class WorkflowEngine {
           return { result: inputs.data };
         }
 
+      case 'transform_upscale':
+        // Placeholder for upscale service until we wire up Real-ESRGAN or similar
+        console.log(`[WORKFLOW] Upscaling image by ${node.parameters.factor}x...`);
+        return { upscaledImage: inputs.image }; // Passthrough for now
+
       case 'filter':
         try {
           const filterFn = new Function('data', node.parameters.condition || 'return true;');
