@@ -1,12 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { db, tx } from '../lib/db';
+import { useDebounce } from '../hooks/useDebounce';
 import { generateCopy, googleSearch } from '../services/googleService';
 
 const Copywriter: React.FC = () => {
+    const WORKSPACE_ID = 'default-nexus-workspace';
+
+    // 1. Ingest shared workspace state
+    const { data } = db.useQuery({ workspace_state: { $: { where: { workspaceId: WORKSPACE_ID } } } });
+    const sharedState = data?.workspace_state?.[0];
+
     const [topic, setTopic] = useState('');
     const [tone, setTone] = useState<'professional' | 'creative' | 'marketing'>('creative');
     const [output, setOutput] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [searchResults, setSearchResults] = useState<any[]>([]);
+
+    // 2. Sync from shared state when it changes (but not while we are typing)
+    useEffect(() => {
+        if (sharedState?.narrativeContext && !isGenerating) {
+            try {
+                const parsed = JSON.parse(sharedState.narrativeContext);
+                setTopic(parsed.topic || '');
+                setTone(parsed.tone || 'creative');
+                setOutput(parsed.output || '');
+            } catch (e) {
+                console.error('Failed to parse shared narrative context');
+            }
+        }
+    }, [sharedState?.narrativeContext, isGenerating]);
+
+    // 3. Sync to shared state (Debounced)
+    const syncToCloud = useCallback(async (currentTopic: string, currentTone: string, currentOutput: string) => {
+        const payload = JSON.stringify({ topic: currentTopic, tone: currentTone, output: currentOutput });
+
+        await db.transact([
+            tx.workspace_state[sharedState?.id || WORKSPACE_ID].update({
+                workspaceId: WORKSPACE_ID,
+                narrativeContext: payload,
+                updatedAt: Date.now()
+            })
+        ]);
+    }, [sharedState?.id]);
+
+    const debouncedTopic = useDebounce(topic, 1000);
+    const debouncedTone = useDebounce(tone, 1000);
+    const debouncedOutput = useDebounce(output, 2000);
+
+    // 4. Trigger cloud sync on debounced changes
+    useEffect(() => {
+        if (!isGenerating && (debouncedTopic || debouncedOutput)) {
+            syncToCloud(debouncedTopic, debouncedTone, debouncedOutput);
+        }
+    }, [debouncedTopic, debouncedTone, debouncedOutput, syncToCloud, isGenerating]);
 
     const handleGenerate = async () => {
         setIsGenerating(true);

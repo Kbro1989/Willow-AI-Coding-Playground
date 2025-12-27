@@ -150,6 +150,7 @@ const _schema = i.schema({
             activeUsers: i.string(), // JSON array of user IDs
             lockedEntities: i.string(), // JSON array of entity IDs
             globalDirectives: i.string(), // Current AI goal/state
+            narrativeContext: i.string().optional(), // Shared drafting context
             updatedAt: i.number(),
         }),
     },

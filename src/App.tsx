@@ -47,6 +47,7 @@ import Persistence from './components/nexus/Persistence';
 import Link from './components/nexus/Link';
 import Config from './components/nexus/Config';
 import Narrative from './components/nexus/Narrative';
+import CursorTracker from './components/nexus/CursorTracker';
 
 // Services
 import { initialFiles } from './constants';
@@ -55,6 +56,7 @@ import { db } from './lib/db';
 import { initializeAgentAPI } from './services/agentAPI';
 import { nexusBus } from './services/nexusCommandBus';
 import { localBridgeClient } from './services/localBridgeService';
+import { collaborativeSync } from './services/gameData/collaborativeSyncService';
 
 // Media components (Forge migration targets)
 import AudioWorkshop from './components/media/AudioWorkshop';
@@ -98,6 +100,27 @@ const App: React.FC = () => {
   const [assets, setAssets] = useState<GameAsset[]>([]);
   const [nodes, setNodes] = useState<NeuralNode[]>([]);
   const [edges, setEdges] = useState<NeuralEdge[]>([]);
+
+  // --- Real-time Presence Tracking ---
+  useEffect(() => {
+    if (!user) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Throttle presence updates to avoid flooding InstantDB
+      if (Math.random() > 0.1) return;
+
+      collaborativeSync.updatePresence(user.id, {
+        userId: user.id,
+        userName: user.email?.split('@')[0] || 'Unknown User',
+        cursorX: e.clientX,
+        cursorY: e.clientY,
+        activeTab: activeView
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [user, activeView]);
   const [tasks, setTasks] = useState<TodoTask[]>([]);
   const [syncMode, setSyncMode] = useState<SyncMode>(SyncMode.LOCAL);
   const [stagedFiles, setStagedFiles] = useState<string[]>([]);
@@ -403,7 +426,8 @@ const App: React.FC = () => {
               {activeView === 'settings' && <Config />}
             </div>
 
-            {/* Modals & Overlays */}
+            {/* Overlays */}
+            <CursorTracker currentUserId={user?.id || null} />
             {showApiKeyManager && <ApiKeyManager onClose={() => setShowApiKeyManager(false)} />}
             {isPanic && (
               <div className="absolute inset-0 z-[100] bg-red-950/90 backdrop-blur-3xl flex items-center justify-center flex-col p-20 shadow-[inset_0_0_100px_rgba(255,0,0,0.5)] animate-in fade-in zoom-in duration-500">

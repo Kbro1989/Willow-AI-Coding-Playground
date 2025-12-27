@@ -8,7 +8,8 @@ import { db, id, tx } from '../../lib/db';
 export interface Presence {
     userId: string;
     userName: string;
-    cursor: { x: number, y: number };
+    cursorX: number;
+    cursorY: number;
     activeFile?: string;
     activeTab?: string;
     lastActive: number;
