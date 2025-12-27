@@ -12,6 +12,7 @@ export interface Presence {
     cursorY: number;
     activeFile?: string;
     activeTab?: string;
+    activeView?: string;
     lastActive: number;
 }
 
@@ -31,6 +32,8 @@ class CollaborativeSyncService {
             await db.transact([
                 tx.presence[userId].update({
                     ...data,
+                    // Map activeTab to activeView if needed, or just include both
+                    activeView: data.activeView || data.activeTab,
                     lastActive: Date.now()
                 })
             ]);

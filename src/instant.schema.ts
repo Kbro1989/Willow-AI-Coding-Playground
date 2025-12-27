@@ -136,11 +136,12 @@ const _schema = i.schema({
         // Real-time Presence (Cursors and Focus)
         presence: i.entity({
             userId: i.string().indexed(),
-            userName: i.string(),
-            cursorX: i.number(),
-            cursorY: i.number(),
+            userName: i.string().optional(),
+            cursorX: i.number().optional(),
+            cursorY: i.number().optional(),
             activeFile: i.string().optional(),
             activeTab: i.string().optional(),
+            activeView: i.string().optional(),
             lastActive: i.number().indexed(),
         }),
 
