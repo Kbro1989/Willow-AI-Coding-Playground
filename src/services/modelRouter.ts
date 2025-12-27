@@ -98,7 +98,10 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
 
   if (tier === 'premium' && geminiProvider.isAvailable()) {
     pipeline.push({ provider: 'gemini', executor: routeToGemini });
+    // Fallback to Cloudflare Standard if Premium fails (e.g. Rate Limit)
+    pipeline.push({ provider: 'cloudflare', executor: routeToCloudflare });
   } else {
+    // Standard Tier: Cloudflare First (Cost Saving), then Gemini
     pipeline.push({ provider: 'cloudflare', executor: routeToCloudflare });
     if (geminiProvider.isAvailable()) {
       pipeline.push({ provider: 'gemini', executor: routeToGemini });
