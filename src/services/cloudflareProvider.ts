@@ -4,7 +4,7 @@
  * Supports all free-tier Workers AI models from developers.cloudflare.com/workers-ai/models
  */
 
-const WORKER_URL = 'https://ai-game-studio.kristain33rs.workers.dev';
+const WORKER_URL = '';
 
 export interface CloudflareTextRequest {
   prompt: string;

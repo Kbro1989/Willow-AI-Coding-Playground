@@ -12,34 +12,34 @@ const __dirname = path.dirname(__filename);
  */
 
 const BUILD_DIR = 'dist';
-const WORKER_OUTPUT = 'dist/worker.js';
+const WORKER_OUTPUT = 'dist/_worker.js';
 
 async function buildWorker() {
-    console.log('🔨 Building Cloudflare Worker for Antigravity Engine...');
+  console.log('🔨 Building Cloudflare Worker for Antigravity Engine...');
 
-    try {
-        // Ensure dist directory exists
-        if (!fs.existsSync(BUILD_DIR)) {
-            fs.mkdirSync(BUILD_DIR, { recursive: true });
-        }
-
-        // Create worker entry point
-        console.log('📝 Generating worker file...');
-        const workerContent = generateWorkerContent();
-        fs.writeFileSync(WORKER_OUTPUT, workerContent);
-
-        console.log('✅ Worker built successfully');
-        console.log(`📁 Output: ${WORKER_OUTPUT}`);
-        console.log('💡 Note: Run "npm run build" first to compile TypeScript');
-
-    } catch (error) {
-        console.error('❌ Worker build failed:', error);
-        process.exit(1);
+  try {
+    // Ensure dist directory exists
+    if (!fs.existsSync(BUILD_DIR)) {
+      fs.mkdirSync(BUILD_DIR, { recursive: true });
     }
+
+    // Create worker entry point
+    console.log('📝 Generating worker file...');
+    const workerContent = generateWorkerContent();
+    fs.writeFileSync(WORKER_OUTPUT, workerContent);
+
+    console.log('✅ Worker built successfully');
+    console.log(`📁 Output: ${WORKER_OUTPUT}`);
+    console.log('💡 Note: Run "npm run build" first to compile TypeScript');
+
+  } catch (error) {
+    console.error('❌ Worker build failed:', error);
+    process.exit(1);
+  }
 }
 
 function generateWorkerContent() {
-    return `// Antigravity Engine Cloudflare Worker
+  return `// Antigravity Engine Cloudflare Worker
 // Auto-generated build file with Integrated AI Orchestration
 
 export default {
@@ -271,6 +271,37 @@ export default {
          });
       }
 
+      // --- Registry / Logs ---
+      if (url.pathname === '/api/logs') {
+        if (request.method === 'POST') {
+          const log = await request.json();
+          const logId = 'log:' + Date.now() + ':' + Math.random().toString(36).slice(2, 8);
+          
+          if (env.SESSION_KV) {
+            await env.SESSION_KV.put(logId, JSON.stringify(log), { expirationTtl: 86400 }); // 24h retention
+          }
+          
+          return new Response(JSON.stringify({ success: true, id: logId }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        // GET: Fetch recent logs from KV
+        if (env.SESSION_KV) {
+          const list = await env.SESSION_KV.list({ prefix: 'log:', limit: 100 });
+          const logs = await Promise.all(
+            list.keys.map(k => env.SESSION_KV.get(k.name, 'json'))
+          );
+          return new Response(JSON.stringify(logs.filter(Boolean)), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        return new Response(JSON.stringify([]), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
       // Default
       return new Response(JSON.stringify({ error: 'Endpoint not found', endpoint: url.pathname }), {
         status: 404,
@@ -294,6 +325,6 @@ export default {
 
 // Run the build process
 buildWorker().catch(error => {
-    console.error('Build failed:', error);
-    process.exit(1);
+  console.error('Build failed:', error);
+  process.exit(1);
 });
