@@ -1,3 +1,69 @@
+import { LucideIcon } from 'lucide-react';
+import {
+  EnvironmentType,
+  RuntimeTarget,
+  DeploymentStrategy,
+  ResourceBindingType,
+  ServiceHealthState,
+  FailureMode,
+  AIInvocationType,
+  ModelSource,
+  MediaType,
+  MediaEncoding,
+  InferenceMode,
+  ModelFallbackPolicy,
+  EditorSurface,
+  EditorMode,
+  EditorialActionType,
+  CodeScope,
+  EditTrustLevel,
+  ChangeImpactLevel,
+  GameRuntimeState,
+  PersistenceLayer,
+  TelemetryEventType,
+  ObserverAgentType,
+  UIStateAuthority,
+  RenderTrigger,
+  SchemaStrictness,
+  FallbackUIBehavior,
+  UIFailureScope
+} from './lib/taxonomy';
+
+// --- Constitutional Constants & Branded Types ---
+export type FileId = string & { __brand: 'FileId' };
+export type TaskId = string & { __brand: 'TaskId' };
+
+export type ActiveView =
+  | 'editor'
+  | 'scene'
+  | 'assets'
+  | 'settings'
+  | 'console'
+  | 'forge'
+  | 'pipelines'
+  | 'behavior'
+  | 'narrative'
+  | 'world'
+  | 'persistence'
+  | 'collab'
+  | 'deploy'
+  | 'rsmv'
+  | 'shader'
+  | 'matrix';
+export type AIModelMode = 'assist' | 'refactor' | 'explain' | 'generate' | 'lockdown';
+export type ProjectEnv = 'local' | 'cloud' | 'hybrid';
+
+/**
+ * SyncMode defines the persistence strategy for the engine's file system and state.
+ */
+export enum SyncMode {
+  LOCAL = 'local',
+  CLOUD = 'cloud',
+  DUAL = 'dual',
+  OFFLINE = 'offline'
+}
+
+// --- Core Data Structures ---
 
 export interface FileNode {
   name: string;
@@ -138,6 +204,9 @@ export interface Message {
   isError?: boolean;
   retryAction?: 'retry_last' | 'switch_to_fast' | 'none';
   plan?: SprintPlan;
+  invocationType?: AIInvocationType;
+  inferenceMode?: InferenceMode;
+  modelSource?: ModelSource;
 }
 
 export interface TerminalLine {
@@ -150,11 +219,11 @@ export interface ProjectState {
   id: string;
   name: string;
   files: FileNode[];
-  activeFile: string | null;
+  activeFile: FileId | null;
 }
 
 export interface TodoTask {
-  id: string;
+  id: TaskId;
   text: string;
   completed: boolean;
   category: 'code' | 'asset' | 'gameplay' | 'optimization' | 'vfx';
@@ -170,11 +239,11 @@ export interface TokenMetrics {
 export interface SceneObject {
   id: string;
   name: string;
-  type: 'mesh' | 'light' | 'camera' | 'trigger';
+  type: 'npc' | 'prop' | 'light' | 'trigger';
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
-  visible: boolean;
+  visible: true; // required
   modelUrl?: string;
   material?: {
     baseColor: string;
@@ -183,6 +252,25 @@ export interface SceneObject {
     emissive: number;
   };
   behaviors?: string[];
+}
+
+export interface NavItem {
+  id: ActiveView;
+  label: string;
+  icon: LucideIcon;
+}
+
+export interface ToolButton {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  intent: any; // Will match UIAction in consumers
+}
+
+export interface AIMediaRequest {
+  mode: AIModelMode;
+  input: string;
+  context: readonly any[];
 }
 
 export interface PhysicsConfig {
@@ -307,19 +395,6 @@ export enum ModelKey {
 
 export type AgentTask = 'reasoning' | 'coding' | 'asset_gen' | 'cinematic' | 'optimization' | 'sprint_planning' | 'world_grounding' | 'ide_test_runtime';
 
-declare global {
-  interface Window {
-    antigravity: {
-      setTab: (tab: 'terminal' | 'chat' | 'dashboard' | 'diagnostics' | 'forge' | 'pipeline' | 'behavior' | 'rsmv' | 'shader') => void;
-      importAsset: (asset: GameAsset) => void;
-      runAction: (action: EngineAction) => void;
-      toggleSidebar: () => void;
-      build: (reason: string) => void;
-      getState: () => any;
-    }
-  }
-}
-
 // Game Database Types (from InstantDB schema)
 export interface Character {
   id: string;
@@ -400,7 +475,6 @@ export interface Item {
   aiGenerated: boolean;
 }
 
-
 export interface GameSession {
   id: string;
   userId: string;
@@ -409,43 +483,4 @@ export interface GameSession {
   endTime?: number;
   duration?: number;
   isActive: boolean;
-}
-
-export type ActiveView =
-  | 'dashboard' | 'director' | 'editor' | 'matrix' | 'forge'
-  | 'pipelines' | 'behavior' | 'assets' | 'world' | 'data'
-  | 'collab' | 'diagnostics' | 'deploy' | 'settings' | 'narrative' | 'rsmv' | 'shader';
-
-export type AIModelMode = 'assist' | 'co-pilot' | 'autonomous' | 'read-only';
-
-export type ProjectEnv = 'dev' | 'staging' | 'prod' | 'local';
-
-/**
- * SyncMode defines the persistence strategy for the engine's file system and state.
- * It determines where AI-generated files and workspace mutations are directed.
- */
-export enum SyncMode {
-  /** 
-   * Data is persisted exclusively to the local file system via the local bridge.
-   * Required for local-only development and high-bandwidth file operations.
-   */
-  LOCAL = 'local',
-
-  /** 
-   * Data is persisted exclusively to the Cloudflare R2/Worker cloud volume.
-   * Ideal for remote collaboration and thin-client environments.
-   */
-  CLOUD = 'cloud',
-
-  /** 
-   * Concurrent broadcast to BOTH local and cloud volumes.
-   * Ensures the local development environment remains in perfect lockstep with the remote deployment.
-   */
-  DUAL = 'dual',
-
-  /** 
-   * Disables all persistent writes. Operations remain transient in memory.
-   * Best for sandboxed experimentation or read-only auditing.
-   */
-  OFFLINE = 'offline'
 }

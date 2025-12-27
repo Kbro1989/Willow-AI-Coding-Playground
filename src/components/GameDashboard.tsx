@@ -211,7 +211,7 @@ const LiveObject: React.FC<{ obj: SceneObject, isSelected: boolean, onSelect: ()
     }
 
     switch (obj.type) {
-      case 'mesh': return <mesh><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial
+      case 'prop': return <mesh><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial
         color={obj.material?.baseColor || '#ffffff'}
         metalness={obj.material?.metallic || 0}
         roughness={obj.material?.roughness || 1}
@@ -219,7 +219,6 @@ const LiveObject: React.FC<{ obj: SceneObject, isSelected: boolean, onSelect: ()
         emissiveIntensity={obj.material?.emissive || 0}
       /></mesh>;
       case 'light': return <mesh><sphereGeometry args={[0.2, 16, 16]} /><meshStandardMaterial emissive="#ffff00" emissiveIntensity={2} /></mesh>;
-      case 'camera': return <mesh><coneGeometry args={[0.5, 0.5, 4]} /><meshStandardMaterial color="#333" /></mesh>;
       default: return <mesh><boxGeometry args={[1, 1, 1]} /></mesh>;
     }
   };
@@ -302,7 +301,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
     if (asset.type === 'mesh') {
       onAddSceneObject({
         name: asset.name,
-        type: 'mesh',
+        type: 'prop',
         position: [0, 5, 0],
         rotation: [0, 0, 0],
         scale: [2, 2, 2],
@@ -735,7 +734,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
               if (data.type === 'rsmv-model') {
                 onAddSceneObject({
                   name: data.name,
-                  type: 'mesh',
+                  type: 'prop',
                   position: [0, 0, 0], // Place at origin for now
                   rotation: [0, 0, 0],
                   scale: [1, 1, 1],

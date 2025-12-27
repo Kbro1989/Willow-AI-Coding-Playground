@@ -6,21 +6,18 @@ import {
 import { ProjectEnv, AIModelMode } from '../../types';
 import { localBridgeClient } from '../../services/localBridgeService';
 import { Network, Link2, Link2Off } from 'lucide-react';
+import { UIActionDispatcher } from '../../ui/ui-actions';
 
 interface CommandSpineProps {
     projectEnv: ProjectEnv;
-    setProjectEnv: (env: ProjectEnv) => void;
     aiMode: AIModelMode;
-    setAiMode: (mode: AIModelMode) => void;
     showPerformanceHUD: boolean;
-    setShowPerformanceHUD: (show: boolean) => void;
     isPanic: boolean;
-    onPanic: () => void;
+    dispatch: UIActionDispatcher;
 }
 
 export const CommandSpine: React.FC<CommandSpineProps> = ({
-    projectEnv, setProjectEnv, aiMode, setAiMode,
-    showPerformanceHUD, setShowPerformanceHUD, isPanic, onPanic
+    projectEnv, aiMode, showPerformanceHUD, isPanic, dispatch
 }) => {
     const [bridgeStatus, setBridgeStatus] = React.useState(localBridgeClient.getStatus());
 
@@ -28,15 +25,9 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
         return localBridgeClient.onStatusChange(s => setBridgeStatus({ ...s, syncMode: localBridgeClient.getStatus().syncMode }));
     }, []);
 
-    const toggleRelay = () => {
-        const isCurrentlyRelay = localStorage.getItem('antigravity_bridge_url')?.includes('workers.dev');
-        if (isCurrentlyRelay) {
-            localBridgeClient.setBridgeUrl("ws://localhost:3040");
-        } else {
-            const appId = prompt("Enter Cloud App ID for Local Bridge (App ID 1):", "1");
-            if (appId) localBridgeClient.setRelayMode(appId);
-        }
-    };
+    const projectEnvs: ProjectEnv[] = ['local', 'cloud', 'hybrid'];
+    const aiModes: AIModelMode[] = ['assist', 'refactor', 'explain', 'generate', 'lockdown'];
+
     return (
         <div className="h-14 bg-[#0a1222] border-b border-cyan-500/20 flex items-center justify-between px-4 shrink-0 z-50 shadow-2xl">
             <div className="flex items-center gap-6">
@@ -50,25 +41,25 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                 </div>
                 <div className="h-8 w-px bg-white/5" />
                 <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
-                    {(['dev', 'prod'] as ProjectEnv[]).map(env => (
-                        <button key={env} onClick={() => setProjectEnv(env)} className={`px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${projectEnv === env ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(0,242,255,0.4)]' : 'text-slate-500 hover:text-white'}`}>
+                    {projectEnvs.map(env => (
+                        <button key={env} onClick={() => dispatch({ type: 'ENV_SET_PROJECT_ENV', env })} className={`px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${projectEnv === env ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(0,242,255,0.4)]' : 'text-slate-500 hover:text-white'}`}>
                             {env}
                         </button>
                     ))}
                 </div>
                 <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
-                    {(['assist', 'co-pilot', 'autonomous'] as AIModelMode[]).map(mode => (
-                        <button key={mode} onClick={() => setAiMode(mode)} className={`px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${aiMode === mode ? 'bg-purple-500 text-white' : 'text-slate-500 hover:text-white'}`}>
+                    {aiModes.map(mode => (
+                        <button key={mode} onClick={() => dispatch({ type: 'AI_SET_MODE', mode })} className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${aiMode === mode ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'text-slate-600 hover:text-white'}`}>
                             {mode}
                         </button>
                     ))}
                 </div>
                 <div className="h-8 w-px bg-white/5" />
                 <button
-                    onClick={toggleRelay}
+                    onClick={() => dispatch({ type: 'BRIDGE_TOGGLE_RELAY' })}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${bridgeStatus.isConnected
-                            ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-                            : 'bg-red-500/10 border-red-500/50 text-red-500'
+                        ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                        : 'bg-red-500/10 border-red-500/50 text-red-500'
                         }`}
                 >
                     {bridgeStatus.isConnected ? <Link2 className="w-3.5 h-3.5" /> : <Link2Off className="w-3.5 h-3.5" />}
@@ -88,11 +79,11 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                 </div>
                 <div className="h-8 w-px bg-white/5" />
                 <div className="flex items-center gap-3">
-                    <button onClick={() => setShowPerformanceHUD(!showPerformanceHUD)} className={`p-2 rounded-xl transition-all ${showPerformanceHUD ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-500 hover:bg-white/5'}`}>
+                    <button onClick={() => dispatch({ type: 'SYSTEM_TOGGLE_PERFORMANCE_HUD' })} className={`p-2 rounded-xl transition-all ${showPerformanceHUD ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-500 hover:bg-white/5'}`}>
                         <Cpu className="w-4 h-4" />
                     </button>
                     <Bell className="w-4 h-4 text-slate-500 hover:text-white" />
-                    <button onClick={onPanic} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isPanic ? 'bg-red-500 text-white animate-bounce' : 'bg-red-900/20 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white'}`}>
+                    <button onClick={() => dispatch({ type: 'SYSTEM_PANIC' })} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isPanic ? 'bg-red-500 text-white animate-bounce' : 'bg-red-900/20 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white'}`}>
                         PANIC (KILL)
                     </button>
                 </div>

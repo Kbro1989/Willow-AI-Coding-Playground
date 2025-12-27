@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bot, Sparkles, X, ChevronRight, Brain, Play } from 'lucide-react';
+import { Bot, Sparkles, X, ChevronRight, Brain, Play, Sparkles as SparkleIcon } from 'lucide-react';
 import { contextService, UnifiedContext } from '../../services/ai/contextService';
 import { pipelineService } from '../../services/ai/pipelineService';
 import { universalOrchestrator } from '../../services/ai/universalOrchestrator';
@@ -20,17 +20,26 @@ const AssistantOverlay: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        // Poll for context updates (in real app, use subscription)
-        const interval = setInterval(async () => {
+        const fetchAndSuggest = async () => {
             if (isOpen) {
                 const ctx = await contextService.getUnifiedContext();
                 setContext(ctx);
                 generateSuggestions(ctx);
             }
-        }, 5000); // Slower polling
+        };
+
+        const interval = setInterval(fetchAndSuggest, 5000);
+        fetchAndSuggest();
 
         return () => clearInterval(interval);
     }, [isOpen]);
+
+    const generateSuggestions = (ctx: UnifiedContext) => {
+        const base = ['Synthesize optimized asset', 'Analyze project performance', 'Generate code tests'];
+        if (ctx.activeFile) base.push(`Refactor ${ctx.activeFile.split('/').pop()}`);
+        if (ctx.activeGraphName) base.push(`Optimize ${ctx.activeGraphName} pipeline`);
+        setSuggestions(base);
+    };
 
     const handleCommand = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -66,7 +75,7 @@ const AssistantOverlay: React.FC = () => {
             {/* Header */}
             <div className="p-4 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-cyan-900/20 to-transparent">
                 <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-cyan-400" />
+                    <SparkleIcon className="w-4 h-4 text-cyan-400" />
                     <span className="text-xs font-black uppercase tracking-widest text-white">Nexus Assistant</span>
                 </div>
                 <button
@@ -111,8 +120,8 @@ const AssistantOverlay: React.FC = () => {
                                 <div key={step.id} className="flex gap-3">
                                     <div className="flex flex-col items-center">
                                         <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-[8px] font-black ${step.status === 'completed' ? 'bg-emerald-500 border-emerald-500 text-black' :
-                                                step.status === 'running' ? 'border-amber-500 text-amber-500 animate-pulse' :
-                                                    'border-slate-700 text-slate-700'
+                                            step.status === 'running' ? 'border-amber-500 text-amber-500 animate-pulse' :
+                                                'border-slate-700 text-slate-700'
                                             }`}>
                                             {step.status === 'completed' ? '✓' : i + 1}
                                         </div>

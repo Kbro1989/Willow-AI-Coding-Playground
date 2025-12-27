@@ -19,7 +19,7 @@ export interface UnifiedContext {
 class ContextService {
     private localState: { activeFile: string; projectEnv: ProjectEnv } = {
         activeFile: '',
-        projectEnv: 'dev'
+        projectEnv: 'local'
     };
 
     /**
@@ -39,21 +39,13 @@ class ContextService {
             .map(m => `[${m.scope.toUpperCase()}] ${m.content}`);
 
         // 2. Get Narrative Context (from DB)
-        // We'll trust the caller/UI to have synced the latest narrative state, 
-        // or we could fetch it here if we had the workspace ID. 
-        // For now, we'll try to peek at the latest workspace state if available in cache.
-        // *Optimistic approach*: In a real app, we'd query DB directly.
-        // Since we can't easily hook into "db.useQuery" here (not a component),
-        // we might rely on what's passed or cached.
-
-        // FUTURE: In a real implementation, this would fetch from InstantDB directly 
+        // In a real implementation, this would fetch from InstantDB directly 
         // using a non-hook client or by caching the last seen state.
 
         return {
             recentMemories: memories,
             activeFile: this.localState.activeFile,
             projectEnv: this.localState.projectEnv,
-            // placeholders for now until we connect the live DB fetcher
             activeGraphName: 'Main Neural Net',
             narrativeSummary: 'Interactive storytelling session active.'
         };

@@ -35,7 +35,15 @@ const Registry: React.FC<RegistryProps> = ({ onImport }) => {
                             id: `rsmv-${Date.now()}`,
                             name: (m as any).name || 'RSMV Model',
                             type: 'mesh',
+                            format: 'glb',
                             url: (m as any).url || '',
+                            size: 0,
+                            ownerId: 'nexus-system',
+                            isPublic: true,
+                            downloads: 0,
+                            likes: 0,
+                            createdAt: Date.now(),
+                            aiGenerated: false,
                             tags: ['rsmv', 'registry-import'],
                             status: 'optimized'
                         };

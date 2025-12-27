@@ -25,7 +25,7 @@ class ShaderStorageService {
 
         // 1. Fast Local Cache
         const cache = this.getLocalCache();
-        cache[name] = { code, type, updatedAt: now };
+        cache[name] = { id: shaderId, name, code, type, updatedAt: now };
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cache));
 
         // 2. Cloud Persistence

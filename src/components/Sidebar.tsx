@@ -1,36 +1,30 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { FileNode, GitCommit, TodoTask, TokenMetrics, UserPreferences, Extension } from '../types';
+import { FileNode, GitCommit, TodoTask, TokenMetrics, UserPreferences, Extension, FileId, TaskId } from '../types';
 import { runProjectManagerReview } from '../services/cloudflareService';
 import { modelRouter } from '../services/modelRouter';
 import ExtensionRegistry from './ExtensionRegistry';
+import { UIActionDispatcher } from '../ui/ui-actions';
 
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   files: FileNode[];
-  activeFile: string | null;
-  onSelectFile: (path: string) => void;
-  onCreateNode?: (parentPath: string | null, name: string, type: 'file' | 'dir') => void;
+  activeFile: FileId | null;
   stagedFiles: string[];
-  onStage: (path: string) => void;
-  onUnstage: (path: string) => void;
-  onCommit: (message: string) => void;
   commitHistory: GitCommit[];
   tasks: TodoTask[];
-  onToggleTask: (id: string) => void;
-  onAddTasks: (tasks: Omit<TodoTask, 'id' | 'completed'>[]) => void;
   tokenMetrics: TokenMetrics;
   sceneObjects?: any[];
   userPrefs: UserPreferences;
   extensions: Extension[];
-  onUninstallExtension: (id: string) => void;
+  dispatch: UIActionDispatcher;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  isOpen, files, activeFile, onSelectFile, onCreateNode,
-  tasks, onToggleTask, onAddTasks, tokenMetrics, sceneObjects = [],
-  userPrefs, extensions, onUninstallExtension
+  isOpen, files, activeFile, stagedFiles,
+  tasks, tokenMetrics, sceneObjects = [],
+  userPrefs, extensions, dispatch
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'files' | 'tasks' | 'memory' | 'extensions'>('files');
@@ -61,106 +55,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     const userMsg = chatInput.trim();
     setChatInput('');
     setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-    setIsChatLoading(true);
 
-    try {
-      // Rule #2: No direct AI calls. Routing through Nexus backend.
-      const { routeNexus } = await import('../backend/routeToModel');
-      const response = await routeNexus({
-        type: 'text',
-        prompt: userMsg,
-        history: chatMessages.map(m => ({ role: m.role as any, content: m.content })),
-        options: { stream: true }
-      });
-
-      if (response instanceof ReadableStream) {
-        const reader = response.getReader();
-        const decoder = new TextDecoder();
-        let assistantMsg = '';
-
-        setChatMessages(prev => [...prev, { role: 'model', content: '' }]);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.response) {
-                  assistantMsg += data.response;
-                  setChatMessages(prev => {
-                    const newMsgs = [...prev];
-                    newMsgs[newMsgs.length - 1].content = assistantMsg;
-                    return newMsgs;
-                  });
-                }
-              } catch (e) { }
-            }
-          }
-        }
-      } else {
-        setChatMessages(prev => [...prev, { role: 'model', content: response.content || 'No response.' }]);
-      }
-    } catch (error) {
-      console.error('Chat error:', error);
-      setChatMessages(prev => [...prev, { role: 'model', content: 'Sorry, I encountered an error. Please try again.' }]);
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
-
-  // Run AI project manager review
-  const runSymphonyReview = async () => {
-    setIsChatLoading(true);
-    try {
-      const response = await modelRouter.chat(
-        "Based on our current project state, what are the next 3 high-priority tasks we should focus on? Provide them as clear, actionable items.",
-        [],
-        "You are an expert AI Project Manager for the Antigravity Engine.",
-        true // STREAMING
-      );
-
-      if (response instanceof ReadableStream) {
-        const reader = response.getReader();
-        const decoder = new TextDecoder();
-        let assistantMsg = '';
-
-        setChatMessages(prev => [...prev, { role: 'model', content: '' }]);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.response) {
-                  assistantMsg += data.response;
-                  setChatMessages(prev => {
-                    const newMsgs = [...prev];
-                    newMsgs[newMsgs.length - 1].content = assistantMsg;
-                    return newMsgs;
-                  });
-                }
-              } catch (e) { }
-            }
-          }
-        }
-      } else {
-        setChatMessages(prev => [...prev, { role: 'model', content: response.content || 'Review complete.' }]);
-      }
-    } catch (error) {
-      console.error('Project review error:', error);
-    } finally {
-      setIsChatLoading(false);
-    }
+    // Use centralized dispatcher
+    dispatch({ type: 'AI_CHAT_SUBMIT', prompt: userMsg });
   };
 
   const filteredFiles = useMemo(() => {
@@ -194,14 +91,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const acceptProposedTasks = () => {
-    onAddTasks(proposedTasks);
+    dispatch({ type: 'TASK_ADD', tasks: proposedTasks });
     setProposedTasks([]);
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newNodeName.trim() && creatingNode && onCreateNode) {
-      onCreateNode(creatingNode.parentPath, newNodeName.trim(), creatingNode.type);
+    if (newNodeName.trim() && creatingNode) {
+      dispatch({
+        type: 'FILE_CREATE',
+        parentPath: creatingNode.parentPath,
+        name: newNodeName.trim(),
+        nodeType: creatingNode.type
+      });
     }
     setCreatingNode(null);
     setNewNodeName('');
@@ -215,8 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           style={{ paddingLeft: `${(depth + 1) * 12}px` }}
         >
           <button
-            onClick={() => node.type === 'file' && onSelectFile(node.path)}
-            title={node.type === 'file' ? `Access binary stream for ${node.name}. Path: ${node.path}` : `Expand directory node: ${node.name}`}
+            onClick={() => node.type === 'file' && dispatch({ type: 'EDITOR_OPEN_FILE', fileId: node.path as FileId })}
             className="flex flex-1 items-center truncate"
           >
             {node.type === 'dir' ? (
@@ -231,14 +132,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
               <button
                 onClick={(e) => { e.stopPropagation(); setCreatingNode({ parentPath: node.path, type: 'file' }); }}
-                title="Synthesize new file in this directory node."
                 className="p-1 text-cyan-500 hover:text-cyan-300 hover:bg-cyan-500/10 rounded transition-all"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setCreatingNode({ parentPath: node.path, type: 'dir' }); }}
-                title="Generate new subdirectory node."
                 className="p-1 text-cyan-500 hover:text-cyan-300 hover:bg-cyan-500/10 rounded transition-all"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
@@ -280,16 +179,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const tokenPercent = Math.min(100, (tokenMetrics.used / tokenMetrics.limit) * 100);
 
-  const getTabTitle = (tab: string) => {
-    switch (tab) {
-      case 'files': return "Binary Explorer: Navigate and manage the project's neural file architecture.";
-      case 'tasks': return "Backlog Intelligence: Synchronize with the Director Core to manage roadmap milestones.";
-      case 'memory': return "Cognitive Buffer: View learned developer patterns and architectural constraints.";
-      case 'extensions': return "Registry Hub: Manage neural plugins and IDE extensions.";
-      default: return "";
-    }
-  };
-
   return (
     <div className="flex flex-col h-full bg-[#0a1222] border-r border-cyan-900/30 shadow-2xl overflow-hidden">
       <div className="flex bg-[#050a15]/80 border-b border-cyan-900/20">
@@ -297,7 +186,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           <button
             key={tab}
             onClick={() => setActiveTab(tab as any)}
-            title={getTabTitle(tab)}
             className={`flex-1 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all relative nexus-btn ${activeTab === tab ? 'text-cyan-400 bg-cyan-500/5 nexus-nav-active' : 'text-slate-600 hover:text-cyan-300'}`}
           >
             {tab}
@@ -324,7 +212,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 placeholder="Neural Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                title="Execute high-speed fuzzy search across all active project nodes."
                 className="w-full bg-[#050a15] border border-cyan-900/30 rounded-2xl px-4 py-3 text-[11px] text-cyan-100 outline-none focus:border-cyan-500/50 transition-all shadow-inner placeholder:text-slate-700"
               />
             </div>
@@ -347,7 +234,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={handlePMReview}
                 disabled={isPMAnalyzing}
-                title="Synthesize project state and backlog to generate optimized architectural tasks."
                 className={`w-full py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${isPMAnalyzing ? 'bg-cyan-600/10 text-cyan-400 animate-pulse' : 'bg-cyan-600 text-white hover:bg-cyan-500 shadow-[0_0_15px_rgba(0,242,255,0.4)]'}`}
               >
                 {isPMAnalyzing ? 'Synthesizing...' : 'Binary Review'}
@@ -360,7 +246,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <span className="text-[9px] font-black uppercase text-cyan-400 tracking-widest">Flux Diffs</span>
                   <button
                     onClick={acceptProposedTasks}
-                    title="Bulk inject all suggested milestones into the active project backlog."
                     className="text-[8px] font-black uppercase text-white bg-cyan-600 px-3 py-1.5 rounded-xl shadow-lg"
                   >
                     Inject All
@@ -382,8 +267,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <input
                       type="checkbox"
                       checked={task.completed}
-                      onChange={() => onToggleTask(task.id)}
-                      title={task.completed ? "Re-open milestone logic." : "Finalize and commit this milestone completion."}
+                      onChange={() => dispatch({ type: 'TASK_TOGGLE', id: task.id })}
                       className="mt-1 w-5 h-5 rounded-[0.5rem] border-cyan-500/20 bg-black text-cyan-600 focus:ring-cyan-500/40"
                     />
                     <div className="flex-1">
@@ -435,7 +319,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex-1 overflow-hidden flex flex-col">
             <ExtensionRegistry
               extensions={extensions}
-              onUninstall={onUninstallExtension}
+              onUninstall={(id) => dispatch({ type: 'EXTENSION_UNINSTALL', id })}
             />
           </div>
         )}

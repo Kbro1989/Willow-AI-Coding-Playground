@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Settings, Shield, User, Key, Cpu } from 'lucide-react';
+import { Settings, Shield, User, Key, Cpu, GitBranch } from 'lucide-react';
 import ApiKeyManager from '../ApiKeyManager';
+import GitBranchManager from './GitBranchManager';
 
 const Config: React.FC = () => {
     const [showKeyManager, setShowKeyManager] = useState(false);
@@ -16,7 +17,11 @@ const Config: React.FC = () => {
                     <p className="text-slate-400 text-xs mt-1">Global Preferences, API Credentials & Security</p>
                 </div>
                 <div className="flex gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <span className="px-3 py-1 bg-white/5 rounded-lg border border-white/10">Active Session: 4h 12m</span>
+                    <span className="px-3 py-1 bg-white/5 rounded-lg border border-white/10 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Status: Healthy
+                    </span>
+                    <span className="px-3 py-1 bg-white/5 rounded-lg border border-white/10">Runtime: Edge Worker</span>
                 </div>
             </div>
 

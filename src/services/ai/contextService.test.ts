@@ -13,11 +13,11 @@ vi.mock('../directorMemoryService', () => ({
 
 describe('ContextService', () => {
     it('should aggregate unified context correctly', async () => {
-        contextService.updateLocalState({ activeFile: 'test.ts', projectEnv: 'prod' });
+        contextService.updateLocalState({ activeFile: 'test.ts', projectEnv: 'local' });
         const context = await contextService.getUnifiedContext();
 
         expect(context.activeFile).toBe('test.ts');
-        expect(context.projectEnv).toBe('prod');
+        expect(context.projectEnv).toBe('local');
         expect(context.recentMemories).toHaveLength(2);
         expect(context.recentMemories[0]).toContain('[PROJECT] The AI is learning');
     });

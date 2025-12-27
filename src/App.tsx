@@ -5,8 +5,11 @@ import {
   TokenMetrics, BuildInfo, GameAsset, SceneObject, PhysicsConfig,
   PipelineConfig, RenderConfig, CompositingConfig, SimulationState,
   WorldConfig, SculptPoint, EngineAction, EngineLog, NeuralNode, NeuralEdge,
-  Workspace, Message, UserPreferences, Extension, ActiveView, AIModelMode, ProjectEnv, SyncMode
+  Workspace, Message, UserPreferences, Extension, ActiveView, AIModelMode, ProjectEnv, SyncMode, FileId, TaskId
 } from './types';
+import { UIAction, assertNever } from './ui/ui-actions';
+import { universalOrchestrator } from './services/ai/universalOrchestrator';
+import { agentSprintService } from './services/ai/agentSprintService';
 
 // Lucide Icons for the Command Spine and Sidebars
 import {
@@ -85,18 +88,18 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ActiveView>(() => {
     // Restore last active view from session
     const saved = localStorage.getItem('nexus_active_view');
-    return (saved as ActiveView) || 'dashboard';
+    return (saved as ActiveView) || 'console';
   });
 
 
   const [aiMode, setAiMode] = useState<AIModelMode>('assist');
-  const [projectEnv, setProjectEnv] = useState<ProjectEnv>('dev');
+  const [projectEnv, setProjectEnv] = useState<ProjectEnv>('local');
   const [isPanic, setIsPanic] = useState(false);
   const [showPerformanceHUD, setShowPerformanceHUD] = useState(false);
   const [showApiKeyManager, setShowApiKeyManager] = useState(false);
 
   // --- Core Engine State (World State) ---
-  const [project, setProject] = useState<ProjectState>({ id: 'init', name: 'Init', files: initialFiles, activeFile: 'src/App.tsx' });
+  const [project, setProject] = useState<ProjectState>({ id: 'init', name: 'Init', files: initialFiles, activeFile: 'src/App.tsx' as FileId });
   const [sceneObjects, setSceneObjects] = useState<SceneObject[]>([]);
   const [physics, setPhysics] = useState<PhysicsConfig>({ gravity: -9.81, friction: 0.6, atmosphere: 'normal', timeScale: 1.0 });
   const [worldConfig, setWorldConfig] = useState<WorldConfig>({ seed: 999, terrainScale: 1.0, biome: 'cyber', vegetationDensity: 0.8, waterLevel: 0.1, atmosphereDensity: 0.2, brushSize: 20.0, brushStrength: 0.7, activeTool: 'none', syntheticEnvironment: 'none' });
@@ -239,7 +242,7 @@ const App: React.FC = () => {
       if (parentPath === null) return [...nodes, newNode];
       return nodes.map(node => (node.path === parentPath && node.type === 'dir') ? { ...node, children: [...(node.children || []), newNode] } : node.children ? { ...node, children: insertNode(node.children) } : node);
     };
-    setProject(prev => ({ ...prev, files: insertNode(prev.files), activeFile: type === 'file' ? newNodePath : prev.activeFile }));
+    setProject(prev => ({ ...prev, files: insertNode(prev.files), activeFile: (type === 'file' ? newNodePath : prev.activeFile) as FileId }));
   }, []);
 
   const handleNeuralUpdate = useCallback((payload: { nodes?: NeuralNode[], edges?: NeuralEdge[] }) => {
@@ -292,6 +295,130 @@ const App: React.FC = () => {
       chatRef.current?.sendMessage("Synthesize a new story or plot branch based on the current world and director state.");
     }
   }, [addLog]);
+
+  // --- UI Intent Choke Point ---
+  const dispatchUIAction = useCallback((action: UIAction) => {
+    addLog(`Intent: ${action.type}`, 'info', 'UI');
+
+    switch (action.type) {
+      case 'NAV_SWITCH_VIEW': {
+        // Assert intent is valid for the current runtime set
+        setActiveView(action.view);
+        return;
+      }
+      case 'ENV_SET_PROJECT_ENV':
+        setProjectEnv(action.env);
+        return;
+      case 'AI_SET_MODE':
+        setAiMode(action.mode);
+        return;
+      case 'SYSTEM_PANIC':
+        handlePanic();
+        return;
+      case 'SYSTEM_TOGGLE_PERFORMANCE_HUD':
+        setShowPerformanceHUD(prev => !prev);
+        return;
+      case 'SYSTEM_TOGGLE_KEY_MANAGER':
+        setShowApiKeyManager(prev => !prev);
+        return;
+      case 'BRIDGE_TOGGLE_RELAY': {
+        const isCurrentlyRelay = localStorage.getItem('antigravity_bridge_url')?.includes('workers.dev');
+        if (isCurrentlyRelay) {
+          localBridgeClient.setBridgeUrl("ws://localhost:3040");
+        } else {
+          const appId = prompt("Enter Cloud App ID for Local Bridge (App ID 1):", "1");
+          if (appId) localBridgeClient.setRelayMode(appId);
+        }
+        return;
+      }
+      case 'EDITOR_OPEN_FILE':
+        setProject(prev => ({ ...prev, activeFile: action.fileId }));
+        return;
+      case 'EDITOR_SAVE_ACTIVE':
+        addLog('Editor: Save intent received.', 'info', 'UI');
+        // Logic would call cloudFsService or bridge
+        return;
+      case 'EDITOR_FORMAT_ACTIVE':
+        addLog('Editor: Format intent received.', 'info', 'UI');
+        return;
+      case 'FILE_SELECT':
+        setProject(prev => ({ ...prev, activeFile: action.path as FileId }));
+        return;
+      case 'FILE_CREATE':
+        handleCreateNode(action.parentPath, action.name, action.nodeType);
+        return;
+      case 'FILE_CHANGE':
+        handleFileChange(action.content);
+        return;
+      case 'GIT_STAGE':
+        setStagedFiles(prev => [...prev, action.path]);
+        return;
+      case 'GIT_UNSTAGE':
+        setStagedFiles(prev => prev.filter(f => f !== action.path));
+        return;
+      case 'GIT_COMMIT':
+        setCommitHistory(prev => [{
+          id: Date.now().toString(),
+          message: action.message,
+          author: user?.email?.split('@')[0] || 'Nexus Dev', // Use actual user if available
+          timestamp: Date.now()
+        }, ...prev]);
+        setStagedFiles([]);
+        return;
+      case 'TASK_TOGGLE':
+        setTasks(prev => prev.map(t => t.id === action.id ? { ...t, completed: !t.completed } : t));
+        return;
+      case 'TASK_ADD':
+        setTasks(prev => [...prev, ...action.tasks.map(t => ({
+          ...t,
+          id: Math.random().toString(36),
+          completed: false
+        }))]);
+        return;
+      case 'EXTENSION_UNINSTALL':
+        handleUninstallExtension(action.id);
+        return;
+      case 'AI_CHAT_SUBMIT':
+        chatRef.current?.sendMessage(action.prompt);
+        return;
+      case 'AI_TRIGGER_REVIEW':
+        // Placeholder for future specialization
+        return;
+      case 'AI_START_SPRINT':
+        agentSprintService.startSprint(action.goal);
+        return;
+      case 'MATRIX_ENTITY_SPAWN':
+        handleAddSceneObject(action.entity);
+        return;
+      case 'MATRIX_ACTION':
+        handleRunAction(action.action);
+        return;
+      case 'ASSET_IMPORT':
+        handleImportAsset(action.asset);
+        return;
+      case 'NARRATIVE_SYNTHESIZE':
+        chatRef.current?.sendMessage("Synthesize a new story or plot branch based on the current world and director state.");
+        return;
+      case 'TERMINAL_COMMAND':
+        localBridgeClient.runTerminalCommand(action.command);
+        addLog(`Terminal: ${action.command}`, 'info', 'Binary');
+        return;
+      default:
+        assertNever(action);
+    }
+  }, [handlePanic, handleCreateNode, handleFileChange, handleAddSceneObject, handleRunAction, handleImportAsset, addLog, user?.email]);
+
+  // Expose authoritative dispatcher to window
+  useEffect(() => {
+    (window as any).antigravity = {
+      runUIAction: dispatchUIAction,
+      // Legacy compatibility wrapper (DEPRECATED)
+      dispatch: (action: any) => {
+        console.warn('antigravity.dispatch is DEPRECATED. Use runUIAction instead.');
+        dispatchUIAction(action as any);
+      }
+    };
+  }, [dispatchUIAction]);
 
   // --- Persistence & Initialization ---
   useEffect(() => {
@@ -388,18 +515,15 @@ const App: React.FC = () => {
         {/* Global Command Spine */}
         <CommandSpine
           projectEnv={projectEnv}
-          setProjectEnv={setProjectEnv}
           aiMode={aiMode}
-          setAiMode={setAiMode}
           showPerformanceHUD={showPerformanceHUD}
-          setShowPerformanceHUD={setShowPerformanceHUD}
           isPanic={isPanic}
-          onPanic={() => setIsPanic(true)}
+          dispatch={dispatchUIAction}
         />
 
         <div className="flex-1 flex overflow-hidden relative">
           {/* Primary Navigation */}
-          <PrimaryNav activeView={activeView} setActiveView={setActiveView} />
+          <PrimaryNav activeView={activeView} dispatch={dispatchUIAction} />
 
           <main className="flex-1 relative flex flex-col min-w-0 h-full overflow-hidden">
             {/* Tab Content Cluster - Forced containment within parent flex */}
@@ -407,7 +531,7 @@ const App: React.FC = () => {
 
               {/* Persistent Matrix: Kept outside the map to prevent WebGL Context Loss */}
               <div
-                className={`absolute inset-0 z-0 transition-opacity duration-500 ${activeView === 'matrix' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                className={`absolute inset-0 z-0 transition-opacity duration-500 ${activeView === 'scene' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
                 style={{ height: '100%', width: '100%' }}
               >
                 <GameDashboard
@@ -431,11 +555,10 @@ const App: React.FC = () => {
               <div className="relative z-10 w-full h-full">
                 {(() => {
                   switch (activeView) {
-                    case 'dashboard':
-                    case 'diagnostics': return <DiagnosticsPanel />;
-                    case 'director': return (
+                    case 'console': return (
                       <div className="h-full flex flex-col overflow-hidden">
-                        <div className="flex-1 min-h-0 overflow-hidden">
+                        <div className="flex-1 min-h-0 overflow-hidden bg-[#050a15]/40 backdrop-blur-sm">
+                          <DiagnosticsPanel />
                           <Director />
                         </div>
                         <div className="h-[40%] min-h-[200px] border-t border-cyan-900/20 bg-[#050a15]/80 backdrop-blur-md">
@@ -453,8 +576,10 @@ const App: React.FC = () => {
                             extensions={extensions} projectVersion={projectVersion} onUpdateVersion={setProjectVersion}
                             onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
                             onTriggerPresentation={() => setIsPresenting(true)}
-                            engineLogs={engineLogs}
                           />
+                        </div>
+                        <div className="h-1/3 min-h-[150px] border-t border-cyan-900/10">
+                          <Terminal onCommand={(cmd) => dispatchUIAction({ type: 'TERMINAL_COMMAND', command: cmd })} history={terminalHistory} />
                         </div>
                       </div>
                     );
@@ -463,26 +588,21 @@ const App: React.FC = () => {
                         <div style={{ width: `${sidebarWidth}px` }} className="relative shrink-0 flex flex-col border-r border-cyan-900/10 h-full overflow-hidden">
                           <Sidebar
                             isOpen={true} setIsOpen={() => { }} files={project.files} activeFile={project.activeFile}
-                            onSelectFile={(p) => setProject(prev => ({ ...prev, activeFile: p }))}
-                            onCreateNode={handleCreateNode}
-                            stagedFiles={stagedFiles} onStage={(p) => setStagedFiles(prev => [...prev, p])} onUnstage={(p) => setStagedFiles(prev => prev.filter(f => f !== p))}
-                            onCommit={(m) => setCommitHistory(prev => [{ id: Date.now().toString(), message: m, author: 'Nexus Dev', timestamp: Date.now() }, ...prev])}
-                            commitHistory={commitHistory} tasks={tasks}
-                            onToggleTask={(id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))}
-                            onAddTasks={(nt) => setTasks(prev => [...prev, ...nt.map(t => ({ ...t, id: Math.random().toString(36), completed: false }))])}
-                            tokenMetrics={limiter.getMetrics()} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions} onUninstallExtension={handleUninstallExtension}
+                            stagedFiles={stagedFiles} commitHistory={commitHistory} tasks={tasks}
+                            tokenMetrics={limiter.getMetrics()} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions}
+                            dispatch={dispatchUIAction}
                           />
                           <div onMouseDown={() => setIsResizingSidebar(true)} className="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-50 group">
                             <div className="w-px h-full bg-cyan-500/10 group-hover:bg-cyan-500 mx-auto transition-colors"></div>
                           </div>
                         </div>
                         <div className="flex-1 flex flex-col relative min-w-0 h-full overflow-hidden">
-                          <div className="flex-1 min-h-0">
-                            <Editor content={activeFileContent} onChange={handleFileChange} filename={project.activeFile || ''} lastSaved={lastSaved} isSyncing={isSyncing} />
-                          </div>
-                          <div className="h-64 shrink-0 border-t border-cyan-500/10 bg-black/40">
-                            <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />
-                          </div>
+                          <Editor
+                            fileId={project.activeFile}
+                            content={activeFileContent}
+                            onContentChange={handleFileChange}
+                            dispatch={dispatchUIAction}
+                          />
                         </div>
                       </div>
                     );
@@ -490,12 +610,26 @@ const App: React.FC = () => {
                     case 'pipelines': return <div className="h-full w-full overflow-hidden"><N8NWorkflow /></div>;
                     case 'behavior': return <div className="h-full w-full overflow-hidden"><Behavior sceneObjects={sceneObjects} /></div>;
                     case 'narrative': return <div className="h-full w-full overflow-hidden"><Narrative /></div>;
-                    case 'assets': return <div className="h-full w-full overflow-hidden"><Registry /></div>;
-                    case 'world': return <div className="h-full w-full overflow-hidden"><World /></div>;
-                    case 'data': return <div className="h-full w-full overflow-hidden"><Persistence /></div>;
+                    case 'world': return (
+                      <div className="h-full w-full overflow-hidden">
+                        <World
+                          worldConfig={worldConfig}
+                          onUpdateWorld={(u) => setWorldConfig(prev => ({ ...prev, ...u }))}
+                        />
+                      </div>
+                    );
+                    case 'persistence': return (
+                      <div className="h-full w-full overflow-hidden">
+                        <Persistence
+                          variableData={variableData}
+                          sceneObjects={sceneObjects}
+                          assets={assets}
+                          engineLogs={engineLogs}
+                        />
+                      </div>
+                    );
                     case 'collab': return <div className="h-full w-full overflow-hidden"><Link /></div>;
                     case 'deploy': return <div className="h-full w-full overflow-hidden"><Deploy /></div>;
-                    case 'settings': return <div className="h-full w-full overflow-hidden"><Config /></div>;
                     case 'rsmv': return <div className="h-full w-full overflow-hidden"><RSMVBrowser /></div>;
                     case 'shader': return (
                       <div className="h-full w-full overflow-hidden border-t border-cyan-900/30">
@@ -505,8 +639,11 @@ const App: React.FC = () => {
                         />
                       </div>
                     );
-                    case 'matrix': return null; // Handled by persistent layer
-                    default: return <DiagnosticsPanel />;
+                    case 'assets': return <div className="h-full w-full overflow-hidden"><Registry /></div>;
+                    case 'settings': return <div className="h-full w-full overflow-hidden"><Config /></div>;
+                    case 'scene': return null; // Handled by persistent layer
+                    case 'matrix': return null;
+                    default: return null;
                   }
                 })()}
               </div>

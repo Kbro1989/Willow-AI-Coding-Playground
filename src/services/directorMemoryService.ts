@@ -24,7 +24,7 @@ class DirectorMemoryService {
 
     private async loadProjectMemory() {
         console.log('[MEMORY] Initializing persistent project context...');
-        db.subscribeQuery({ memories: {} }, (resp) => {
+        db.core.subscribeQuery({ memories: {} }, (resp: any) => {
             if (resp.data && resp.data.memories) {
                 this.projectMemory = resp.data.memories.map((m: any) => ({
                     id: m.id,

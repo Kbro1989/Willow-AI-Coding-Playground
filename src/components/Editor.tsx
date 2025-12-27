@@ -1,17 +1,24 @@
+
 import React, { useState } from 'react';
 import MonacoEditor from './MonacoEditor';
 import { auditCode, refactorCode } from '../services/cloudflareService';
 import { CodeIssue } from '../types';
+import { UIActionDispatcher } from '../ui/ui-actions';
+
+import { FileId } from '../types';
 
 interface EditorProps {
+  fileId: FileId | null;
   content: string;
-  filename: string;
-  onChange: (content: string) => void;
+  onContentChange: (content: string) => void;
   lastSaved?: number;
   isSyncing?: boolean;
+  dispatch: UIActionDispatcher;
 }
 
-const Editor: React.FC<EditorProps> = ({ content, filename, onChange, lastSaved, isSyncing }) => {
+const Editor: React.FC<EditorProps> = ({ content, fileId, onContentChange, lastSaved, isSyncing, dispatch }) => {
+  const filename = fileId || '';
+  const onChange = onContentChange;
   const [issues, setIssues] = useState<CodeIssue[]>([]);
   const [showIssuePanel, setShowIssuePanel] = useState(false);
   const [refactorSuggestion, setRefactorSuggestion] = useState<{ original: string, modified: string, explanation: string } | null>(null);
@@ -142,10 +149,25 @@ const Editor: React.FC<EditorProps> = ({ content, filename, onChange, lastSaved,
         <div className="flex items-center space-x-6">
           <div className="flex flex-col items-end opacity-40">
             <span className="text-[8px] tracking-[0.2em]">Auto-Save</span>
-            <span className="font-mono text-cyan-400">AGGRESSIVE</span>
+            <span className="font-mono text-cyan-400">AGRESSIVE</span>
           </div>
           <div className="w-px h-6 bg-cyan-900/30 mx-2"></div>
           <div className="flex items-center space-x-3">
+            <button
+              onClick={() => dispatch({ type: 'EDITOR_SAVE_ACTIVE' })}
+              className="p-2 text-slate-500 hover:bg-white/5 hover:text-white rounded-lg transition-all"
+              title="Save (Intent)"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+            </button>
+            <button
+              onClick={() => dispatch({ type: 'EDITOR_FORMAT_ACTIVE' })}
+              className="p-2 text-slate-500 hover:bg-white/5 hover:text-white rounded-lg transition-all"
+              title="Format (Intent)"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+            </button>
+            <div className="w-px h-6 bg-cyan-900/30 mx-2"></div>
             <button
               onClick={handleAudit}
               disabled={isAuditing}

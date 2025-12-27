@@ -1,21 +1,21 @@
 
 import React from 'react';
 import {
-    LayoutDashboard, Brain, Code2, Box, Hammer, Blocks,
-    Bot, Library, Globe, Database, Users, Activity,
-    Ship, Settings, Zap, PenTool
+    Code2, Box, Library, Settings, Activity,
+    Hammer, Blocks, Bot, Globe, Database,
+    Users, Ship, LayoutDashboard, Zap, Search
 } from 'lucide-react';
-import { ActiveView } from '../../types';
-
-interface PrimaryNavProps {
-    activeView: ActiveView;
-    setActiveView: (view: ActiveView) => void;
-}
-
+import { ActiveView, NavItem } from '../../types';
+import { UIActionDispatcher } from '../../ui/ui-actions';
 import { nexusBus } from '../../services/nexusCommandBus';
 import { localBridgeClient } from '../../services/localBridgeService';
 
-export const PrimaryNav: React.FC<PrimaryNavProps> = ({ activeView, setActiveView }) => {
+interface PrimaryNavProps {
+    activeView: ActiveView;
+    dispatch: UIActionDispatcher;
+}
+
+export const PrimaryNav: React.FC<PrimaryNavProps> = ({ activeView, dispatch }) => {
     const [jobs, setJobs] = React.useState(nexusBus.getJobs());
     const [bridge, setBridge] = React.useState(localBridgeClient.getStatus());
 
@@ -25,22 +25,22 @@ export const PrimaryNav: React.FC<PrimaryNavProps> = ({ activeView, setActiveVie
         return () => { unsubBus(); unsubBridge(); };
     }, []);
 
-    const navItems: { id: ActiveView; label: string; icon: any; category: string }[] = [
-        { id: 'dashboard', label: 'SYSTEM Overwatch', icon: LayoutDashboard, category: 'Main' },
-        { id: 'director', label: 'AI DIRECTOR', icon: Brain, category: 'Main' },
-        { id: 'editor', label: 'SOURCE EDITOR', icon: Code2, category: 'Main' },
-        { id: 'matrix', label: 'MATRIX RUNTIME', icon: Box, category: 'Main' },
-        { id: 'forge', label: 'NEURAL FORGE', icon: Hammer, category: 'Creative' },
-        { id: 'pipelines', label: 'AUTOMATION', icon: Blocks, category: 'Creative' },
-        { id: 'behavior', label: 'LOGIC TREES', icon: Bot, category: 'Creative' },
-        { id: 'narrative', label: 'NARRATIVE', icon: PenTool, category: 'Creative' },
-        { id: 'assets', label: 'REGISTRY', icon: Library, category: 'Assets' },
-        { id: 'world', label: 'WORLD GEN', icon: Globe, category: 'Assets' },
-        { id: 'data', label: 'PERSISTENCE', icon: Database, category: 'Data' },
-        { id: 'collab', label: 'MULTI-LINK', icon: Users, category: 'Collab' },
-        { id: 'diagnostics', label: 'TRACING', icon: Activity, category: 'Audit' },
-        { id: 'deploy', label: 'SHIPPER', icon: Ship, category: 'Audit' },
-        { id: 'settings', label: 'CONFIG', icon: Settings, category: 'Config' },
+    const navItems: { id: ActiveView, label: string, icon: any }[] = [
+        { id: 'editor', label: 'SOURCE EDITOR', icon: Code2 },
+        { id: 'scene', label: 'MATRIX RUNTIME', icon: Box },
+        { id: 'forge', label: 'CREATION FORGE', icon: Hammer },
+        { id: 'pipelines', label: 'N8N PIPELINES', icon: Blocks },
+        { id: 'behavior', label: 'AGENT BEHAVIOR', icon: Bot },
+        { id: 'narrative', label: 'NARRATIVE SYNTH', icon: Search },
+        { id: 'world', label: 'WORLD GEN', icon: Globe },
+        { id: 'persistence', label: 'DATA PERSISTENCE', icon: Database },
+        { id: 'collab', label: 'NEURAL LINK', icon: Users },
+        { id: 'deploy', label: 'SHIP / DEPLOY', icon: Ship },
+        { id: 'rsmv', label: 'RSMV ASSETS', icon: LayoutDashboard },
+        { id: 'shader', label: 'SHADER LAB', icon: Zap },
+        { id: 'assets', label: 'REGISTRY', icon: Library },
+        { id: 'console', label: 'SYSTEM CONSOLE', icon: Activity },
+        { id: 'settings', label: 'CONFIG', icon: Settings },
     ];
 
     const isSystemActive = jobs.length > 0;
@@ -48,18 +48,17 @@ export const PrimaryNav: React.FC<PrimaryNavProps> = ({ activeView, setActiveVie
     return (
         <div className="w-16 bg-[#0a1222] border-r border-cyan-500/10 flex flex-col items-center py-4 gap-2 shrink-0 z-40 overflow-y-auto overflow-x-hidden scrollbar-hide select-none transition-all">
             <div className="relative mb-4">
-                <Zap className={`w-6 h-6 ${isSystemActive ? 'text-cyan-400 animate-pulse' : 'text-slate-700'}`} fill="currentColor" />
-                {isSystemActive && <div className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full shadow-[0_0_8px_#00f2ff]"></div>}
+                <div className={`w-2 h-2 rounded-full ${isSystemActive ? 'bg-cyan-500 animate-pulse shadow-[0_0_10px_#00f2ff]' : 'bg-slate-800'}`}></div>
             </div>
 
             {navItems.map(item => {
                 const isActiveJob = jobs.some(j => j.description.toLowerCase().includes(item.id));
-                const isBridgeAlert = item.id === 'data' && !bridge.isConnected;
+                const isBridgeAlert = item.id === 'assets' && !bridge.isConnected;
 
                 return (
                     <button
                         key={item.id}
-                        onClick={() => setActiveView(item.id)}
+                        onClick={() => dispatch({ type: 'NAV_SWITCH_VIEW', view: item.id })}
                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all group relative nexus-btn ${activeView === item.id ? 'bg-cyan-500/10 text-cyan-400 nexus-nav-active' : 'text-slate-600 hover:text-white hover:bg-white/5'}`}
                         title={item.label}
                     >
