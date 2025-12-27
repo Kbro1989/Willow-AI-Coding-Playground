@@ -400,11 +400,16 @@ const App: React.FC = () => {
         <div className="flex-1 flex overflow-hidden relative">
           {/* Primary Navigation */}
           <PrimaryNav activeView={activeView} setActiveView={setActiveView} />
-          <main className="flex-1 relative overflow-hidden flex flex-col min-w-0">
-            {/* Tab Content Cluster */}
-            <div className="flex-1 relative overflow-hidden">
+
+          <main className="flex-1 relative flex flex-col min-w-0 h-full overflow-hidden">
+            {/* Tab Content Cluster - Forced containment within parent flex */}
+            <div className="flex-1 relative w-full h-full min-h-0 overflow-hidden">
+
               {/* Persistent Matrix: Kept outside the map to prevent WebGL Context Loss */}
-              <div className={`absolute inset-0 z-0 transition-opacity duration-300 ${activeView === 'matrix' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+              <div
+                className={`absolute inset-0 z-0 transition-opacity duration-500 ${activeView === 'matrix' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                style={{ height: '100%', width: '100%' }}
+              >
                 <GameDashboard
                   onBuild={handleBuild} buildInfo={buildInfo} assets={assets} physics={physics} worldConfig={worldConfig} sceneObjects={sceneObjects}
                   pipelines={[]} renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
@@ -422,74 +427,82 @@ const App: React.FC = () => {
                 />
               </div>
 
-              {/* Dynamic Views */}
-              {(() => {
-                switch (activeView) {
-                  case 'dashboard': return <DiagnosticsPanel />;
-                  case 'diagnostics': return <DiagnosticsPanel />;
-                  case 'director': return (
-                    <div className="h-full flex flex-col">
-                      <Director />
-                      <div className="h-1/3 border-t border-cyan-900/20">
-                        <Chat
-                          ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
-                          renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
-                          isOverwatchActive={true} messages={chatMessages} setMessages={setChatMessages}
-                          userPrefs={userPrefs} onFileUpdate={handleFileChange}
-                          onAddSceneObject={handleAddSceneObject}
-                          onUpdateSceneObject={handleUpdateSceneObject} onUpdatePhysics={(u) => setPhysics(p => ({ ...p, ...u }))}
-                          onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
-                          onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
-                          onRemoveSceneObject={(id) => setSceneObjects(prev => prev.filter(o => o.id !== id))}
-                          onInjectScript={handleInjectScript} onSyncVariableData={handleSyncVariableData}
-                          extensions={extensions} projectVersion={projectVersion} onUpdateVersion={setProjectVersion}
-                          onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
-                          onTriggerPresentation={() => setIsPresenting(true)}
-                          engineLogs={engineLogs}
-                        />
-                      </div>
-                    </div>
-                  );
-                  case 'editor': return (
-                    <div className="flex h-full">
-                      <div style={{ width: `${sidebarWidth}px` }} className="relative shrink-0 flex flex-col border-r border-cyan-900/10">
-                        <Sidebar
-                          isOpen={true} setIsOpen={() => { }} files={project.files} activeFile={project.activeFile}
-                          onSelectFile={(p) => setProject(prev => ({ ...prev, activeFile: p }))}
-                          onCreateNode={handleCreateNode}
-                          stagedFiles={stagedFiles} onStage={(p) => setStagedFiles(prev => [...prev, p])} onUnstage={(p) => setStagedFiles(prev => prev.filter(f => f !== p))}
-                          onCommit={(m) => setCommitHistory(prev => [{ id: Date.now().toString(), message: m, author: 'Nexus Dev', timestamp: Date.now() }, ...prev])}
-                          commitHistory={commitHistory} tasks={tasks}
-                          onToggleTask={(id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))}
-                          onAddTasks={(nt) => setTasks(prev => [...prev, ...nt.map(t => ({ ...t, id: Math.random().toString(36), completed: false }))])}
-                          tokenMetrics={limiter.getMetrics()} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions} onUninstallExtension={handleUninstallExtension}
-                        />
-                        <div onMouseDown={() => setIsResizingSidebar(true)} className="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-50 group">
-                          <div className="w-px h-full bg-cyan-500/10 group-hover:bg-cyan-500 mx-auto transition-colors"></div>
+              {/* Dynamic Views: Relative to the forced min-h-0 container */}
+              <div className="relative z-10 w-full h-full">
+                {(() => {
+                  switch (activeView) {
+                    case 'dashboard':
+                    case 'diagnostics': return <DiagnosticsPanel />;
+                    case 'director': return (
+                      <div className="h-full flex flex-col overflow-hidden">
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                          <Director />
+                        </div>
+                        <div className="h-[40%] min-h-[200px] border-t border-cyan-900/20 bg-[#050a15]/80 backdrop-blur-md">
+                          <Chat
+                            ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
+                            renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
+                            isOverwatchActive={true} messages={chatMessages} setMessages={setChatMessages}
+                            userPrefs={userPrefs} onFileUpdate={handleFileChange}
+                            onAddSceneObject={handleAddSceneObject}
+                            onUpdateSceneObject={handleUpdateSceneObject} onUpdatePhysics={(u) => setPhysics(p => ({ ...p, ...u }))}
+                            onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
+                            onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
+                            onRemoveSceneObject={(id) => setSceneObjects(prev => prev.filter(o => o.id !== id))}
+                            onInjectScript={handleInjectScript} onSyncVariableData={handleSyncVariableData}
+                            extensions={extensions} projectVersion={projectVersion} onUpdateVersion={setProjectVersion}
+                            onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
+                            onTriggerPresentation={() => setIsPresenting(true)}
+                            engineLogs={engineLogs}
+                          />
                         </div>
                       </div>
-                      <div className="flex-1 flex flex-col relative min-w-0">
-                        <Editor content={activeFileContent} onChange={handleFileChange} filename={project.activeFile || ''} lastSaved={lastSaved} isSyncing={isSyncing} />
-                        <div className="h-64 border-t border-cyan-500/10 bg-black/40">
-                          <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />
+                    );
+                    case 'editor': return (
+                      <div className="flex h-full overflow-hidden">
+                        <div style={{ width: `${sidebarWidth}px` }} className="relative shrink-0 flex flex-col border-r border-cyan-900/10 h-full overflow-hidden">
+                          <Sidebar
+                            isOpen={true} setIsOpen={() => { }} files={project.files} activeFile={project.activeFile}
+                            onSelectFile={(p) => setProject(prev => ({ ...prev, activeFile: p }))}
+                            onCreateNode={handleCreateNode}
+                            stagedFiles={stagedFiles} onStage={(p) => setStagedFiles(prev => [...prev, p])} onUnstage={(p) => setStagedFiles(prev => prev.filter(f => f !== p))}
+                            onCommit={(m) => setCommitHistory(prev => [{ id: Date.now().toString(), message: m, author: 'Nexus Dev', timestamp: Date.now() }, ...prev])}
+                            commitHistory={commitHistory} tasks={tasks}
+                            onToggleTask={(id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))}
+                            onAddTasks={(nt) => setTasks(prev => [...prev, ...nt.map(t => ({ ...t, id: Math.random().toString(36), completed: false }))])}
+                            tokenMetrics={limiter.getMetrics()} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions} onUninstallExtension={handleUninstallExtension}
+                          />
+                          <div onMouseDown={() => setIsResizingSidebar(true)} className="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-50 group">
+                            <div className="w-px h-full bg-cyan-500/10 group-hover:bg-cyan-500 mx-auto transition-colors"></div>
+                          </div>
+                        </div>
+                        <div className="flex-1 flex flex-col relative min-w-0 h-full overflow-hidden">
+                          <div className="flex-1 min-h-0">
+                            <Editor content={activeFileContent} onChange={handleFileChange} filename={project.activeFile || ''} lastSaved={lastSaved} isSyncing={isSyncing} />
+                          </div>
+                          <div className="h-64 shrink-0 border-t border-cyan-500/10 bg-black/40">
+                            <Terminal history={terminalHistory} onCommand={(c) => addLog(`Exec: ${c}`, 'info', 'Binary')} />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                  case 'forge': return <LazyViewport><Forge /></LazyViewport>;
-                  case 'pipelines': return <N8NWorkflow />;
-                  case 'behavior': return <Behavior sceneObjects={sceneObjects} />;
-                  case 'rsmv': return <RSMVBrowser />;
-                  case 'shader': return (
-                    <ShaderGraph
-                      onCompile={(glsl: string) => addLog('Shader Compiled: ' + glsl.substring(0, 50) + '...', 'success', 'Compiler')}
-                      onApplyToObjects={(id: string) => addLog(`Applying shader to object ${id}`, 'info', 'Shader')}
-                    />
-                  );
-                  case 'matrix': return null; // Handled by persistent layer
-                  default: return <DiagnosticsPanel />;
-                }
-              })()}
+                    );
+                    case 'forge': return <div className="h-full w-full overflow-hidden"><LazyViewport><Forge /></LazyViewport></div>;
+                    case 'pipelines': return <div className="h-full w-full overflow-hidden"><N8NWorkflow /></div>;
+                    case 'behavior': return <div className="h-full w-full overflow-hidden"><Behavior sceneObjects={sceneObjects} /></div>;
+                    case 'rsmv': return <div className="h-full w-full overflow-hidden"><RSMVBrowser /></div>;
+                    case 'shader': return (
+                      <div className="h-full w-full overflow-hidden border-t border-cyan-900/30">
+                        <ShaderGraph
+                          onCompile={(glsl: string) => addLog('Shader Compiled: ' + glsl.substring(0, 50) + '...', 'success', 'Compiler')}
+                          onApplyToObjects={(id: string) => addLog(`Applying shader to object ${id}`, 'info', 'Shader')}
+                        />
+                      </div>
+                    );
+                    case 'matrix': return null; // Handled by persistent layer
+                    default: return <DiagnosticsPanel />;
+                  }
+                })()}
+              </div>
             </div>
 
             {/* Overlays */}

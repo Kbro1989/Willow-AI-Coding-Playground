@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import ErrorBoundary from './ErrorBoundary';
+import { ViewportManager } from '../hooks/useViewportSync';
 import { Canvas, useFrame, useThree, ThreeElements } from '@react-three/fiber';
 import { OrbitControls, Sky, Environment, ContactShadows, PerspectiveCamera, Float, Stars, Grid, Gltf } from '@react-three/drei';
 import { XR, createXRStore } from '@react-three/xr';
@@ -80,14 +81,14 @@ const ShaderMaterialWrapper: React.FC<{ fragmentShader: string, time: number }> 
         varying vec2 v_uv;
         varying vec3 v_normal;
         varying vec3 v_viewPosition;
-        void main() {
-          v_uv = uv;
-          v_normal = normalize(normalMatrix * normal);
+void main() {
+  v_uv = uv;
+  v_normal = normalize(normalMatrix * normal);
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          v_viewPosition = -mvPosition.xyz;
-          gl_Position = projectionMatrix * mvPosition;
-        }
-      `}
+  v_viewPosition = -mvPosition.xyz;
+  gl_Position = projectionMatrix * mvPosition;
+}
+`}
       fragmentShader={fragmentShader}
       uniforms={uniforms}
     />
@@ -102,7 +103,7 @@ const SyntheticEnvironment: React.FC<{ envName: string }> = ({ envName }) => {
       setData(null);
       return;
     }
-    fetch(`/src/assets/environments/${envName}.json`)
+    fetch(`/ src / assets / environments / ${envName}.json`)
       .then(res => res.json())
       .then(setData)
       .catch(err => console.error("Failed to load environment for visual feedback:", err));
@@ -334,10 +335,18 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
       }
 
       const newAsset: GameAsset = {
-        id: `imported-${Date.now()}`,
+        id: `imported - ${Date.now()} `,
         name: file.name,
         type: 'mesh',
+        format: file.name.split('.').pop() || 'glb',
+        size: file.size,
+        ownerId: 'local-user',
+        isPublic: false,
+        downloads: 0,
+        likes: 0,
         status: result.success ? 'optimized' : 'raw',
+        createdAt: Date.now(),
+        aiGenerated: false,
         url: url
       };
       onAddAsset(newAsset);
@@ -376,7 +385,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
   const handleAiAction = (action: string) => {
     if (!selectedObjectId) return;
     // Simulate AI "Thinking" via log
-    onRunAction(`AI_EXEC_${action}`);
+    onRunAction(`AI_EXEC_${action} `);
     // Simple mock logic for "Align" or "Ground"
     if (action === 'GROUND') {
       const obj = sceneObjects.find(o => o.id === selectedObjectId);
@@ -386,8 +395,8 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
 
   const handleAddPipeline = () => {
     const newPipeline: PipelineConfig = {
-      id: `p-${Date.now()}`,
-      name: `Neural_Node_${localPipelines.length + 1}`,
+      id: `p - ${Date.now()} `,
+      name: `Neural_Node_${localPipelines.length + 1} `,
       provider: 'Local',
       status: 'online',
       endpoints: ['/local/compute'],
@@ -562,7 +571,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
             <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2 pt-4">Terrain Sculpting</h4>
             <div className="grid grid-cols-3 gap-2">
               {['raise', 'lower', 'smooth'].map(tool => (
-                <button key={tool} onClick={() => onUpdateWorld({ activeTool: tool as any })} className={`py-2 rounded-xl text-[9px] font-black uppercase ${worldConfig.activeTool === tool ? 'bg-cyan-600 text-white' : 'bg-cyan-900/20 text-slate-500'}`}>{tool}</button>
+                <button key={tool} onClick={() => onUpdateWorld({ activeTool: tool as any })} className={`py - 2 rounded - xl text - [9px] font - black uppercase ${worldConfig.activeTool === tool ? 'bg-cyan-600 text-white' : 'bg-cyan-900/20 text-slate-500'} `}>{tool}</button>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-3 mt-4">
@@ -644,7 +653,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
               <div key={p.id} className="p-4 bg-[#050a15] border border-cyan-900/30 rounded-2xl shadow-sm">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-[10px] font-black text-cyan-50">{p.name}</span>
-                  <div className={`w-2 h-2 rounded-full ${p.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'}`}></div>
+                  <div className={`w - 2 h - 2 rounded - full ${p.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'} `}></div>
                 </div>
                 <div className="flex justify-between text-[9px] text-slate-500 uppercase tracking-widest mb-3">
                   <span>{p.provider}</span>
@@ -653,7 +662,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      onRunAction(`RUN_PIPELINE_${p.id}`);
+                      onRunAction(`RUN_PIPELINE_${p.id} `);
                       // Mock status update for feedback
                       setLocalPipelines(prev => prev.map(pi => pi.id === p.id ? { ...pi, status: 'offline' } : pi));
                       setTimeout(() => setLocalPipelines(prev => prev.map(pi => pi.id === p.id ? { ...pi, status: 'online' } : pi)), 2000);
@@ -685,11 +694,11 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
   };
 
   return (
-    <div className={`h-full flex flex-col bg-[#050a15] text-white overflow-hidden font-sans transition-all duration-700 ${isFullscreen ? 'fixed inset-0 z-[1000]' : 'border-t border-cyan-900/30'}`}>
+    <div className={`h - full flex flex - col bg - [#050a15] text - white overflow - hidden font - sans transition - all duration - 700 ${isFullscreen ? 'fixed inset-0 z-[1000]' : 'border-t border-cyan-900/30'} `}>
       {!isFullscreen && (
-        <div className="flex items-center h-14 bg-[#0a1222]/95 backdrop-blur-3xl px-8 border-b border-cyan-900/40 space-x-2 shrink-0 z-50">
+        <div className="flex items-center h-14 bg-[#0a1222]/95 backdrop-blur-3xl px-8 border-b border-cyan-900/40 space-x-2 shrink-0 z-50 shadow-xl">
           <div className="flex items-center space-x-4 mr-12">
-            <div className={`w-2 h-2 rounded-full ${simulation.status === 'playing' ? 'bg-cyan-500 shadow-[0_0_10px_#00f2ff] animate-pulse' : 'bg-slate-700'}`}></div>
+            <div className={`w - 2 h - 2 rounded - full ${simulation.status === 'playing' ? 'bg-cyan-500 shadow-[0_0_10px_#00f2ff] animate-pulse' : 'bg-slate-700'} `}></div>
             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-cyan-100/50">Matrix PRO Runtime</span>
           </div>
 
@@ -698,8 +707,8 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
               <button
                 key={ws}
                 onClick={() => setActiveWorkspace(ws as any)}
-                className={`px-8 h-full text-[9px] font-black uppercase transition-all flex items-center border-b-2 tracking-widest ${activeWorkspace === ws ? 'text-cyan-400 border-cyan-500 bg-cyan-600/5' : 'text-slate-600 hover:text-cyan-400 border-transparent'
-                  }`}
+                className={`px - 8 h - full text - [9px] font - black uppercase transition - all flex items - center border - b - 2 tracking - widest ${activeWorkspace === ws ? 'text-cyan-400 border-cyan-500 bg-cyan-600/5' : 'text-slate-600 hover:text-cyan-400 border-transparent'
+                  } `}
               >
                 {ws}
               </button>
@@ -709,160 +718,150 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
           <div className="flex items-center space-x-4">
             <button onClick={handleRunTest} className="px-6 py-2 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">Run Logic Tests</button>
             <button onClick={() => onRunAction('PRESENT_BUILD')} className="p-2 bg-cyan-900/20 border border-cyan-500/20 rounded-xl text-cyan-400 hover:bg-cyan-500 hover:text-white transition-all" title="Presentation Mode"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
-            <button onClick={() => { setIsCapturing(true); setTimeout(() => { onSendVisualFeedback?.(`Runtime Snapshot: Entities=${sceneObjects.length} FPS=${telemetry.fps.toFixed(0)}`); setIsCapturing(false); }, 600); }} className="bg-cyan-600 px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-[0_0_15px_rgba(0,242,255,0.3)]">{isCapturing ? 'TRANSMITTING' : 'DIRECTOR SNAPSHOT'}</button>
+            <button onClick={() => { setIsCapturing(true); setTimeout(() => { onSendVisualFeedback?.(`Runtime Snapshot: Entities = ${sceneObjects.length} FPS = ${telemetry.fps.toFixed(0)} `); setIsCapturing(false); }, 600); }} className="bg-cyan-600 px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-[0_0_15px_rgba(0,242,255,0.3)]">{isCapturing ? 'TRANSMITTING' : 'DIRECTOR SNAPSHOT'}</button>
           </div>
         </div>
       )}
 
-      <div
-        className="flex-1 relative bg-[#000000]"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          try {
-            const data = JSON.parse(e.dataTransfer.getData('application/json'));
-            if (data.type === 'rsmv-model') {
-              onAddSceneObject({
-                name: data.name,
-                type: 'mesh',
-                position: [0, 0, 0], // Place at origin for now
-                rotation: [0, 0, 0],
-                scale: [1, 1, 1],
-                visible: true,
-                modelUrl: data.modelUrl
-              });
+      {/* Main Body Area: Canvas + Sidebar Row */}
+      <div className="flex-1 flex overflow-hidden relative">
+        <div
+          className="flex-1 relative bg-[#000000] overflow-hidden"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            try {
+              const data = JSON.parse(e.dataTransfer.getData('application/json'));
+              if (data.type === 'rsmv-model') {
+                onAddSceneObject({
+                  name: data.name,
+                  type: 'mesh',
+                  position: [0, 0, 0], // Place at origin for now
+                  rotation: [0, 0, 0],
+                  scale: [1, 1, 1],
+                  visible: true,
+                  modelUrl: data.modelUrl
+                });
+              }
+            } catch (err) {
+              console.error("Failed to process drop:", err);
             }
-          } catch (err) {
-            console.error("Failed to process drop:", err);
-          }
-        }}
-      >
-        {isFullscreen && (
-          <div className="absolute top-10 left-10 z-50 flex items-center space-x-6">
-            <button onClick={() => onRunAction('EXIT_PRESENTATION')} className="p-4 bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl text-white hover:bg-cyan-600 transition-all group">
-              <svg className="w-6 h-6 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">Presentation Active</span>
-              <span className="text-2xl font-black text-white uppercase tracking-widest drop-shadow-lg">Runtime: v{buildInfo.lastBuild ? 'Final' : 'Live'}</span>
+          }}
+        >
+          {isFullscreen && (
+            <div className="absolute top-10 left-10 z-50 flex items-center space-x-6">
+              <button onClick={() => onRunAction('EXIT_PRESENTATION')} className="p-4 bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl text-white hover:bg-cyan-600 transition-all group">
+                <svg className="w-6 h-6 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400">Presentation Active</span>
+                <span className="text-2xl font-black text-white uppercase tracking-widest drop-shadow-lg">Runtime: v{buildInfo.lastBuild ? 'Final' : 'Live'}</span>
+              </div>
+            </div>
+          )}
+
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-500 animate-pulse uppercase text-xs font-black tracking-widest">Waking Runtime Engine...</div>}>
+            {!isFullscreen && (
+              <div className="absolute top-4 left-4 z-50 flex gap-2">
+                <button onClick={() => xrStore.enterVR()} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-purple-500/20 border border-purple-400/30">Enter VR</button>
+                <button onClick={() => xrStore.enterAR()} className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-cyan-500/20 border border-cyan-400/30">Enter AR</button>
+              </div>
+            )}
+            <Canvas
+              shadows
+              gl={{
+                antialias: true,
+                preserveDrawingBuffer: true,
+                powerPreference: "high-performance"
+              }}
+              dpr={[1, 2]}
+            >
+              <XR store={xrStore}>
+                <PerspectiveCamera makeDefault position={[15, 15, 15]} fov={45} />
+                <OrbitControls makeDefault enabled={!isAnnotating} />
+                <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+                <Sky sunPosition={[100, Math.max(0.01, worldConfig.atmosphereDensity) * 50, 100]} />
+                <Environment preset="night" />
+                <ambientLight intensity={0.5} />
+                <pointLight position={[10, 10, 10]} intensity={1} castShadow />
+
+                <ViewportManager />
+                <SyntheticEnvironment envName={worldConfig.syntheticEnvironment || 'none'} />
+
+                {sceneObjects.map(obj => (
+                  <LiveObject
+                    key={obj.id}
+                    obj={obj}
+                    isSelected={selectedObjectId === obj.id}
+                    onSelect={() => setSelectedObjectId(obj.id)}
+                    isPlaying={simulation.status === 'playing' || isFullscreen}
+                  />
+                ))}
+
+                {!isFullscreen && <Grid renderOrder={-1} position={[0, -0.01, 0]} infiniteGrid cellSize={1} sectionSize={5} sectionColor="#00f2ff" cellColor="#0a1222" fadeDistance={50} />}
+
+                {/* Procedural Ground Plane with Global Shader */}
+                <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
+                  <planeGeometry args={[200, 200]} />
+                  {worldConfig.globalShader ? (
+                    <ShaderMaterialWrapper
+                      fragmentShader={worldConfig.globalShader}
+                      time={simulation.time}
+                    />
+                  ) : (
+                    <meshStandardMaterial color="#0a1222" roughness={1} metalness={0.1} />
+                  )}
+                </mesh>
+              </XR>
+            </Canvas>
+          </Suspense>
+
+          <div className={`absolute bottom - 6 right - 6 flex flex - col space - y - 4 z - 40 transition - opacity duration - 500 ${isFullscreen ? 'opacity-30' : 'opacity-100'} `}>
+            {/* Bridge Connection Manager - Compact version for Dashboard overlay */}
+            <div className="bg-[#0a1222]/80 backdrop-blur-2xl p-4 rounded-2xl border border-cyan-500/20 shadow-2xl min-w-[300px] flex items-center justify-between pointer-events-auto">
+              <div className="flex items-center gap-3">
+                <div className={`w - 2 h - 2 rounded - full ${ws?.readyState === 1 ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'} `}></div>
+                <span className="text-[10px] font-black uppercase text-cyan-600 tracking-widest">Neural Link</span>
+              </div>
+              <span className="text-[9px] font-bold text-slate-400 uppercase">{ws?.readyState === 1 ? 'CONNECTED' : 'DISCONNECTED'}</span>
+            </div>
+
+            <div className="bg-[#0a1222]/80 backdrop-blur-2xl p-6 rounded-3xl border border-cyan-500/20 shadow-2xl min-w-[300px] pointer-events-auto">
+              <div className="flex justify-between items-end mb-4">
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-black uppercase text-cyan-600 tracking-widest mb-1">PRO TELEMETRY</span>
+                  <span className="text-3xl font-black text-cyan-50 tabular-nums">{telemetry.fps.toFixed(0)} <span className="text-xs opacity-30 tracking-normal font-normal">FPS</span></span>
+                </div>
+                <div className="h-8 w-24 flex items-end space-x-1">
+                  {telemetry.history.map((h, i) => (
+                    <div key={i} className="flex-1 bg-cyan-500/30 rounded-t-sm" style={{ height: `${(h / 144) * 100}% ` }}></div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 text-[9px] font-black uppercase text-slate-500 tracking-widest">
+                <div className="flex flex-col"><span className="opacity-40 mb-0.5 text-[8px]">Pipeline</span><span className="text-emerald-400">WebGPU/LIVE</span></div>
+                <div className="flex flex-col text-right"><span className="opacity-40 mb-0.5 text-[8px]">Memory</span><span className="text-cyan-400">0.4 GB</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Precision Sidebar - Fixed width, high density, properly contained */}
+        {!isFullscreen && (
+          <div className="w-[380px] bg-[#0a1222] border-l border-cyan-900/40 shrink-0 flex flex-col h-full overflow-hidden shadow-2xl">
+            <div className="flex-1 overflow-y-auto no-scrollbar">
+              {renderSidebarContent()}
             </div>
           </div>
         )}
-
-        <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-500 animate-pulse uppercase text-xs font-black tracking-widest">Waking Runtime Engine...</div>}>
-          <button onClick={() => xrStore.enterVR()} className="absolute top-4 left-4 z-50 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg">Enter VR</button>
-          <button onClick={() => xrStore.enterAR()} className="absolute top-4 left-24 z-50 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg">Enter AR</button>
-          <Canvas
-            shadows
-            gl={{
-              antialias: true,
-              preserveDrawingBuffer: true,
-              powerPreference: "high-performance"
-            }}
-            dpr={[1, 2]}
-          >
-            <XR store={xrStore}>
-
-              <PerspectiveCamera makeDefault position={[15, 15, 15]} fov={45} />
-              <OrbitControls makeDefault enabled={!isAnnotating} />
-              <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-              <Sky sunPosition={[100, Math.max(0.01, worldConfig.atmosphereDensity) * 50, 100]} />
-              <Environment preset="night" />
-              <ambientLight intensity={0.5} />
-              <pointLight position={[10, 10, 10]} intensity={1} castShadow />
-
-              <SyntheticEnvironment envName={worldConfig.syntheticEnvironment || 'none'} />
-
-              {sceneObjects.map(obj => (
-                <LiveObject
-                  key={obj.id}
-                  obj={obj}
-                  isSelected={selectedObjectId === obj.id}
-                  onSelect={() => setSelectedObjectId(obj.id)}
-                  isPlaying={simulation.status === 'playing' || isFullscreen}
-                />
-              ))}
-
-              {!isFullscreen && <Grid renderOrder={-1} position={[0, -0.01, 0]} infiniteGrid cellSize={1} sectionSize={5} sectionColor="#00f2ff" cellColor="#0a1222" fadeDistance={50} />}
-
-              {/* Procedural Ground Plane with Global Shader */}
-              <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
-                <planeGeometry args={[200, 200]} />
-                {worldConfig.globalShader ? (
-                  <ShaderMaterialWrapper
-                    fragmentShader={worldConfig.globalShader}
-                    time={simulation.time}
-                  />
-                ) : (
-                  <meshStandardMaterial color="#0a1222" roughness={1} metalness={0.1} />
-                )}
-              </mesh>
-            </XR>
-          </Canvas>
-        </Suspense>
-
-        <div className={`absolute bottom-10 right-10 flex flex-col space-y-6 z-40 transition-opacity duration-500 ${isFullscreen ? 'opacity-30' : 'opacity-100'}`}>
-          {/* Bridge Connection Manager */}
-          <div className="bg-[#0a1222]/90 backdrop-blur-3xl p-6 rounded-[2rem] border border-cyan-500/20 shadow-2xl min-w-[360px] space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black uppercase text-cyan-600 tracking-widest">Neural Link</span>
-              <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${ws?.readyState === 1 ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'}`}></div>
-                <span className="text-[9px] font-bold text-slate-400 uppercase">{ws?.readyState === 1 ? 'Connected' : 'Offline'}</span>
-              </div>
-            </div>
-            <input
-              className="w-full bg-[#050a15] border border-slate-700 focus:border-cyan-500 rounded-lg px-3 py-2 text-[10px] text-cyan-400 font-mono outline-none transition-colors placeholder:text-slate-700"
-              placeholder="Enter Tunnel URL (e.g., https://xyz.trycloudflare.com)"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const url = e.currentTarget.value;
-                  if (url) {
-                    // Dynamic Import to avoid SSR issues if any
-                    import('../services/localBridgeService').then(({ setBridgeUrl }) => {
-                      setBridgeUrl(url);
-                      // Force reconnect logic here if setup
-                      const newWs = new WebSocket(url.replace('http', 'ws'));
-                      newWs.onopen = () => setWs(newWs);
-                    });
-                  }
-                }
-              }}
-            />
-          </div>
-
-          <div className="bg-[#0a1222]/90 backdrop-blur-3xl p-8 rounded-[2.5rem] border border-cyan-500/20 shadow-2xl min-w-[360px]">
-            <div className="flex justify-between items-end mb-8">
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black uppercase text-cyan-600 tracking-widest mb-1">PRO TELEMETRY</span>
-                <span className="text-4xl font-black text-cyan-50 tabular-nums">{telemetry.fps.toFixed(0)} <span className="text-xs opacity-30">FPS</span></span>
-              </div>
-              <div className="h-10 w-32 flex items-end space-x-1">
-                {telemetry.history.map((h, i) => (
-                  <div key={i} className="flex-1 bg-cyan-500/30 rounded-t-sm" style={{ height: `${(h / 144) * 100}%` }}></div>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6 text-[9px] font-black uppercase text-slate-500 tracking-widest">
-              <div className="flex flex-col"><span className="opacity-40">Pipeline</span><span className="text-emerald-400">WebGPU / Live</span></div>
-              <div className="flex flex-col text-right"><span className="opacity-40">Memory</span><span className="text-cyan-400">0.4 GB</span></div>
-            </div>
-          </div>
-        </div>
       </div>
-
-      {(!isFullscreen) && (
-        <div className="w-[420px] bg-[#0a1222] border-l border-cyan-900/40 p-10 space-y-10 shrink-0 overflow-y-auto no-scrollbar">
-          {renderSidebarContent()}
-        </div>
-      )}
 
       <AnnotationOverlay
         isActive={isAnnotating}
         onClose={() => setIsAnnotating(false)}
         onProcess={(img, mode) => {
           onSendVisualFeedback?.(img);
-          onRunAction(`ANNOTATION_PROCESSED_${mode.toUpperCase()}`);
+          onRunAction(`ANNOTATION_PROCESSED_${mode.toUpperCase()} `);
         }}
       />
     </div>

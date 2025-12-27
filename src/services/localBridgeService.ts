@@ -8,7 +8,7 @@ class LocalBridgeClient {
   private commandCounter = 0;
   private isCloudMode: boolean = false;
   private syncMode: SyncMode = SyncMode.DUAL;
-  private statusListeners: Array<(status: { isConnected: boolean, isCloudMode: boolean }) => void> = [];
+  private statusListeners: Array<(status: { isConnected: boolean, isCloudMode: boolean, syncMode: SyncMode }) => void> = [];
 
   constructor() {
     this.connect();
@@ -27,7 +27,7 @@ class LocalBridgeClient {
     console.log(`[LocalBridge] Sync Mode set to: ${mode}`);
   }
 
-  public onStatusChange(listener: (status: { isConnected: boolean, isCloudMode: boolean }) => void) {
+  public onStatusChange(listener: (status: { isConnected: boolean, isCloudMode: boolean, syncMode: SyncMode }) => void) {
     this.statusListeners.push(listener);
     // Initial call
     listener(this.getStatus());
