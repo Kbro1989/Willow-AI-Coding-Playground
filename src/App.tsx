@@ -48,6 +48,8 @@ import Link from './components/nexus/Link';
 import Config from './components/nexus/Config';
 import Narrative from './components/nexus/Narrative';
 import CursorTracker from './components/nexus/CursorTracker';
+import AssistantOverlay from './components/nexus/AssistantOverlay';
+import LazyViewport from './components/nexus/LazyViewport';
 
 // Services
 import { initialFiles } from './constants';
@@ -57,6 +59,7 @@ import { initializeAgentAPI } from './services/agentAPI';
 import { nexusBus } from './services/nexusCommandBus';
 import { localBridgeClient } from './services/localBridgeService';
 import { collaborativeSync } from './services/gameData/collaborativeSyncService';
+import { contextService } from './services/ai/contextService';
 
 // Media components (Forge migration targets)
 import AudioWorkshop from './components/media/AudioWorkshop';
@@ -78,7 +81,17 @@ const App: React.FC = () => {
   const { isLoading, user, error } = db.useAuth();
 
   // --- Nexus Control Plane State ---
-  const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+  const [activeView, setActiveView] = useState<ActiveView>(() => {
+    // Restore last active view from session
+    const saved = localStorage.getItem('nexus_active_view');
+    return (saved as ActiveView) || 'dashboard';
+  });
+
+  // Persist active view
+  useEffect(() => {
+    localStorage.setItem('nexus_active_view', activeView);
+  }, [activeView]);
+
   const [aiMode, setAiMode] = useState<AIModelMode>('assist');
   const [projectEnv, setProjectEnv] = useState<ProjectEnv>('dev');
   const [isPanic, setIsPanic] = useState(false);
@@ -234,6 +247,16 @@ const App: React.FC = () => {
   const handleUninstallExtension = (id: string) => {
     setExtensions(prev => prev.filter(e => e.identifier.id !== id));
   };
+
+  // --- Context Sync ---
+  useEffect(() => {
+    // Keep the "Brain" updated with what the user is looking at
+    contextService.updateLocalState({
+      activeFile: project.activeFile || '',
+      projectEnv
+    });
+  }, [project.activeFile, projectEnv]);
+
 
   const handleRunAction = useCallback((action: string) => {
     addLog(`Matrix Action: ${action}`, 'info', 'Control');
@@ -413,12 +436,20 @@ const App: React.FC = () => {
                 />
               </div>
 
-              {activeView === 'forge' && <Forge />}
+              {activeView === 'forge' && (
+                <LazyViewport>
+                  <Forge />
+                </LazyViewport>
+              )}
               {activeView === 'pipelines' && <N8NWorkflow />}
               {activeView === 'behavior' && <Behavior sceneObjects={sceneObjects} />}
               {activeView === 'narrative' && <Narrative onRunAction={handleRunAction} />}
               {activeView === 'assets' && <Registry onImport={handleImportAsset} />}
-              {activeView === 'world' && <World worldConfig={worldConfig} onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))} />}
+              {activeView === 'world' && (
+                <LazyViewport>
+                  <World worldConfig={worldConfig} onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))} />
+                </LazyViewport>
+              )}
               {activeView === 'data' && <Persistence variableData={variableData} sceneObjects={sceneObjects} assets={assets} engineLogs={engineLogs} />}
               {activeView === 'collab' && <Link />}
               {activeView === 'diagnostics' && <DiagnosticsPanel />}
@@ -427,6 +458,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Overlays */}
+            <AssistantOverlay />
             <CursorTracker currentUserId={user?.id || null} />
             {showApiKeyManager && <ApiKeyManager onClose={() => setShowApiKeyManager(false)} />}
             {isPanic && (

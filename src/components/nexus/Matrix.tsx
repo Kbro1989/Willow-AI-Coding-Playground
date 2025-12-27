@@ -4,24 +4,33 @@ import { matrixProbe } from '../../services/matrixSceneProbe';
 import { aiMaterialService } from '../../services/aiMaterialService';
 import { Box, Settings, Zap, History, Database, Wand2, Info, ChevronRight, Layers, Cpu } from 'lucide-react';
 
+import { graphStateService } from '../../services/gameData/graphStateService';
+
 const Matrix: React.FC = () => {
     const [selectedEntity, setSelectedEntity] = useState<any>(null);
     const [isGeneratingMat, setIsGeneratingMat] = useState(false);
     const [matPrompt, setMatPrompt] = useState('');
     const [activeInspectorTab, setActiveInspectorTab] = useState<'Scene' | 'Physics' | 'Lighting' | 'XR'>('Scene');
+    const [graphName, setGraphName] = useState('My Neural Net');
 
     useEffect(() => {
         directorMemory.addMemory('Matrix Scene Active: Monitoring WebGL telemetry.', 'session', 0.8, ['matrix', 'status']);
-
-        // Demo: Register a default world entity
-        matrixProbe.updateEntity({
-            id: 'world-origin',
-            type: 'SpatialRoot',
-            position: [0, 0, 0]
-        });
-
+        matrixProbe.updateEntity({ id: 'world-origin', type: 'SpatialRoot', position: [0, 0, 0] });
         return () => matrixProbe.clear();
     }, []);
+
+    const handleSaveGraph = async () => {
+        try {
+            // Mock nodes/edges for now - in full implementation, read from state
+            const mockNodes: any[] = [{ id: 'input-1', type: 'input' }, { id: 'output-1', type: 'output' }];
+            const mockEdges: any[] = [{ id: 'e1-2', source: 'input-1', target: 'output-1' }];
+
+            await graphStateService.saveGraph(graphName, mockNodes, mockEdges);
+            alert(`Graph "${graphName}" saved to Neural Cloud!`);
+        } catch (e) {
+            console.error('Failed to save graph', e);
+        }
+    };
 
     const handleGenMaterial = async () => {
         if (!matPrompt.trim()) return;
@@ -29,7 +38,6 @@ const Matrix: React.FC = () => {
         try {
             const result = await aiMaterialService.generateMaterial(matPrompt);
             console.log('[MATRIX] AI Material Generated:', result.mapUrl.substring(0, 50) + '...');
-            // In a real app, apply this URL to a Three.js material
         } catch (error) {
             console.error('[MATRIX] Material generation failed:', error);
         } finally {
@@ -42,19 +50,37 @@ const Matrix: React.FC = () => {
         <div className="h-full flex bg-[#050a15] text-cyan-50 font-mono">
             {/* 3D Viewport (Main) */}
             <div className="flex-1 flex flex-col relative overflow-hidden group">
-                <div className="absolute top-4 left-4 z-10 flex gap-2">
-                    {['Scene', 'Physics', 'Lighting', 'XR'].map(tab => (
+                <div className="absolute top-4 left-4 z-10 flex gap-2 w-full pr-8 justify-between">
+                    <div className="flex gap-2">
+                        {['Scene', 'Physics', 'Lighting', 'XR'].map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveInspectorTab(tab as any)}
+                                className={`px-4 py-1.5 backdrop-blur-md border text-[10px] font-black uppercase rounded-full transition-all nexus-btn ${activeInspectorTab === tab
+                                    ? 'bg-cyan-500 text-white border-cyan-400 shadow-[0_0_15px_rgba(0,242,255,0.4)]'
+                                    : 'bg-black/60 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
+                                    }`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-2 bg-black/60 backdrop-blur-md p-1 rounded-full border border-white/10">
+                        <input
+                            type="text"
+                            value={graphName}
+                            onChange={(e) => setGraphName(e.target.value)}
+                            className="bg-transparent text-white text-[10px] font-mono px-3 outline-none w-32 text-right"
+                        />
                         <button
-                            key={tab}
-                            onClick={() => setActiveInspectorTab(tab as any)}
-                            className={`px-4 py-1.5 backdrop-blur-md border text-[10px] font-black uppercase rounded-full transition-all nexus-btn ${activeInspectorTab === tab
-                                ? 'bg-cyan-500 text-white border-cyan-400 shadow-[0_0_15px_rgba(0,242,255,0.4)]'
-                                : 'bg-black/60 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
-                                }`}
+                            onClick={handleSaveGraph}
+                            className="p-1.5 bg-cyan-500/20 text-cyan-400 rounded-full hover:bg-cyan-500 hover:text-white transition-all"
+                            title="Save Graph State"
                         >
-                            {tab}
+                            <Database className="w-3 h-3" />
                         </button>
-                    ))}
+                    </div>
                 </div>
 
                 {/* Simulated WebGL Viewport */}

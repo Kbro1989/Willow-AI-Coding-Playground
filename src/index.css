@@ -21,8 +21,17 @@ body {
 }
 
 @layer utilities {
+  :root {
+    --glass-panel: rgba(10, 18, 34, 0.75);
+    --glass-blur: 24px;
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
   .nexus-glass {
-    @apply bg-[#0a1222]/80 backdrop-blur-xl border border-white/5;
+    background: var(--glass-panel);
+    backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
   }
   
   .glow-cyan {

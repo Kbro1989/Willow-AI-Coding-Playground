@@ -153,6 +153,16 @@ const _schema = i.schema({
             narrativeContext: i.string().optional(), // Shared drafting context
             updatedAt: i.number(),
         }),
+
+        // Saved Node Graphs (Neural Configurations)
+        saved_graphs: i.entity({
+            name: i.string().indexed(),
+            nodes: i.string(), // JSON string of NeuralNodes
+            edges: i.string(), // JSON string of NeuralEdges
+            thumbnail: i.string().optional(),
+            createdAt: i.number(),
+            updatedAt: i.number().indexed(),
+        }),
     },
     links: {
         // System links
