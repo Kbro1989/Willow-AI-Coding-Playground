@@ -273,7 +273,7 @@ async function routeToCloudflare(request: ModelRequest, signal?: AbortSignal): P
         history: request.history,
         systemPrompt: request.systemPrompt,
         functionDeclarations: request.functionDeclarations
-      }, request.options?.stream, signal);
+      }, request.options?.stream, signal, request.options?.maxTokens || 4096);
 
       if (response instanceof ReadableStream) {
         return response;
@@ -305,7 +305,7 @@ async function routeToCloudflare(request: ModelRequest, signal?: AbortSignal): P
         prompt: request.prompt,
         language: request.language,
         context: request.context
-      }, signal);
+      }, signal, request.options?.maxTokens || 4096);
 
       return {
         code: response.code,
@@ -315,7 +315,7 @@ async function routeToCloudflare(request: ModelRequest, signal?: AbortSignal): P
 
     case 'reasoning': {
       // Use DeepSeek R1 (Distill) for cost-effective reasoning
-      const response = await cloudflareProvider.reasonWithDeepSeek(request.prompt);
+      const response = await cloudflareProvider.reasonWithDeepSeek(request.prompt, request.options?.maxTokens || 4096);
 
       return {
         content: response.solution,

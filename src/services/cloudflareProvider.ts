@@ -55,7 +55,8 @@ class CloudflareProvider {
     history: Array<{ role: 'user' | 'model'; content: string }> = [],
     systemPrompt?: string,
     stream: boolean = false,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    maxTokens: number = 4096
   ): Promise<CloudflareTextResponse | ReadableStream> {
     try {
       const response = await fetch(`${this.workerUrl}/api/chat`, {
@@ -67,7 +68,8 @@ class CloudflareProvider {
           history,
           systemPrompt,
           model: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-          stream
+          stream,
+          max_tokens: maxTokens
         })
       });
 
@@ -104,7 +106,8 @@ class CloudflareProvider {
   async codeWithQwen(
     prompt: string,
     language: string = 'typescript',
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    maxTokens: number = 4096
   ): Promise<{ code: string; model: string }> {
     try {
       const response = await fetch(`${this.workerUrl}/api/code-complete`, {
@@ -114,7 +117,8 @@ class CloudflareProvider {
         body: JSON.stringify({
           prompt,
           language,
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/qwen/qwen2.5-coder-32b-instruct',
+          max_tokens: maxTokens
         })
       });
 
@@ -143,7 +147,7 @@ class CloudflareProvider {
    * Reasoning using QwQ 32B (PRIMARY for step-by-step logic)
    * Model: @cf/qwq/qwq-32b-preview
    */
-  async reasonWithQwQ(problem: string): Promise<{ solution: string; model: string }> {
+  async reasonWithQwQ(problem: string, maxTokens: number = 4096): Promise<{ solution: string; model: string }> {
     try {
       const response = await fetch(`${this.workerUrl}/api/chat`, {
         method: 'POST',
@@ -151,7 +155,8 @@ class CloudflareProvider {
         body: JSON.stringify({
           message: `Think step-by-step and solve this problem:\n\n${problem}`,
           model: '@cf/qwq/qwq-32b-preview',
-          systemPrompt: 'You are a reasoning AI. Break down complex problems into clear logical steps.'
+          systemPrompt: 'You are a reasoning AI. Break down complex problems into clear logical steps.',
+          max_tokens: maxTokens
         })
       });
 
@@ -180,7 +185,7 @@ class CloudflareProvider {
    * Reasoning using DeepSeek R1 distilled (ALTERNATIVE reasoning model)
    * Model: @cf/deepseek-ai/deepseek-r1-distill-qwen-32b
    */
-  async reasonWithDeepSeek(problem: string): Promise<{ solution: string; model: string }> {
+  async reasonWithDeepSeek(problem: string, maxTokens: number = 4096): Promise<{ solution: string; model: string }> {
     try {
       const response = await fetch(`${this.workerUrl}/api/chat`, {
         method: 'POST',
@@ -188,7 +193,8 @@ class CloudflareProvider {
         body: JSON.stringify({
           message: problem,
           model: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
-          systemPrompt: 'You are DeepSeek R1, a thinking model. Show your reasoning process.'
+          systemPrompt: 'You are DeepSeek R1, a thinking model. Show your reasoning process.',
+          max_tokens: maxTokens
         })
       });
 
@@ -449,7 +455,8 @@ class CloudflareProvider {
   async structuredChat<T = any>(
     prompt: string,
     history: any[] = [],
-    systemPrompt?: string
+    systemPrompt?: string,
+    maxTokens: number = 2048
   ): Promise<T> {
     const response = await fetch(`${this.workerUrl}/api/chat`, {
       method: 'POST',
@@ -459,7 +466,8 @@ class CloudflareProvider {
         history,
         systemPrompt,
         responseFormat: 'json',
-        stream: false
+        stream: false,
+        max_tokens: maxTokens
       })
     });
 
@@ -477,16 +485,16 @@ class CloudflareProvider {
     }
   }
 
-  async textChat(request: CloudflareTextRequest, stream: boolean = false, signal?: AbortSignal): Promise<CloudflareTextResponse | ReadableStream> {
-    return this.chatWithLlama(request.prompt, request.history, request.systemPrompt, stream, signal);
+  async textChat(request: CloudflareTextRequest, stream: boolean = false, signal?: AbortSignal, maxTokens: number = 4096): Promise<CloudflareTextResponse | ReadableStream> {
+    return this.chatWithLlama(request.prompt, request.history, request.systemPrompt, stream, signal, maxTokens);
   }
 
   async generateImage(request: CloudflareImageRequest, signal?: AbortSignal): Promise<{ imageUrl: string; model: string }> {
     return this.imageWithFlux(request.prompt, signal);
   }
 
-  async codeCompletion(request: CloudflareCodeRequest, signal?: AbortSignal): Promise<{ code: string; model: string }> {
-    return this.codeWithQwen(request.prompt, request.language, signal);
+  async codeCompletion(request: CloudflareCodeRequest, signal?: AbortSignal, maxTokens: number = 4096): Promise<{ code: string; model: string }> {
+    return this.codeWithQwen(request.prompt, request.language, signal, maxTokens);
   }
   /**
    * Generate video from text or image using Stable Video Diffusion
