@@ -24,53 +24,37 @@ declare module 'react' {
 // Safe wrapper for EffectComposer that waits for renderer initialization
 const SafeEffectComposer: React.FC<{ compositingConfig: CompositingConfig }> = ({ compositingConfig }) => {
   const { gl } = useThree();
-  const [hasError, setHasError] = React.useState(false);
 
-  // Don't render until WebGL context is ready or if there was an error
-  if (!gl || hasError) return null;
+  // Don't render until WebGL context is ready
+  if (!gl) return null;
 
-  // Wrap in try-catch to prevent crashes from postprocessing initialization
-  try {
-    // Check if all required values are valid numbers
-    const bloom = typeof compositingConfig.bloom === 'number' ? compositingConfig.bloom : 0;
-    const chromatic = typeof compositingConfig.chromaticAberration === 'number' ? compositingConfig.chromaticAberration : 0;
-    const vignette = typeof compositingConfig.vignette === 'number' ? compositingConfig.vignette : 0;
-    const scanlines = typeof compositingConfig.scanlines === 'number' ? compositingConfig.scanlines : 0;
-    const noise = typeof compositingConfig.noise === 'number' ? compositingConfig.noise : 0;
+  // Use safe default values - always render effects but with 0 intensity when disabled
+  const bloom = Math.max(0, compositingConfig.bloom ?? 0);
+  const chromatic = Math.max(0, compositingConfig.chromaticAberration ?? 0);
+  const vignette = Math.max(0, compositingConfig.vignette ?? 0);
+  const scanlines = Math.max(0, compositingConfig.scanlines ?? 0);
+  const noise = Math.max(0, compositingConfig.noise ?? 0);
 
-    return (
-      <EffectComposer>
-        {bloom > 0 ? (
-          <Bloom
-            intensity={bloom}
-            luminanceThreshold={1.0}
-            luminanceSmoothing={0.9}
-          />
-        ) : null}
-        {chromatic > 0 ? (
-          <ChromaticAberration
-            offset={new THREE.Vector2(chromatic, chromatic)}
-          />
-        ) : null}
-        {vignette > 0 ? (
-          <Vignette
-            offset={0.5}
-            darkness={vignette}
-          />
-        ) : null}
-        {scanlines > 0 ? (
-          <Scanline opacity={scanlines} />
-        ) : null}
-        {noise > 0 ? (
-          <Noise opacity={noise} />
-        ) : null}
-      </EffectComposer>
-    );
-  } catch (err) {
-    console.error('[SafeEffectComposer] Failed to initialize postprocessing:', err);
-    setHasError(true);
-    return null;
-  }
+  // Only render if at least one effect is enabled
+  const hasAnyEffect = bloom > 0 || chromatic > 0 || vignette > 0 || scanlines > 0 || noise > 0;
+  if (!hasAnyEffect) return null;
+
+  return (
+    <EffectComposer>
+      <Bloom
+        intensity={bloom}
+        luminanceThreshold={1.0}
+        luminanceSmoothing={0.9}
+      />
+      <ChromaticAberration
+        offset={new THREE.Vector2(chromatic * 0.001, chromatic * 0.001)}
+      />
+      <Vignette
+        offset={0.5}
+        darkness={vignette}
+      />
+    </EffectComposer>
+  );
 };
 
 interface GameDashboardProps {
