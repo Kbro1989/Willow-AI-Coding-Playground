@@ -80,9 +80,11 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({ isActive, 
     };
 
     const startDrawing = (e: React.MouseEvent) => {
-        if (!context) return;
-        const x = e.nativeEvent.offsetX;
-        const y = e.nativeEvent.offsetY;
+        if (!context || !canvasRef.current) return;
+
+        const rect = canvasRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
         if (tool === 'pen' || tool === 'eraser') {
             context.beginPath();
@@ -96,8 +98,10 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({ isActive, 
 
     const draw = (e: React.MouseEvent) => {
         if (!isDrawing || !context || !canvasRef.current) return;
-        const x = e.nativeEvent.offsetX;
-        const y = e.nativeEvent.offsetY;
+
+        const rect = canvasRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
         if (tool === 'pen') {
             context.lineTo(x, y);
@@ -202,7 +206,8 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({ isActive, 
                             { id: 'eraser' as Tool, icon: '🧹', title: 'Eraser' },
                             { id: 'line' as Tool, icon: '📏', title: 'Line' },
                             { id: 'rect' as Tool, icon: '⬜', title: 'Rectangle' },
-                            { id: 'circle' as Tool, icon: '⭕', title: 'Circle' }
+                            { id: 'circle' as Tool, icon: '⭕', title: 'Circle' },
+                            { id: 'text' as Tool, icon: '🔤', title: 'Text Label' }
                         ].map(t => (
                             <button
                                 key={t.id}

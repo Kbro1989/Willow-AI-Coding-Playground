@@ -64,6 +64,28 @@ export default {
         }
         return await env.AI.run(model, inputs);
       };
+      
+      // --- Logging Support ---
+      if (url.pathname === '/api/logs') {
+        if (request.method === 'POST') {
+          return new Response(JSON.stringify({ received: true, timestamp: Date.now() }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
+      }
+
+      // --- Git Service Stub (Cloud Fallback) ---
+      if (url.pathname === '/api/git') {
+        return new Response(JSON.stringify({ 
+          error: 'Local Bridge Required', 
+          message: 'Git operations require a connected local bridge agent.',
+          branches: ['main'] 
+        }), {
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
 
       // --- Health Check ---
       if (url.pathname === '/api/health' || url.pathname === '/health') {
@@ -282,11 +304,12 @@ export default {
 
         // GET: List or Read
         if (request.method === 'GET') {
-          if (!path || path === '') {
+          if (!path || path === '' || path === '/') {
             // List objects
             const prefix = url.searchParams.get('prefix') || '';
             const list = await bucket.list({ prefix });
-            return new Response(JSON.stringify(list.objects.map(o => o.key)), {
+            const keys = list.objects.map(o => o.key);
+            return new Response(JSON.stringify(keys), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
           }

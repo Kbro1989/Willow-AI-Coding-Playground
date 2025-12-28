@@ -12,6 +12,13 @@ if (typeof window !== 'undefined') {
         console.warn(`[RE-SHIM] Legacy require('${id}') trapped. Returning empty module.`, id);
         return (window as any).module.exports;
     });
+    // Add config stub for Monaco/AMD loaders
+    if (!(window as any).require.config) {
+        (window as any).require.config = () => {
+            console.log('[RE-SHIM] require.config() invoked and satisfied.');
+            return (window as any).require;
+        };
+    }
 }
 if (typeof globalThis !== 'undefined') {
     (globalThis as any).Buffer = Buffer;
