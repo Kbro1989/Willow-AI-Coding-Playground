@@ -34,7 +34,7 @@ class CollaborativeSyncService {
             const { userId: _, ...safeData } = data;
 
             await db.transact([
-                tx.presence[`presence-${userId}`].update({
+                tx.presence[userId].update({
                     userId,
                     ...safeData,
                     // Map activeTab to activeView if needed, or just include both

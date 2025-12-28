@@ -271,35 +271,57 @@ export default {
          });
       }
 
-      // --- Registry / Logs ---
-      if (url.pathname === '/api/logs') {
-        if (request.method === 'POST') {
-          const log = await request.json();
-          const logId = 'log:' + Date.now() + ':' + Math.random().toString(36).slice(2, 8);
-          
-          if (env.SESSION_KV) {
-            await env.SESSION_KV.put(logId, JSON.stringify(log), { expirationTtl: 86400 }); // 24h retention
+      // --- Storage (R2) ---
+      if (url.pathname.startsWith('/api/storage')) {
+        const bucket = env.MEDIA_BUCKET || env.ASSETS_BUCKET;
+        if (!bucket) {
+           throw new Error("R2 Bucket binding not found. Please bind 'MEDIA_BUCKET' or 'ASSETS_BUCKET' to your Pages project.");
+        }
+
+        const path = decodeURIComponent(url.pathname.replace('/api/storage/', '').replace('/api/storage', ''));
+
+        // GET: List or Read
+        if (request.method === 'GET') {
+          if (!path || path === '') {
+            // List objects
+            const prefix = url.searchParams.get('prefix') || '';
+            const list = await bucket.list({ prefix });
+            return new Response(JSON.stringify(list.objects.map(o => o.key)), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
           }
-          
-          return new Response(JSON.stringify({ success: true, id: logId }), {
+          // Read specific file
+          const object = await bucket.get(path);
+          if (!object) {
+            return new Response(JSON.stringify({ error: 'File not found', path }), {
+              status: 404,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+          const headers = new Headers(corsHeaders);
+          object.writeHttpMetadata(headers);
+          headers.set('etag', object.httpEtag);
+          return new Response(object.body, { headers });
+        }
+
+        // PUT: Write
+        if (request.method === 'PUT') {
+          if (!path) throw new Error("Path required for write");
+          const body = await request.arrayBuffer();
+          await bucket.put(path, body);
+          return new Response(JSON.stringify({ success: true, path }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
-        
-        // GET: Fetch recent logs from KV
-        if (env.SESSION_KV) {
-          const list = await env.SESSION_KV.list({ prefix: 'log:', limit: 100 });
-          const logs = await Promise.all(
-            list.keys.map(k => env.SESSION_KV.get(k.name, 'json'))
-          );
-          return new Response(JSON.stringify(logs.filter(Boolean)), {
+
+        // DELETE: Remove
+        if (request.method === 'DELETE') {
+          if (!path) throw new Error("Path required for delete");
+          await bucket.delete(path);
+          return new Response(JSON.stringify({ success: true, path }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
-        
-        return new Response(JSON.stringify([]), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
       }
 
       // Default

@@ -110,8 +110,8 @@ class LocalBridgeClient {
 
   private sendMessage(type: string, payload: any): Promise<any> {
     return new Promise((resolve, reject) => {
-      if (this.ws?.readyState !== WebSocket.OPEN) {
-        return reject(new Error("WebSocket is not open."));
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        return reject(new Error(`WebSocket is not open (State: ${this.ws?.readyState ?? 'NULL'})`));
       }
 
       const messageId = `cmd-${this.commandCounter++}`;
@@ -140,7 +140,7 @@ class LocalBridgeClient {
     try {
       // For terminal commands, we don't expect a direct response, but rather output via the 'output' type messages.
       // We will send the command and rely on the broadcastToTerminals in server.js to send output.
-      if (this.ws?.readyState !== WebSocket.OPEN) {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         throw new Error("WebSocket is not open. Cannot run terminal command.");
       }
       this.ws.send(JSON.stringify({ type: 'terminal_command', command }));
