@@ -4,6 +4,8 @@
 declare namespace Cloudflare {
     interface Env {
         BRIDGE_SESSIONS: DurableObjectNamespace<import("./index").BridgeSession>;
+        GOOGLE_API_KEY?: string;
+        GOOGLE_CSE_ID?: string;
     }
 }
 interface Env extends Cloudflare.Env { }

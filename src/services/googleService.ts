@@ -9,19 +9,25 @@ export interface SearchResult {
     snippet: string;
 }
 
+// Bridge-relay URL (deployed worker or local dev)
+const BRIDGE_RELAY_URL = import.meta.env.VITE_BRIDGE_RELAY_URL || 'https://bridge-relay.destiny-antigravity.workers.dev';
 const SEARCH_ENGINE_ID = localStorage.getItem('google_cse_id') || import.meta.env.VITE_GOOGLE_CSE_ID || '';
-const API_KEY = localStorage.getItem('google_api_key') || import.meta.env.VITE_GOOGLE_API_KEY || import.meta.env.VITE_CF_RSC_API_KEY || '';
 
 import { chat } from './modelRouter';
 
 export const googleSearch = async (query: string): Promise<SearchResult[]> => {
-    // If keys are not configured, return smart mock data
-
+    if (!query.trim()) return [];
 
     try {
-        const url = `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
+        // Use bridge-relay to proxy the request (keeps API key server-side)
+        const url = `${BRIDGE_RELAY_URL}/api/google-search?q=${encodeURIComponent(query)}&cx=${encodeURIComponent(SEARCH_ENGINE_ID)}`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Search failed: ${response.statusText}`);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Search failed: ${response.statusText}`);
+        }
+
         const data = await response.json();
 
         return (data.items || []).map((item: any) => ({
