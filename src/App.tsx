@@ -12,6 +12,7 @@ import { universalOrchestrator } from './services/ai/universalOrchestrator';
 import { agentSprintService } from './services/ai/agentSprintService';
 import { registerSystemLimbs } from './services/ai/SystemLimbs';
 import { registerApplicationLimbs } from './services/ai/ApplicationLimbs';
+import { registerAllLimbs } from './services/ai/limbs';
 
 // Lucide Icons for the Command Spine and Sidebars
 import {
@@ -149,6 +150,7 @@ const App: React.FC = () => {
   useEffect(() => {
     registerSystemLimbs();
     registerApplicationLimbs();
+    registerAllLimbs(); // Phase 67: 500 Fingers
     contextService.updateLocalState({ activeView, projectEnv });
   }, [activeView, projectEnv]);
 
