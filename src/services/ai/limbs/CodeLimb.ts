@@ -46,7 +46,7 @@ export const registerCodeLimb = () => {
                     // Basic formatting - would use Prettier in production
                     const indent = ' '.repeat(params.indentSize || 2);
                     let level = 0;
-                    const lines = params.code.split('\n').map(line => {
+                    const lines = params.code.split('\n').map((line: string) => {
                         const trimmed = line.trim();
                         if (trimmed.startsWith('}')) level = Math.max(0, level - 1);
                         const formatted = indent.repeat(level) + trimmed;
@@ -89,12 +89,11 @@ export const registerCodeLimb = () => {
                 description: 'Search for patterns in codebase.',
                 parameters: { pattern: 'string', directory: 'string', extensions: 'string[]?' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({
-                        type: 'grep-files',
-                        directory: params.directory,
-                        pattern: params.pattern,
-                        extensions: params.extensions
-                    });
+                    // Use terminal grep
+                    const ext = params.extensions?.length ? `--include=*.{${params.extensions.join(',')}}` : '';
+                    const result = await localBridgeClient.runTerminalCommand(
+                        `grep -rn ${ext} "${params.pattern}" "${params.directory}"`
+                    );
                     return result;
                 }
             },
@@ -103,12 +102,9 @@ export const registerCodeLimb = () => {
                 description: 'Find where a symbol is defined.',
                 parameters: { symbol: 'string', directory: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({
-                        type: 'grep-files',
-                        directory: params.directory,
-                        pattern: `(function|const|let|var|class|interface|type)\\s+${params.symbol}`,
-                        extensions: ['.ts', '.tsx', '.js', '.jsx']
-                    });
+                    const result = await localBridgeClient.runTerminalCommand(
+                        `grep -rn "(function|const|let|var|class|interface|type)\\s+${params.symbol}" "${params.directory}" --include=*.ts --include=*.tsx`
+                    );
                     return result;
                 }
             },
@@ -117,12 +113,9 @@ export const registerCodeLimb = () => {
                 description: 'Find all references to a symbol.',
                 parameters: { symbol: 'string', directory: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({
-                        type: 'grep-files',
-                        directory: params.directory,
-                        pattern: params.symbol,
-                        extensions: ['.ts', '.tsx', '.js', '.jsx']
-                    });
+                    const result = await localBridgeClient.runTerminalCommand(
+                        `grep -rn "${params.symbol}" "${params.directory}" --include=*.ts --include=*.tsx`
+                    );
                     return result;
                 }
             },
@@ -131,12 +124,9 @@ export const registerCodeLimb = () => {
                 description: 'Find all imports of a module.',
                 parameters: { moduleName: 'string', directory: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({
-                        type: 'grep-files',
-                        directory: params.directory,
-                        pattern: `import.*from.*['"].*${params.moduleName}['"]`,
-                        extensions: ['.ts', '.tsx', '.js', '.jsx']
-                    });
+                    const result = await localBridgeClient.runTerminalCommand(
+                        `grep -rn "import.*from.*${params.moduleName}" "${params.directory}" --include=*.ts --include=*.tsx`
+                    );
                     return result;
                 }
             },
@@ -200,14 +190,13 @@ export const registerCodeLimb = () => {
                 handler: async (params) => {
                     // Simplified - would use real AST in production
                     const lines = params.code.split('\n');
-                    const importLines = lines.filter(l => l.trim().startsWith('import '));
                     let removed = 0;
-                    const cleaned = lines.filter(line => {
+                    const cleaned = lines.filter((line: string) => {
                         if (!line.trim().startsWith('import ')) return true;
                         const match = line.match(/import\s+(\{[^}]+\}|\w+)/);
                         if (!match) return true;
-                        const symbols = match[1].replace(/[{}]/g, '').split(',').map(s => s.trim());
-                        const used = symbols.some(s => {
+                        const symbols = match[1].replace(/[{}]/g, '').split(',').map((s: string) => s.trim());
+                        const used = symbols.some((s: string) => {
                             const regex = new RegExp(`\\b${s}\\b`, 'g');
                             const matches = (params.code.match(regex) || []).length;
                             return matches > 1; // More than just the import
@@ -225,10 +214,10 @@ export const registerCodeLimb = () => {
                 description: 'Generate TypeScript interface from object.',
                 parameters: { object: 'object', interfaceName: 'string' },
                 handler: async (params) => {
-                    const generateType = (val: any): string => {
+                    const generateType = (val: unknown): string => {
                         if (val === null) return 'null';
                         if (Array.isArray(val)) return val.length ? `${generateType(val[0])}[]` : 'any[]';
-                        if (typeof val === 'object') return '{ ' + Object.entries(val).map(([k, v]) => `${k}: ${generateType(v)}`).join('; ') + ' }';
+                        if (typeof val === 'object') return '{ ' + Object.entries(val as Record<string, unknown>).map(([k, v]) => `${k}: ${generateType(v)}`).join('; ') + ' }';
                         return typeof val;
                     };
                     const fields = Object.entries(params.object)
@@ -264,8 +253,8 @@ export const registerCodeLimb = () => {
                     const match = params.functionCode.match(/function\s+(\w+)\s*\(([^)]*)\)/);
                     if (!match) return { docs: '/** TODO: Add documentation */' };
                     const [, name, paramsStr] = match;
-                    const paramNames = paramsStr.split(',').map(p => p.trim().split(':')[0].trim()).filter(Boolean);
-                    const paramDocs = paramNames.map(p => ` * @param ${p} - Description`).join('\n');
+                    const paramNames = paramsStr.split(',').map((p: string) => p.trim().split(':')[0].trim()).filter(Boolean);
+                    const paramDocs = paramNames.map((p: string) => ` * @param ${p} - Description`).join('\n');
                     return {
                         docs: `/**
  * ${name} - Add description
@@ -283,11 +272,8 @@ ${paramDocs}
                 description: 'Run a command in terminal.',
                 parameters: { command: 'string', cwd: 'string?' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({
-                        type: 'run-command',
-                        command: params.command,
-                        cwd: params.cwd
-                    });
+                    const cmd = params.cwd ? `cd "${params.cwd}" && ${params.command}` : params.command;
+                    const result = await localBridgeClient.runTerminalCommand(cmd);
                     return result;
                 }
             },
@@ -297,7 +283,7 @@ ${paramDocs}
                 parameters: { packageName: 'string', dev: 'boolean?' },
                 handler: async (params) => {
                     const command = `npm install ${params.dev ? '-D' : ''} ${params.packageName}`;
-                    const result = await localBridgeClient.execute({ type: 'run-command', command });
+                    const result = await localBridgeClient.runTerminalCommand(command);
                     return result;
                 }
             },
@@ -306,11 +292,8 @@ ${paramDocs}
                 description: 'Run build command.',
                 parameters: { cwd: 'string?' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({
-                        type: 'run-command',
-                        command: 'npm run build',
-                        cwd: params.cwd
-                    });
+                    const cmd = params.cwd ? `cd "${params.cwd}" && npm run build` : 'npm run build';
+                    const result = await localBridgeClient.runTerminalCommand(cmd);
                     return result;
                 }
             },
@@ -320,11 +303,8 @@ ${paramDocs}
                 parameters: { cwd: 'string?', testFile: 'string?' },
                 handler: async (params) => {
                     const command = params.testFile ? `npm test -- ${params.testFile}` : 'npm test';
-                    const result = await localBridgeClient.execute({
-                        type: 'run-command',
-                        command,
-                        cwd: params.cwd
-                    });
+                    const cmd = params.cwd ? `cd "${params.cwd}" && ${command}` : command;
+                    const result = await localBridgeClient.runTerminalCommand(cmd);
                     return result;
                 }
             },
@@ -335,11 +315,8 @@ ${paramDocs}
                 description: 'Run TypeScript type checking.',
                 parameters: { cwd: 'string?' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({
-                        type: 'run-command',
-                        command: 'npx tsc --noEmit',
-                        cwd: params.cwd
-                    });
+                    const cmd = params.cwd ? `cd "${params.cwd}" && npx tsc --noEmit` : 'npx tsc --noEmit';
+                    const result = await localBridgeClient.runTerminalCommand(cmd);
                     return result;
                 }
             },
@@ -393,10 +370,10 @@ ${paramDocs}
                 description: 'Get code statistics for a directory.',
                 parameters: { directory: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({
-                        type: 'code-stats',
-                        directory: params.directory
-                    });
+                    // Use find + wc to count files and lines
+                    const result = await localBridgeClient.runTerminalCommand(
+                        `find "${params.directory}" -name "*.ts" -o -name "*.tsx" | head -20`
+                    );
                     return result;
                 }
             },
@@ -405,11 +382,8 @@ ${paramDocs}
                 description: 'List project dependencies.',
                 parameters: { packageJsonPath: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({
-                        type: 'read-file',
-                        path: params.packageJsonPath
-                    });
-                    if (!result.success) return result;
+                    const result = await localBridgeClient.readLocalFile(params.packageJsonPath);
+                    if (!result.success || !result.content) return result;
                     try {
                         const pkg = JSON.parse(result.content);
                         return {

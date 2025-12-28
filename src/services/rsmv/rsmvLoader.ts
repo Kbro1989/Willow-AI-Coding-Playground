@@ -26,8 +26,8 @@ export const loadRSMV = async (): Promise<any> => {
     loadingPromise = (async () => {
         try {
             // Dynamic import - this chunk won't load until called
-            const module = await import('./rsmvService');
-            rsmvServiceInstance = module.default;
+            const module = await import('../rsmvService');
+            rsmvServiceInstance = module.RSMVEngine.getInstance();
 
             console.log(`[RSMVLoader] RSMV service loaded in ${Date.now() - startTime}ms`);
             return rsmvServiceInstance;

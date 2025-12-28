@@ -17,8 +17,7 @@ export const registerFileLimb = () => {
                 description: 'Read file contents as text.',
                 parameters: { path: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'read-file', path: params.path });
-                    return result;
+                    return await localBridgeClient.readLocalFile(params.path);
                 }
             },
             {
@@ -26,8 +25,7 @@ export const registerFileLimb = () => {
                 description: 'Read file as base64 encoded binary.',
                 parameters: { path: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'read-file-binary', path: params.path });
-                    return result;
+                    return await localBridgeClient.readLocalFile(params.path, true);
                 }
             },
             {
@@ -35,10 +33,11 @@ export const registerFileLimb = () => {
                 description: 'Read and parse a JSON file.',
                 parameters: { path: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'read-file', path: params.path });
+                    const result = await localBridgeClient.readLocalFile(params.path);
+                    if (!result.success || !result.content) return result;
                     try {
-                        return { success: true, data: JSON.parse(result.content || '{}') };
-                    } catch (e) {
+                        return { success: true, data: JSON.parse(result.content) };
+                    } catch {
                         return { success: false, error: 'Invalid JSON' };
                     }
                 }
@@ -48,8 +47,8 @@ export const registerFileLimb = () => {
                 description: 'Check if a file exists.',
                 parameters: { path: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'file-exists', path: params.path });
-                    return result;
+                    const result = await localBridgeClient.statFile(params.path);
+                    return { exists: result.success };
                 }
             },
             {
@@ -57,8 +56,7 @@ export const registerFileLimb = () => {
                 description: 'Get file metadata (size, modified date).',
                 parameters: { path: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'file-stat', path: params.path });
-                    return result;
+                    return await localBridgeClient.statFile(params.path);
                 }
             },
 
@@ -68,8 +66,7 @@ export const registerFileLimb = () => {
                 description: 'Write text content to a file.',
                 parameters: { path: 'string', content: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'write-file', path: params.path, content: params.content });
-                    return result;
+                    return await localBridgeClient.writeLocalFile(params.path, params.content);
                 }
             },
             {
@@ -78,8 +75,7 @@ export const registerFileLimb = () => {
                 parameters: { path: 'string', data: 'object' },
                 handler: async (params) => {
                     const content = JSON.stringify(params.data, null, 2);
-                    const result = await localBridgeClient.execute({ type: 'write-file', path: params.path, content });
-                    return result;
+                    return await localBridgeClient.writeLocalFile(params.path, content);
                 }
             },
             {
@@ -87,8 +83,10 @@ export const registerFileLimb = () => {
                 description: 'Append text to a file.',
                 parameters: { path: 'string', content: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'append-file', path: params.path, content: params.content });
-                    return result;
+                    // Read existing, append, write back
+                    const existing = await localBridgeClient.readLocalFile(params.path);
+                    const newContent = (existing.content || '') + params.content;
+                    return await localBridgeClient.writeLocalFile(params.path, newContent);
                 }
             },
             {
@@ -96,8 +94,7 @@ export const registerFileLimb = () => {
                 description: 'Delete a file.',
                 parameters: { path: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'delete-file', path: params.path });
-                    return result;
+                    return await localBridgeClient.deleteLocalFile(params.path);
                 }
             },
             {
@@ -105,8 +102,10 @@ export const registerFileLimb = () => {
                 description: 'Copy a file to a new location.',
                 parameters: { source: 'string', destination: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'copy-file', source: params.source, destination: params.destination });
-                    return result;
+                    // Read source, write to destination
+                    const content = await localBridgeClient.readLocalFile(params.source);
+                    if (!content.success || !content.content) return content;
+                    return await localBridgeClient.writeLocalFile(params.destination, content.content);
                 }
             },
             {
@@ -114,8 +113,7 @@ export const registerFileLimb = () => {
                 description: 'Move/rename a file.',
                 parameters: { source: 'string', destination: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'move-file', source: params.source, destination: params.destination });
-                    return result;
+                    return await localBridgeClient.renameFile(params.source, params.destination);
                 }
             },
             {
@@ -125,8 +123,7 @@ export const registerFileLimb = () => {
                 handler: async (params) => {
                     const dir = params.path.substring(0, params.path.lastIndexOf('/'));
                     const dest = `${dir}/${params.newName}`;
-                    const result = await localBridgeClient.execute({ type: 'move-file', source: params.path, destination: dest });
-                    return result;
+                    return await localBridgeClient.renameFile(params.path, dest);
                 }
             },
 
@@ -136,8 +133,7 @@ export const registerFileLimb = () => {
                 description: 'List contents of a directory.',
                 parameters: { path: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'list-directory', path: params.path });
-                    return result;
+                    return await localBridgeClient.listDirectory(params.path);
                 }
             },
             {
@@ -145,8 +141,7 @@ export const registerFileLimb = () => {
                 description: 'Create a directory (including parents).',
                 parameters: { path: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'create-directory', path: params.path });
-                    return result;
+                    return await localBridgeClient.makeDirectory(params.path);
                 }
             },
             {
@@ -154,8 +149,8 @@ export const registerFileLimb = () => {
                 description: 'Delete a directory recursively.',
                 parameters: { path: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'delete-directory', path: params.path });
-                    return result;
+                    // Use terminal command for recursive delete
+                    return await localBridgeClient.runTerminalCommand(`rm -rf "${params.path}"`);
                 }
             },
             {
@@ -163,8 +158,8 @@ export const registerFileLimb = () => {
                 description: 'Get recursive directory tree.',
                 parameters: { path: 'string', depth: 'number?' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'directory-tree', path: params.path, depth: params.depth || 3 });
-                    return result;
+                    const depth = params.depth || 3;
+                    return await localBridgeClient.runTerminalCommand(`find "${params.path}" -maxdepth ${depth} -type f`);
                 }
             },
 
@@ -174,8 +169,7 @@ export const registerFileLimb = () => {
                 description: 'Search for files by name pattern.',
                 parameters: { directory: 'string', pattern: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'search-files', directory: params.directory, pattern: params.pattern });
-                    return result;
+                    return await localBridgeClient.runTerminalCommand(`find "${params.directory}" -name "${params.pattern}"`);
                 }
             },
             {
@@ -183,8 +177,8 @@ export const registerFileLimb = () => {
                 description: 'Search file contents for a pattern.',
                 parameters: { directory: 'string', pattern: 'string', extensions: 'string[]?' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'grep-files', directory: params.directory, pattern: params.pattern, extensions: params.extensions });
-                    return result;
+                    const ext = params.extensions?.length ? `--include=*.{${params.extensions.join(',')}}` : '';
+                    return await localBridgeClient.runTerminalCommand(`grep -rn ${ext} "${params.pattern}" "${params.directory}"`);
                 }
             },
 
@@ -194,8 +188,8 @@ export const registerFileLimb = () => {
                 description: 'Create a zip archive from files/directory.',
                 parameters: { sources: 'string[]', outputPath: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'zip', sources: params.sources, output: params.outputPath });
-                    return result;
+                    const sourceList = params.sources.join(' ');
+                    return await localBridgeClient.runTerminalCommand(`zip -r "${params.outputPath}" ${sourceList}`);
                 }
             },
             {
@@ -203,8 +197,7 @@ export const registerFileLimb = () => {
                 description: 'Extract a zip archive.',
                 parameters: { zipPath: 'string', outputDir: 'string' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'unzip', zipPath: params.zipPath, outputDir: params.outputDir });
-                    return result;
+                    return await localBridgeClient.runTerminalCommand(`unzip -o "${params.zipPath}" -d "${params.outputDir}"`);
                 }
             },
 
@@ -215,8 +208,8 @@ export const registerFileLimb = () => {
                 parameters: { localPath: 'string', remotePath: 'string' },
                 handler: async (params) => {
                     // First read the file, then upload via API
-                    const fileResult = await localBridgeClient.execute({ type: 'read-file-binary', path: params.localPath });
-                    if (!fileResult.success) return fileResult;
+                    const fileResult = await localBridgeClient.readLocalFile(params.localPath, true);
+                    if (!fileResult.success || !fileResult.content) return fileResult;
 
                     const response = await fetch('/api/storage', {
                         method: 'PUT',
@@ -234,8 +227,7 @@ export const registerFileLimb = () => {
                     const response = await fetch(`/api/storage?key=${encodeURIComponent(params.remotePath)}`);
                     if (!response.ok) return { success: false, error: 'Download failed' };
                     const content = await response.text();
-                    const result = await localBridgeClient.execute({ type: 'write-file', path: params.localPath, content });
-                    return result;
+                    return await localBridgeClient.writeLocalFile(params.localPath, content);
                 }
             },
             {
@@ -264,8 +256,9 @@ export const registerFileLimb = () => {
                 description: 'Compute hash of a file (MD5/SHA256).',
                 parameters: { path: 'string', algorithm: 'md5|sha256' },
                 handler: async (params) => {
-                    const result = await localBridgeClient.execute({ type: 'file-hash', path: params.path, algorithm: params.algorithm || 'sha256' });
-                    return result;
+                    const algo = params.algorithm || 'sha256';
+                    // Use openssl for hashing on most systems
+                    return await localBridgeClient.runTerminalCommand(`openssl dgst -${algo} "${params.path}"`);
                 }
             }
         ]
