@@ -37,7 +37,7 @@ export const registerAIModelLimb = () => {
                 parameters: { prompt: 'string', maxTokens: 'number?' },
                 handler: async (params) => {
                     const { modelRouter } = await import('../../modelRouter');
-                    const result = await modelRouter.route({ type: 'chat', prompt: params.prompt, tier: 'standard' });
+                    const result = await modelRouter.route({ type: 'text', prompt: params.prompt, tier: 'standard' });
                     return 'content' in result ? { completion: result.content } : { error: 'No response' };
                 }
             },

@@ -1,6 +1,6 @@
 /**
  * Limbs Index — Central export for all Neural Limbs
- * Total: 14 Limbs, 395+ Capabilities (approaching 500 target)
+ * Total: 17 Limbs, 505+ Capabilities — Agent Symphony Architecture
  */
 
 import { registerEntityLimb, bindEntityLimb } from './EntityLimb';
@@ -17,6 +17,9 @@ import { registerNetworkLimb } from './NetworkLimb';
 import { registerWorldLimb } from './WorldLimb';
 import { registerPhysicsLimb } from './PhysicsLimb';
 import { registerAnimationLimb } from './AnimationLimb';
+import { registerLiveGameLimb } from './LiveGameLimb';
+import { registerOrchestratorLimb } from './OrchestratorLimb';
+import { registerAssetPipelineLimb } from './AssetPipelineLimb';
 
 export {
     registerEntityLimb, bindEntityLimb,
@@ -25,33 +28,62 @@ export {
     registerAIModelLimb, registerCodeLimb,
     registerImageLimb, registerAudioLimb, registerVideoLimb,
     registerNetworkLimb, registerWorldLimb, registerPhysicsLimb,
-    registerAnimationLimb
+    registerAnimationLimb, registerLiveGameLimb, registerOrchestratorLimb,
+    registerAssetPipelineLimb
 };
 
 /**
- * Register all limbs — Phase 67: 500 Fingers
+ * Register all limbs — Agent Symphony Architecture
  * 
- * Capabilities by Limb:
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │                      BRAIN (Orchestrator)                   │
+ * │  symphony_from_prompt → Agent planning & coordination       │
+ * └─────────────────────────┬───────────────────────────────────┘
+ *                           │
+ * ┌─────────────────────────▼───────────────────────────────────┐
+ * │                      SPINE (Registry)                       │
+ * │  Routes capabilities between limbs, tracks state            │
+ * └───┬─────────┬─────────┬─────────┬─────────┬─────────┬───────┘
+ *     │         │         │         │         │         │
+ * ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐
+ * │ Artist│ │ Coder │ │ Audio │ │ World │ │ Game  │ │Pipeline│
+ * │ Limbs │ │ Limbs │ │ Limbs │ │ Limbs │ │ Limbs │ │ Limbs  │
+ * └───────┘ └───────┘ └───────┘ └───────┘ └───────┘ └────────┘
+ *
+ * Capabilities by Limb (17 total, 505 capabilities):
+ * 
+ * CORE FOUNDATION (85):
  * - EntityLimb: 30 (scene entity CRUD, transforms, selection)
  * - FileLimb: 25 (file read/write, directories, R2 storage)
  * - DataLimb: 30 (data parsing, stats, profiling)
+ * 
+ * 3D OPERATIONS (75):
  * - MeshOpsLimb: 50 (geometry, UV, measurements, export)
  * - MaterialLimb: 25 (PBR materials, textures, shaders)
+ * 
+ * AI & CODE (60):
  * - AIModelLimb: 30 (chat, generation, embeddings, analysis)
  * - CodeLimb: 30 (parsing, refactoring, execution)
- * - ImageLimb: 35 (presets, img2img, sprites, textures, AI)
- * - AudioLimb: 35 (SFX presets, music, remix, mock sounds)
- * - VideoLimb: 30 (video-from-image, restyle, cutscenes)
- * - NetworkLimb: 20 (HTTP, WebSocket, caching)
+ * 
+ * WORLD & PHYSICS (55):
  * - WorldLimb: 30 (terrain, weather, lighting, navmesh)
  * - PhysicsLimb: 25 (rigidbody, colliders, forces, joints)
+ * 
+ * MEDIA — ENHANCED FOR GAME ASSETS (130):
+ * - ImageLimb: 35 (presets, img2img, sprites, textures)
+ * - AudioLimb: 35 (SFX presets, remix, mock sounds)
+ * - VideoLimb: 30 (video-from-image, restyle, cutscenes)
  * - AnimationLimb: 30 (clips, keyframes, rigging, IK, mocap)
  * 
- * TOTAL: 425 capabilities
+ * NETWORK (20):
+ * - NetworkLimb: 20 (HTTP, WebSocket, caching)
  * 
- * + Existing ApplicationLimbs: ~10 capabilities
- * + Existing SystemLimbs: ~5 capabilities
- * = ~440 total capabilities
+ * AGENT SYMPHONY — NEW (80):
+ * - LiveGameLimb: 30 (real-time state, reactive AI, AI Director)
+ * - OrchestratorLimb: 25 (symphony_from_prompt, pipelines, agent collaboration)
+ * - AssetPipelineLimb: 25 (batch sprite sheets, tilesets, UI kits, audio packs)
+ * 
+ * TOTAL: 505 CAPABILITIES
  */
 export const registerAllLimbs = () => {
     // Phase 67.1 - Core Foundation (85)
@@ -80,5 +112,11 @@ export const registerAllLimbs = () => {
     // Phase 67.6 - Network (20)
     registerNetworkLimb();    // 20 caps - HTTP, WebSocket, caching
 
-    console.log('[Limbs] Phase 67 Complete: 14 Limbs, 425 Capabilities registered.');
+    // Phase 68 - Agent Symphony (80) — THE BRAIN
+    registerLiveGameLimb();      // 30 caps - Real-time game state, reactive AI
+    registerOrchestratorLimb();  // 25 caps - Multi-agent symphony conductor
+    registerAssetPipelineLimb(); // 25 caps - Batch asset generation
+
+    console.log('[Limbs] Agent Symphony Complete: 17 Limbs, 505 Capabilities registered.');
+    console.log('[Limbs] Architecture: Brain (Orchestrator) → Spine (Registry) → Limbs → Fingertips');
 };
