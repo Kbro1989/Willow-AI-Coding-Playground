@@ -39,19 +39,19 @@ export {
  * - MaterialLimb: 25 (PBR materials, textures, shaders)
  * - AIModelLimb: 30 (chat, generation, embeddings, analysis)
  * - CodeLimb: 30 (parsing, refactoring, execution)
- * - ImageLimb: 25 (filters, transforms, AI ops)
- * - AudioLimb: 25 (playback, effects, AI generation)
- * - VideoLimb: 20 (editing, effects, AI processing)
+ * - ImageLimb: 35 (presets, img2img, sprites, textures, AI)
+ * - AudioLimb: 35 (SFX presets, music, remix, mock sounds)
+ * - VideoLimb: 30 (video-from-image, restyle, cutscenes)
  * - NetworkLimb: 20 (HTTP, WebSocket, caching)
  * - WorldLimb: 30 (terrain, weather, lighting, navmesh)
  * - PhysicsLimb: 25 (rigidbody, colliders, forces, joints)
  * - AnimationLimb: 30 (clips, keyframes, rigging, IK, mocap)
  * 
- * TOTAL: 395 capabilities
+ * TOTAL: 425 capabilities
  * 
  * + Existing ApplicationLimbs: ~10 capabilities
  * + Existing SystemLimbs: ~5 capabilities
- * = ~410 total capabilities
+ * = ~440 total capabilities
  */
 export const registerAllLimbs = () => {
     // Phase 67.1 - Core Foundation (85)
@@ -71,14 +71,14 @@ export const registerAllLimbs = () => {
     registerWorldLimb();      // 30 caps - World building
     registerPhysicsLimb();    // 25 caps - Physics simulation
 
-    // Phase 67.5 - Media (100)
-    registerImageLimb();      // 25 caps - Image operations
-    registerAudioLimb();      // 25 caps - Audio operations
-    registerVideoLimb();      // 20 caps - Video operations
+    // Phase 67.5 - Media (130) — ENHANCED for game assets
+    registerImageLimb();      // 35 caps - Presets, img2img, sprites, textures
+    registerAudioLimb();      // 35 caps - SFX presets, remix, mock sounds
+    registerVideoLimb();      // 30 caps - Video-from-image, restyle, cutscenes
     registerAnimationLimb();  // 30 caps - Animation & rigging
 
     // Phase 67.6 - Network (20)
     registerNetworkLimb();    // 20 caps - HTTP, WebSocket, caching
 
-    console.log('[Limbs] Phase 67 Complete: 14 Limbs, 395 Capabilities registered.');
+    console.log('[Limbs] Phase 67 Complete: 14 Limbs, 425 Capabilities registered.');
 };
