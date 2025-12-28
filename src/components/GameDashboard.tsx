@@ -271,6 +271,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
   isFullscreen = false
 }) => {
   const [activeWorkspace, setActiveWorkspace] = useState<'layout' | 'shading' | 'world' | 'data' | 'rendering' | 'pipelines'>('layout');
+  const [cameraMode, setCameraMode] = useState<'standard' | 'item'>('standard');
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -357,18 +358,20 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
     onBuild('Stress test: Verify binary-to-spatial sync.');
   };
 
-  // Phase 18: Matrix Tools Logic
+  /**
+   * Performs a high-entropy randomization of the selected entity properties,
+   * simulating a "Matrix Chaos" event.
+   */
   const handleRandomize = () => {
     if (!selectedObjectId) return;
     const obj = sceneObjects.find(o => o.id === selectedObjectId);
     if (!obj) return;
 
-    // Randomize Scale and Rotation
     onUpdateSceneObject(obj.id, {
       scale: [0.5 + Math.random() * 2, 0.5 + Math.random() * 2, 0.5 + Math.random() * 2] as any,
       rotation: [Math.random() * 360, Math.random() * 360, Math.random() * 360] as any,
+      position: [obj.position[0] + (Math.random() - 0.5), obj.position[1], obj.position[2] + (Math.random() - 0.5)]
     });
-    // Trigger visual effect
     onRunAction('RANDOMIZE_EFFECT');
   };
 
@@ -381,14 +384,22 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
     });
   };
 
+  /**
+   * Executes AI-driven spatial adjustments.
+   */
   const handleAiAction = (action: string) => {
     if (!selectedObjectId) return;
-    // Simulate AI "Thinking" via log
     onRunAction(`AI_EXEC_${action} `);
-    // Simple mock logic for "Align" or "Ground"
+
     if (action === 'GROUND') {
       const obj = sceneObjects.find(o => o.id === selectedObjectId);
-      if (obj) onUpdateSceneObject(selectedObjectId, { position: [obj.position[0], 0, obj.position[2]] });
+      if (obj) {
+        // Calculate ground Y based on object scale (assuming origin at center)
+        const groundY = (obj.scale[1] / 2);
+        onUpdateSceneObject(selectedObjectId, {
+          position: [obj.position[0], groundY, obj.position[2]]
+        });
+      }
     }
   };
 
@@ -716,6 +727,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
 
           <div className="flex items-center space-x-4">
             <button onClick={handleRunTest} className="px-6 py-2 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">Run Logic Tests</button>
+            <button onClick={() => setCameraMode(prev => prev === 'standard' ? 'item' : 'standard')} className={`px-4 py-2 ${cameraMode === 'item' ? 'bg-amber-600 text-white' : 'bg-cyan-900/20 text-cyan-400'} border border-cyan-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-cyan-600 hover:text-white transition-all`}>{cameraMode === 'standard' ? 'Item Cam' : 'Std Cam'}</button>
             <button onClick={() => onRunAction('PRESENT_BUILD')} className="p-2 bg-cyan-900/20 border border-cyan-500/20 rounded-xl text-cyan-400 hover:bg-cyan-500 hover:text-white transition-all" title="Presentation Mode"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg></button>
             <button onClick={() => { setIsCapturing(true); setTimeout(() => { onSendVisualFeedback?.(`Runtime Snapshot: Entities = ${sceneObjects.length} FPS = ${telemetry.fps.toFixed(0)} `); setIsCapturing(false); }, 600); }} className="bg-cyan-600 px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-[0_0_15px_rgba(0,242,255,0.3)]">{isCapturing ? 'TRANSMITTING' : 'DIRECTOR SNAPSHOT'}</button>
           </div>
@@ -776,7 +788,11 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
               dpr={[1, 2]}
             >
               <XR store={xrStore}>
-                <PerspectiveCamera makeDefault position={[15, 15, 15]} fov={45} />
+                <PerspectiveCamera
+                  makeDefault
+                  position={cameraMode === 'item' ? [3, 2, 3] : [15, 15, 15]}
+                  fov={cameraMode === 'item' ? 35 : 45}
+                />
                 <OrbitControls makeDefault enabled={!isAnnotating} />
                 <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
                 <Sky sunPosition={[100, Math.max(0.01, worldConfig.atmosphereDensity) * 50, 100]} />

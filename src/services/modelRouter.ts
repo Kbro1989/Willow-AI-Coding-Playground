@@ -19,6 +19,8 @@ export interface ModelRequest {
   grounding?: boolean;
   bundle?: boolean;
   subRequests?: ModelRequest[];
+  domain?: '3D' | 'MEDIA' | 'AI' | 'SYSTEM';
+  source?: 'RSMV' | 'NIF' | 'GLTF' | 'REMOTE';
 }
 
 export interface ModelResponse {
@@ -30,7 +32,7 @@ export interface ModelResponse {
   modelUrl?: string;
   functionCalls?: any[];
   model: string;
-  provider: 'gemini' | 'cloudflare' | 'local' | 'unknown';
+  provider: 'gemini' | 'cloudflare' | 'local' | 'local-rsmv' | 'unknown';
   latency: number;
   tokensUsed?: number;
   cost?: number;
@@ -50,6 +52,7 @@ interface PipelineStep {
 
 import { nexusBus } from './nexusCommandBus';
 import sessionService from './sessionService';
+import { orchestrateRSMV } from './rsmv/rsmvCompiler';
 
 export async function route(request: ModelRequest): Promise<ModelResponse | ReadableStream> {
   const startTime = Date.now();
@@ -58,7 +61,6 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
   if (request.bundle && request.subRequests) {
     console.log(`[MODEL] Processing bundled request with ${request.subRequests.length} steps...`);
     const results = await Promise.all(request.subRequests.map(sr => route({ ...sr, options: { ...sr.options, ...request.options } })));
-
     // Merge results into a single response
     return {
       content: results.map(r => (r as ModelResponse).content).filter(Boolean).join('\n---\n'),
@@ -69,6 +71,11 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
       provider: 'unknown',
       latency: Date.now() - startTime
     };
+  }
+
+  // 1.5 RSMV Professional Integration Branch
+  if (request.domain === '3D' && request.source === 'RSMV') {
+    return orchestrateRSMV(request);
   }
 
   const signal = request.options?.signal;

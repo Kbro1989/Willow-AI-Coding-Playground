@@ -8,6 +8,7 @@ import { cloudlareLimiter as limiter } from '../services/cloudflareService';
 import { modelRouter, ModelResponse, generate3D, generateImage, generateCinematic, synthesizeSpeech } from '../services/modelRouter';
 import { localBridgeClient } from '../services/localBridgeService';
 import { behaviorBridge } from '../services/logic/behaviorBridge';
+import { VoiceService } from '../services/voice/voiceService';
 
 
 interface ChatProps {
@@ -166,6 +167,12 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           toolResult = await synthesizeSpeech(args.text);
           addMessage({ role: 'assistant', content: `Synthesized speech from text.`, audioUrl: toolResult.audioUrl, model: 'Cloudflare AI TTS' });
           // You might want to auto-play this audio
+          break;
+        case 'generate_audio_clip': // Mock ElevenLabs Service
+          const blob = await VoiceService.getInstance().synthesize(args.text, args.voiceId);
+          const audioUrl = URL.createObjectURL(blob);
+          toolResult = { status: 'success', audioUrl };
+          addMessage({ role: 'assistant', content: `Generated voice clip for "${args.text}" using voice ID: ${args.voiceId || 'default'}`, audioUrl: audioUrl, model: 'Mock ElevenLabs' });
           break;
         case 'generate_cinematic': // Cloudflare Worker Video Generation
           toolResult = await generateCinematic(args.prompt) as ModelResponse;

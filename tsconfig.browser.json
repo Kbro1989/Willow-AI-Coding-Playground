@@ -1,0 +1,21 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "types": [],
+        "checkJs": false
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "src/services/rsmv/scripts/**/*",
+        "src/services/rsmv/headless/**",
+        "src/services/rsmv/libs/**/*.js",
+        "**/*.test.ts"
+    ]
+}

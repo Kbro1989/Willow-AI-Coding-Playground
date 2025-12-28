@@ -17,7 +17,10 @@ import {
   User,
   Home,
   Package,
-  Activity
+  Activity,
+  Zap,
+  Brain,
+  Hammer
 } from 'lucide-react';
 
 // =============================================================================
@@ -48,6 +51,7 @@ export interface RSMVBrowserProps {
   onImportModel?: (model: RSMVModelEntry) => void;
   initialCategory?: ModelCategory;
   initialGameSource?: GameSource;
+  addLog?: (message: string, type?: 'info' | 'success' | 'warn' | 'error', source?: string) => void;
 }
 
 const GAME_SOURCES: { key: GameSource; label: string; icon: string; count: string; color: string }[] = [
@@ -55,30 +59,6 @@ const GAME_SOURCES: { key: GameSource; label: string; icon: string; count: strin
   { key: 'morrowind', label: 'Morrowind', icon: '🌋', count: '~5,000', color: 'amber' },
   { key: 'fallout', label: 'Fallout NV', icon: '☢️', count: '~10,000', color: 'emerald' },
 ];
-
-const RUNESCAPE_MODELS: RSMVModelEntry[] = [
-  { id: 4151, name: 'Abyssal whip', category: 'items', gameSource: 'runescape', vertexCount: 342, materialCount: 2, tags: ['weapon', 'melee', 'slayer'], examine: 'A weapon from the abyss.' },
-  { id: 11694, name: 'Armadyl godsword', category: 'items', gameSource: 'runescape', vertexCount: 1024, materialCount: 3, tags: ['weapon', 'melee', 'godsword'], examine: 'A very powerful godsword.' },
-  { id: 1050, name: 'Santa hat', category: 'items', gameSource: 'runescape', vertexCount: 128, materialCount: 1, tags: ['holiday', 'rare'], examine: 'Ho ho ho!' },
-  { id: 11286, name: 'Draconic visage', category: 'items', gameSource: 'runescape', vertexCount: 512, materialCount: 2, tags: ['rare', 'dragon'], examine: 'This could be attached to an anti-dragon shield.' },
-  { id: 50, name: 'King Black Dragon', category: 'npcs', gameSource: 'runescape', vertexCount: 4096, materialCount: 6, boneCount: 48, tags: ['boss', 'dragon'], description: 'A fearsome three-headed dragon.' },
-];
-
-const MORROWIND_MODELS: RSMVModelEntry[] = [
-  { id: 1, name: 'Frost Atronach', category: 'npcs', gameSource: 'morrowind', vertexCount: 3200, materialCount: 4, boneCount: 24, tags: ['daedra', 'summon'], filePath: 'Meshes/Atronach_Frost.nif' },
-  { id: 101, name: 'Torch Fire', category: 'objects', gameSource: 'morrowind', vertexCount: 128, materialCount: 1, tags: ['light', 'fire'], filePath: 'Meshes/torchfire.nif' },
-];
-
-const FALLOUT_MODELS: RSMVModelEntry[] = [
-  { id: 1, name: 'Securitron', category: 'npcs', gameSource: 'fallout', vertexCount: 4500, materialCount: 6, boneCount: 28, tags: ['robot', 'vegas'], description: 'Mr. House\'s robotic army.' },
-  { id: 101, name: 'Pip-Boy 3000', category: 'items', gameSource: 'fallout', vertexCount: 1800, materialCount: 4, tags: ['wrist', 'computer'], description: 'Your personal computer.' },
-];
-
-const ALL_MODELS: Record<GameSource, RSMVModelEntry[]> = {
-  runescape: RUNESCAPE_MODELS,
-  morrowind: MORROWIND_MODELS,
-  fallout: FALLOUT_MODELS,
-};
 
 const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean }> = ({ model, wireframe }) => {
   const meshRef = useRef<THREE.Group>(null);
@@ -88,6 +68,17 @@ const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean 
 
   if (!model) return <Html center><div className="text-cyan-500 text-xs font-bold uppercase tracking-widest animate-pulse">Select a model</div></Html>;
 
+  // If it's a real model and we have it locally, use the real viewer
+  if ((model.gameSource === 'runescape' && model.id > 0) || model.filePath) {
+    return (
+      <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
+        <ErrorBoundary fallback={<mesh><icosahedronGeometry args={[1, 0]} /><meshStandardMaterial color="#333" wireframe /></mesh>}>
+          <RealModelView modelId={model.id} filePath={model.filePath} wireframe={wireframe} />
+        </ErrorBoundary>
+      </Float>
+    );
+  }
+
   const geometry = useMemo(() => new THREE.IcosahedronGeometry(2, Math.min(Math.floor((model.vertexCount || 100) / 100), 4)), [model.id, model.vertexCount]);
   const color = useMemo(() => {
     switch (model.category) {
@@ -96,6 +87,7 @@ const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean 
       case 'objects': return '#10b981';
       case 'models': return '#a855f7';
     }
+    return '#ccc';
   }, [model.category]);
 
   return (
@@ -114,13 +106,17 @@ const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean 
   );
 };
 
-import { getRsmvModels, verifyJagexLauncher } from '../services/rsmvService';
+const RealModelView = React.lazy(() => import('./RSMV/RealModelView').then(m => ({ default: m.RealModelView })));
+import { getRsmvModels, verifyJagexLauncher, RSMVEngine, FEATURED_MODELS } from '../services/rsmvService';
+import { BethesdaAssetService } from '../services/bethesdaAssetService';
+const AudioClipManager = React.lazy(() => import('../services/rsmv/viewer/AudioClipManager').then(m => ({ default: m.AudioClipManager })));
 
 const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   onSelectModel,
   onImportModel,
   initialCategory = 'items',
-  initialGameSource = 'runescape'
+  initialGameSource = 'runescape',
+  addLog = () => { }
 }) => {
   const [gameSource, setGameSource] = useState<GameSource>(initialGameSource);
   const [category, setCategory] = useState<ModelCategory>(initialCategory);
@@ -135,13 +131,146 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   const [analysisText, setAnalysisText] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReferenceIdx, setSelectedReferenceIdx] = useState(0);
-  const [activeActionTab, setActiveActionTab] = useState<'details' | 'nexus' | 'metrics'>('details');
+  const [activeActionTab, setActiveActionTab] = useState<'details' | 'nexus' | 'metrics' | 'audio'>('details');
   const controlsRef = useRef<any>(null);
 
+  const [isCacheLinked, setIsCacheLinked] = useState(false);
+  const [isBethesdaLinked, setIsBethesdaLinked] = useState<Record<string, boolean>>({ morrowind: false, fallout: false });
+  const [isRemoteModalOpen, setIsRemoteModalOpen] = useState(false);
+  const [remoteCacheId, setRemoteCacheId] = useState('1');
+  const [remoteModelId, setRemoteModelId] = useState('0');
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
   const REFERENCE_MODELS = [
     { name: 'Primary (High Poly)', path: 'C:\\Users\\Destiny\\Desktop\\Pick of Gods\\3D model\\model.glb' },
     { name: 'Optimized (Low Poly)', path: 'C:\\Users\\Destiny\\Desktop\\Pick of Gods\\3D model\\model2.stl' }
   ];
+
+  const handleRemoteImport = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const rsmvModel = await RSMVEngine.getInstance().getRemoteModelData(
+        parseInt(remoteCacheId),
+        parseInt(remoteModelId)
+      );
+      if (rsmvModel) {
+        const newModel: RSMVModelEntry = {
+          id: parseInt(remoteModelId),
+          name: `Remote Model ${remoteModelId}`,
+          category: 'models',
+          gameSource: 'runescape',
+          vertexCount: (rsmvModel.metadata as any).meshes.reduce((a: any, b: any) => a + b.indices.count, 0) / 3
+        };
+        setSelectedModel(newModel);
+        setModels(prev => [newModel, ...prev]);
+        setIsRemoteModalOpen(false);
+      } else {
+        setError("Failed to fetch remote model. Check Cache/Model IDs.");
+      }
+    } catch (err: any) {
+      setError(`Remote Import Failed: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLinkCache = async () => {
+    setIsLoading(true);
+    try {
+      await RSMVEngine.getInstance().linkLocalCache();
+      setIsCacheLinked(true);
+      const data = await getRsmvModels(gameSource, category);
+      setModels(data);
+    } catch (err: any) {
+      setError(`Cache Link Failed: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+
+    const items = e.dataTransfer.items;
+    if (!items) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const blobs: Record<string, Blob> = {};
+
+      // Process files
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file && (file.name.endsWith('.jcache') || file.name.endsWith('.jag') || file.name.endsWith('.mem'))) {
+            blobs[file.name] = file;
+          }
+        }
+      }
+
+      if (Object.keys(blobs).length === 0) {
+        throw new Error("No valid cache files (.jcache, .jag, .mem) found in drop.");
+      }
+
+      await RSMVEngine.getInstance().linkDroppedCache(blobs);
+      setIsCacheLinked(true);
+      const data = await getRsmvModels('runescape', category);
+      setModels(data);
+      console.log(`[RSMV_BROWSER] Successfully linked ${Object.keys(blobs).length} dropped files.`);
+    } catch (err: any) {
+      setError(`Drop Import Failed: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [category]);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleLinkBethesdaAssets = async (source: GameSource) => {
+    setIsLoading(true);
+    try {
+      const success = await BethesdaAssetService.getInstance().linkLocalAssets(source);
+      if (success) {
+        setIsBethesdaLinked(prev => ({ ...prev, [source]: true }));
+        const models = await BethesdaAssetService.getInstance().getModels(source);
+        if (models.length > 0) {
+          setModels(models);
+        }
+      }
+    } catch (err: any) {
+      setError(`Asset Link Failed: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => { verifyJagexLauncher().then(setIsLauncherLinked); }, []);
 
@@ -152,11 +281,11 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
       setError(null);
       try {
         const data = await getRsmvModels(gameSource, category);
-        if (isMounted) setModels(data.length > 0 ? data : ALL_MODELS[gameSource] || []);
+        if (isMounted) setModels(data.length > 0 ? data : FEATURED_MODELS[gameSource] || []);
       } catch (err) {
         if (isMounted) {
           setError('Failed to sync with Nexus Registry');
-          setModels(ALL_MODELS[gameSource] || []);
+          setModels(FEATURED_MODELS[gameSource] || []);
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -222,6 +351,39 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
     }
   };
 
+  const handleNarrativeAI = async () => {
+    if (!selectedModel) return;
+    setIsLoading(true);
+    setAnalysisText(`Synthesizing narrative lineage for "${selectedModel.name}"...`);
+    try {
+      const { modelRouter } = await import('../services/modelRouter');
+      const { directorMemory } = await import('../services/directorMemoryService');
+
+      const prompt = `Act as an Ancient Historian of Gielinor. Generate a deep, atmospheric lore snippet for the asset: "${selectedModel.name}". 
+      Examine text: "${selectedModel.examine || ''}".
+      Include origin myths, legendary owners, and current status in the world.
+      Output ONLY the lore text (max 150 words).`;
+
+      const response = await modelRouter.route({ type: 'text', prompt, tier: 'premium' });
+      const lore = 'content' in response ? response.content : 'Lore synthesis failed.';
+
+      if (lore) {
+        await directorMemory.addMemory(`[LORE] ${selectedModel.name}: ${lore}`, 'project', 1.0, ['lore', 'rsmv', selectedModel.name]);
+        setAnalysisText(lore);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgeBridge = (target: 'forge' | 'shader') => {
+    if (!selectedModel) return;
+    addLog(`Bridging asset ${selectedModel.name} to ${target}...`, 'info', 'Nexus');
+    (window as any).antigravity?.setTab(target);
+  };
+
   const categories: { key: ModelCategory; label: string; icon: React.ReactNode }[] = [
     { key: 'items', label: 'Items', icon: <Package className="w-4 h-4" /> },
     { key: 'npcs', label: 'NPCs', icon: <User className="w-4 h-4" /> },
@@ -230,16 +392,35 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   ];
 
   return (
-    <div className="flex h-full bg-[#050a15] text-white overflow-hidden">
-      <div className="w-72 border-r border-cyan-900/30 flex flex-col bg-[#0a1222]/50">
-        <div className="p-4 border-b border-cyan-900/30 bg-gradient-to-r from-cyan-950/50 to-transparent">
-          <h2 className="text-lg font-black uppercase tracking-widest text-cyan-400 flex items-center gap-2">
-            <Box className="w-5 h-5" /> Model Browser
+    <div
+      className="flex h-full bg-[#232323] text-[#aaa] overflow-hidden font-sans relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 z-[100] bg-cyan-500/10 backdrop-blur-md border-4 border-dashed border-cyan-500 flex items-center justify-center pointer-events-none animate-in fade-in duration-200">
+          <div className="bg-[#0a1222] p-8 rounded-3xl border border-cyan-500/30 shadow-2xl flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 animate-bounce">
+              <Download className="w-8 h-8" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-xl font-black text-cyan-400 uppercase tracking-widest">Drop Cache Files</h2>
+              <p className="text-[10px] text-cyan-700 font-bold uppercase tracking-wider mt-1">Accepting .jcache, .jag, and .mem</p>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="w-72 border-r border-[#394443] flex flex-col bg-[#282e2e]">
+        <div className="p-4 border-b border-[#394443] bg-[#232323]">
+          <h2 className="text-lg font-black uppercase tracking-widest text-[#438ab5] flex items-center gap-2">
+            <Box className="w-5 h-5" /> ASSET VAULT
           </h2>
-          <p className="text-[9px] text-slate-500 uppercase tracking-wider mt-1">Multi-Game Asset Library</p>
+          <p className="text-[9px] text-[#8397a5] uppercase tracking-wider mt-1">Multi-Game Matrix Database</p>
         </div>
 
-        <div className="p-3 border-b border-cyan-900/30">
+        <div className="flex flex-col gap-2 p-3">
           <div className="flex gap-1">
             {GAME_SOURCES.map(gs => (
               <button
@@ -253,6 +434,33 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
               </button>
             ))}
           </div>
+          {gameSource === 'runescape' && (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleLinkCache}
+                disabled={isCacheLinked}
+                className={`w-full py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${isCacheLinked ? 'bg-[#3e5b6d] border-[#438ab5] text-white' : 'bg-[#232323] border-[#394443] text-[#438ab5] hover:bg-[#394443]'}`}
+              >
+                {isCacheLinked ? '✅ LOCAL CACHE ACTIVE' : '🔗 LINK LOCAL CACHE'}
+              </button>
+              <button
+                onClick={() => setIsRemoteModalOpen(true)}
+                className="w-full py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border bg-[#232323] border-[#394443] text-[#438ab5] hover:bg-[#394443]"
+              >
+                📡 REMOTE IMPORT (OPENRS2)
+              </button>
+            </div>
+          )}
+
+          {(gameSource === 'morrowind' || gameSource === 'fallout') && (
+            <button
+              onClick={() => handleLinkBethesdaAssets(gameSource)}
+              disabled={isBethesdaLinked[gameSource]}
+              className={`w-full py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${isBethesdaLinked[gameSource] ? 'bg-emerald-600/20 border-emerald-500/30 text-emerald-400' : 'bg-amber-600/10 border-amber-500/30 text-amber-400 animate-pulse'}`}
+            >
+              {isBethesdaLinked[gameSource] ? '✅ Assets Linked' : '🔗 Link Local Assets'}
+            </button>
+          )}
         </div>
 
         <div className="p-4 border-b border-cyan-900/30">
@@ -340,7 +548,7 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
           {selectedModel ? (
             <>
               <div className="flex border-b border-cyan-900/20 bg-black/20">
-                {(['details', 'nexus', 'metrics'] as const).map(tab => (
+                {(['details', 'nexus', 'metrics', 'audio'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveActionTab(tab)}
@@ -393,23 +601,23 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
                         <div className="p-3 bg-fuchsia-500/20 rounded-xl group-hover:scale-110 transition-transform text-fuchsia-400"><Activity className="w-5 h-5" /></div>
                         <span className="text-[9px] font-black uppercase tracking-wider text-fuchsia-300">Movie Gen</span>
                       </button>
-                      <button onClick={() => handleOrchestrate('audio' as any)} className="group flex flex-col items-center gap-3 p-4 bg-cyan-600/10 hover:bg-cyan-600/20 border border-cyan-500/20 rounded-2xl transition-all">
+                      <button onClick={() => setActiveActionTab('audio')} className="group flex flex-col items-center gap-3 p-4 bg-cyan-600/10 hover:bg-cyan-600/20 border border-cyan-500/20 rounded-2xl transition-all">
                         <div className="p-3 bg-cyan-500/20 rounded-xl group-hover:scale-110 transition-transform text-cyan-400"><User className="w-5 h-5" /></div>
                         <span className="text-[9px] font-black uppercase tracking-wider text-cyan-300">Voice Synth</span>
                       </button>
 
-                      {/* Schematic Placeholders (Front-end first) */}
-                      <button className="group flex flex-col items-center gap-3 p-4 bg-emerald-600/5 border border-emerald-500/10 rounded-2xl opacity-60 cursor-not-allowed grayscale">
-                        <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400"><Home className="w-5 h-5" /></div>
+                      {/* Schematic Bridges */}
+                      <button onClick={() => handleForgeBridge('shader')} className="group flex flex-col items-center gap-3 p-4 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 rounded-2xl transition-all">
+                        <div className="p-3 bg-emerald-500/20 rounded-xl group-hover:scale-110 transition-transform text-emerald-400"><Zap className="w-5 h-5" /></div>
                         <span className="text-[9px] font-black uppercase tracking-wider text-emerald-300">Material Forge</span>
                       </button>
-                      <button className="group flex flex-col items-center gap-3 p-4 bg-orange-600/5 border border-orange-500/10 rounded-2xl opacity-60 cursor-not-allowed grayscale">
-                        <div className="p-3 bg-orange-500/10 rounded-xl text-orange-400"><Search className="w-5 h-5" /></div>
+                      <button onClick={handleNarrativeAI} className="group flex flex-col items-center gap-3 p-4 bg-orange-600/10 hover:bg-orange-600/20 border border-orange-500/20 rounded-2xl transition-all">
+                        <div className="p-3 bg-orange-500/20 rounded-xl group-hover:scale-110 transition-transform text-orange-400"><Brain className="w-5 h-5" /></div>
                         <span className="text-[9px] font-black uppercase tracking-wider text-orange-300">Narrative AI</span>
                       </button>
-                      <button className="group flex flex-col items-center gap-3 p-4 bg-blue-600/5 border border-blue-500/10 rounded-2xl opacity-60 cursor-not-allowed grayscale">
-                        <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400"><Activity className="w-5 h-5" /></div>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-blue-300">Physics Tuner</span>
+                      <button onClick={() => handleForgeBridge('forge')} className="group flex flex-col items-center gap-3 p-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 rounded-2xl transition-all">
+                        <div className="p-3 bg-blue-500/20 rounded-xl group-hover:scale-110 transition-transform text-blue-400"><Hammer className="w-5 h-5" /></div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-blue-300">Reforge Engine</span>
                       </button>
                       <button className="group flex flex-col items-center gap-3 p-4 bg-rose-600/5 border border-rose-500/10 rounded-2xl opacity-60 cursor-not-allowed grayscale">
                         <div className="p-3 bg-rose-500/10 rounded-xl text-rose-400"><Box className="w-5 h-5" /></div>
@@ -444,6 +652,14 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
                     </div>
                   </div>
                 )}
+
+                {activeActionTab === 'audio' && (
+                  <div className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <Suspense fallback={<div className="text-cyan-500 animate-pulse">Loading Voice Studio...</div>}>
+                      <AudioClipManager />
+                    </Suspense>
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -454,6 +670,49 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
           )}
         </div>
       </div>
+      {/* Remote Import Modal */}
+      {isRemoteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-[#394443] rounded-lg shadow-2xl border border-[#438ab5] overflow-hidden animate-in zoom-in duration-200">
+            <div className="p-4 bg-[#282e2e] border-b border-[#394443] flex justify-between items-center">
+              <h3 className="text-[#438ab5] font-black uppercase tracking-widest text-sm flex items-center gap-2">
+                <Activity className="w-4 h-4" /> REMOTE ASSET IMPORT
+              </h3>
+              <button onClick={() => setIsRemoteModalOpen(false)} className="text-[#8397a5] hover:text-white">&times;</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-black text-[#8397a5]">OpenRS2 Cache ID</label>
+                <input
+                  type="text"
+                  value={remoteCacheId}
+                  onChange={(e) => setRemoteCacheId(e.target.value)}
+                  className="w-full bg-[#232323] border border-[#394443] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#438ab5]"
+                  placeholder="e.g. 1773"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-black text-[#8397a5]">Model ID</label>
+                <input
+                  type="text"
+                  value={remoteModelId}
+                  onChange={(e) => setRemoteModelId(e.target.value)}
+                  className="w-full bg-[#232323] border border-[#394443] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#438ab5]"
+                  placeholder="e.g. 300"
+                />
+              </div>
+              <button
+                onClick={handleRemoteImport}
+                disabled={isLoading}
+                className="w-full py-3 bg-[#438ab5] hover:bg-[#3e5b6d] text-white font-black uppercase tracking-widest rounded transition-all flex items-center justify-center gap-2"
+              >
+                {isLoading ? <span className="animate-spin">🔄</span> : <Download className="w-4 h-4" />}
+                PULL FROM ARCHIVE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

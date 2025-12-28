@@ -1,0 +1,113 @@
+import { simplexteadecrypt } from "../libs/xtea";
+import bzip2 from "../libs/bzip2fork";
+import * as fflate from "fflate";
+
+//decompress data as it comes from the server
+export function decompress(input: Buffer, key?: Uint32Array): Buffer {
+	switch (input.readUInt8(0x0)) {
+		case 0:
+			return _uncompressed(input);
+		case 1:
+			return _bz2(input);
+		case 2:
+			return _zlib(input, key);
+		case 3:
+			return _lzma(input);
+		case 0x5a: //0x5a4c4201
+			return _zlibSqlite(input);
+		default:
+			throw new Error("Unknown compression type (" + input.readUInt8(0x0).toString() + ")");
+	}
+}
+
+//compress data to use in sqlite BLOBs
+export function compressSqlite(input: Buffer, compression: "zlib") {
+	switch (compression) {
+		case "zlib":
+			return _zlibSqliteCompress(input);
+		default:
+			throw new Error(`unknown compression type ${compression}`);
+	}
+}
+
+
+/**
+ * @param {Buffer} input The input buffer straight from the server
+ */
+var _uncompressed = function (input: Buffer) {
+	var size = input.readUInt32BE(0x1);
+	var output = Buffer.alloc(size);
+	input.copy(output, 0x0, 0x5);
+	return output;
+}
+
+/**
+ * @param {Buffer} input The input buffer straight from the server
+ */
+var _bz2 = function (input: Buffer) {
+	var compressed = input.readUInt32BE(0x1);
+	var uncompressed = input.readUInt32BE(0x5);
+	var processed = Buffer.alloc(compressed + 0x2 + 0x1 + 0x1);
+	input.copy(processed, 0x4, 0x9);
+
+	// Add the header
+	processed.writeUInt16BE(0x425A, 0x0); // Magic Number
+	processed.writeUInt8(0x68, 0x2); // Version
+	// processed.writeUInt8(Math.ceil(uncompressed / (1024 * 102.4)) + 0x30, 0x3); // Block size in 100kB because why the hell not
+	processed.writeUInt8(8 + 0x30, 0x3); // the lib expects a number between 1-9 here (+0x30)
+	return Buffer.from(bzip2.simple(bzip2.array(processed)));
+}
+export function legacybz2(input: Buffer) {
+	var processed = Buffer.alloc(input.byteLength + 0x4);
+	input.copy(processed, 0x4);
+
+	// Add the header
+	processed.writeUInt16BE(0x425A, 0x0); // Magic Number
+	processed.writeUInt8(0x68, 0x2); // Version
+	// processed.writeUInt8(Math.ceil(uncompressed / (1024 * 102.4)) + 0x30, 0x3); // Block size in 100kB because why the hell not
+	processed.writeUInt8(8 + 0x30, 0x3); // the lib expects a number between 1-9 here (+0x30)
+	return Buffer.from(bzip2.simple(bzip2.array(processed)));
+}
+
+/**
+ * @param {Buffer} input The input buffer straight from the server
+ */
+var _zlib = function (input: Buffer, key?: Uint32Array): Buffer {
+	try {
+		let compressedsize = input.readUint32BE(1);
+		let compressedData = input.slice(9, 9 + compressedsize);
+		if (key) {
+			//TODO decrypt
+		}
+		return Buffer.from(fflate.gunzipSync(compressedData));
+	} catch (e) {
+		throw new Error(`gzip decompress failed, possibly due to missing or wrong xtea key, key: ${key ?? "none"}`, { cause: e as any });
+	}
+}
+
+export function legacyGzip(input: Buffer) {
+	return Buffer.from(fflate.gunzipSync(input));
+}
+
+
+/**
+ * @param {Buffer} input The input buffer straight from the server
+ */
+function _lzma(input: Buffer): Buffer {
+	throw new Error("LZMA decompression not implemented (missing library)");
+}
+
+
+function _zlibSqlite(input: Buffer): Buffer {
+	//skip header bytes 5a4c4201
+	var uncompressed_size = input.readUInt32BE(0x4);
+	return Buffer.from(fflate.inflateSync(input.slice(0x8)));
+}
+function _zlibSqliteCompress(input: Buffer) {
+	let compressbytes = fflate.deflateSync(input);
+	let result = Buffer.alloc(4 + 4 + compressbytes.byteLength);
+	result.write("5a4c4201", 0x0, "hex");
+	result.writeUInt32BE(input.byteLength, 0x4);
+	result.set(compressbytes, 0x8);
+	return result;
+}

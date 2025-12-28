@@ -20,10 +20,27 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
     projectEnv, aiMode, showPerformanceHUD, isPanic, dispatch
 }) => {
     const [bridgeStatus, setBridgeStatus] = React.useState(localBridgeClient.getStatus());
+    const [searchValue, setSearchValue] = React.useState('');
+    const [isSearching, setIsSearching] = React.useState(false);
 
     React.useEffect(() => {
         return localBridgeClient.onStatusChange(s => setBridgeStatus({ ...s, syncMode: localBridgeClient.getStatus().syncMode }));
     }, []);
+
+    const handleSearch = async (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && searchValue.trim()) {
+            setIsSearching(true);
+            try {
+                const { universalOrchestrator } = await import('../../services/ai/universalOrchestrator');
+                await universalOrchestrator.dispatch(searchValue);
+                setSearchValue('');
+            } catch (err) {
+                console.error('[OMNI_BAR] Dispatch failed:', err);
+            } finally {
+                setIsSearching(false);
+            }
+        }
+    };
 
     const projectEnvs: ProjectEnv[] = ['local', 'cloud', 'hybrid'];
     const aiModes: AIModelMode[] = ['assist', 'refactor', 'explain', 'generate', 'lockdown'];
@@ -70,8 +87,15 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
             </div>
             <div className="flex items-center gap-4">
                 <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                    <input type="text" placeholder="CMD+K SEARCH" className="bg-black/40 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-[10px] font-black tracking-widest text-white focus:outline-none focus:border-cyan-500/50" />
+                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isSearching ? 'text-cyan-400 animate-spin' : 'text-slate-500'}`} />
+                    <input
+                        type="text"
+                        value={searchValue}
+                        onChange={(e) => setSearchValue(e.target.value)}
+                        onKeyDown={handleSearch}
+                        placeholder={isSearching ? "ANALYZING INTENT..." : "CMD+K OMNI-SEARCH"}
+                        className="bg-black/40 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-[10px] font-black tracking-widest text-white focus:outline-none focus:border-cyan-500/50 min-w-[200px] nexus-glass"
+                    />
                 </div>
                 <div className="flex gap-2">
                     <Undo2 className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer" />

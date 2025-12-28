@@ -412,6 +412,8 @@ const App: React.FC = () => {
   useEffect(() => {
     (window as any).antigravity = {
       runUIAction: dispatchUIAction,
+      setTab: (view: ActiveView) => dispatchUIAction({ type: 'NAV_SWITCH_VIEW', view }),
+      runAction: (action: { type: string, payload: any }) => dispatchUIAction({ type: 'MATRIX_ACTION', action: `${action.type}_${JSON.stringify(action.payload)}` }),
       // Legacy compatibility wrapper (DEPRECATED)
       dispatch: (action: any) => {
         console.warn('antigravity.dispatch is DEPRECATED. Use runUIAction instead.');
@@ -630,7 +632,7 @@ const App: React.FC = () => {
                     );
                     case 'collab': return <div className="h-full w-full overflow-hidden"><Link /></div>;
                     case 'deploy': return <div className="h-full w-full overflow-hidden"><Deploy /></div>;
-                    case 'rsmv': return <div className="h-full w-full overflow-hidden"><RSMVBrowser /></div>;
+                    case 'rsmv': return <div className="h-full w-full overflow-hidden"><RSMVBrowser addLog={addLog} /></div>;
                     case 'shader': return (
                       <div className="h-full w-full overflow-hidden border-t border-cyan-900/30">
                         <ShaderGraph

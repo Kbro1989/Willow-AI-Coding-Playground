@@ -1,10 +1,11 @@
 
 export interface NexusJob {
     id: string;
-    type: 'ai' | 'build' | 'pipeline' | 'long_running' | 'workflow';
+    type: 'ai' | 'build' | 'pipeline' | 'long_running' | 'workflow' | 'rsmv_compile';
     description: string;
     abortController: AbortController;
     startTime: number;
+    metadata?: any;
 }
 
 class NexusCommandBus {

@@ -202,6 +202,18 @@ export const ideTools: FunctionDeclaration[] = [
       required: ['prompt']
     }
   },
+  {
+    name: 'generate_audio_clip',
+    description: 'Generate a synthesized audio clip (speech) for a character using the ElevenLabs mock service.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        text: { type: SchemaType.STRING, description: 'The dialogue text to speak.' },
+        voiceId: { type: SchemaType.STRING, description: 'The voice ID to use (e.g., "narrator-depths", "goblin-scout", "knight-captain").', enum: ["narrator-depths", "goblin-scout", "knight-captain", "mystic-seer", "system-ai"] },
+      },
+      required: ['text']
+    }
+  },
   // --- Local Code Agent Tools ---
   {
     name: 'run_terminal_command',

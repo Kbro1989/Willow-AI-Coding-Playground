@@ -1,0 +1,39 @@
+src/services/rsmv/cache/legacycache.ts(134,70): error TS7006: Parameter 'usetga' implicitly has an 'any' type.
+src/services/rsmv/clientscript/ast.ts(1,35): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/clientscript/ast.ts(2,39): error TS2307: Cannot find module '../../generated/clientscriptdata' or its corresponding type declarations.
+src/services/rsmv/clientscript/ast.ts(1010,56): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/ast.ts(1010,112): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/ast.ts(1014,95): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/ast.ts(1372,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/callibrator.ts(6,39): error TS2307: Cannot find module '../../generated/clientscriptdata' or its corresponding type declarations.
+src/services/rsmv/clientscript/callibrator.ts(7,35): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/clientscript/callibrator.ts(11,29): error TS2307: Cannot find module '../../generated/params' or its corresponding type declarations.
+src/services/rsmv/clientscript/callibrator.ts(13,31): error TS2307: Cannot find module '../../generated/dbtables' or its corresponding type declarations.
+src/services/rsmv/clientscript/callibrator.ts(772,25): error TS2322: Type 'ImmediateType | undefined' is not assignable to type '"unknown" | ImmediateType'.
+  Type 'undefined' is not assignable to type '"unknown" | ImmediateType'.
+src/services/rsmv/clientscript/callibrator.ts(905,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/callibrator.ts(1099,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/callibrator.ts(1111,53): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/codewriter.ts(24,49): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/codewriter.ts(30,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/definitions.ts(323,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/definitions.ts(368,12): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ int: number; boolean: number; type_2: number; quest: number; questhelp: number; cursor: number; seq: number; colour: number; loc_shape: number; component: number; idkit: number; midi: number; npc_mode: number; ... 133 more ...; scriptsubref: number; }'.
+  No index signature with a parameter of type 'string' was found on type '{ int: number; boolean: number; type_2: number; quest: number; questhelp: number; cursor: number; seq: number; colour: number; loc_shape: number; component: number; idkit: number; midi: number; npc_mode: number; ... 133 more ...; scriptsubref: number; }'.
+src/services/rsmv/clientscript/definitions.ts(404,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/extractmodule.ts(60,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/extractmodule.ts(236,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/extractmodule.ts(287,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/extractmodule.ts(298,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/index.ts(8,30): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/clientscript/index.ts(50,20): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/jsonwriter.ts(1,30): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/clientscript/jsonwriter.ts(582,238): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/services/rsmv/clientscript/jsonwriter.ts(582,241): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/services/rsmv/clientscript/jsonwriter.ts(605,35): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/libs/sqljsfork/dist/sql-wasm-workerfs.js(73,9): error TS1258: A default export must be at the top level of a file or module declaration.
+src/services/rsmv/scripts/extractfiles.ts(71,9): error TS7022: 'newarch' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+src/services/rsmv/scripts/extractfiles.ts(73,10): error TS7022: 'nextbatchchunknr' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+src/services/rsmv/scripts/gameinterfaces.ts(86,33): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+src/services/rsmv/scripts/gameinterfaces.ts(96,19): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+src/services/rsmv/scripts/renderrsinterface.ts(192,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/scripts/renderrsinterface.ts(193,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.

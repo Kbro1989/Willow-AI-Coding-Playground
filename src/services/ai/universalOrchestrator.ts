@@ -10,7 +10,8 @@ export type OrchestrationRoute =
     | { type: 'pipeline', id: string, params: any }
     | { type: 'action', cmd: string, payload: any }
     | { type: 'terminal', command: string }
-    | { type: 'navigation', view: string };
+    | { type: 'navigation', view: string }
+    | { type: 'nexus', persona: 'nexus' | 'forge' | 'chronos', goal: string };
 
 class UniversalOrchestrator {
     private isInterpreting = false;
@@ -39,9 +40,10 @@ class UniversalOrchestrator {
                 - "terminal": Direct bridge command (e.g. "npm install", "git status").
                 - "navigation": Change UI view (dashboard, editor, forge, pipelines, rsmv, shader).
                 - "action": Direct engine action (spawn object, update sky).
+                - "nexus": Specialized expert assistance (Librarian, Forge Master, Oracle). Use for asset search, shader generation, or lore.
 
                 RETURN JSON ONLY:
-                { "type": "sprint"|"pipeline"|"terminal"|"navigation"|"action", "payload": ... }
+                { "type": "sprint"|"pipeline"|"terminal"|"navigation"|"action"|"nexus", "payload": ... }
             `;
 
             const response = await modelRouter.route({
@@ -99,6 +101,14 @@ class UniversalOrchestrator {
                     });
                 }
                 break;
+
+            case 'nexus': {
+                const { processAIPipeline } = await import('../rsmv/rsmvCompiler');
+                const result = await processAIPipeline(route.payload.persona || 'nexus', route.payload.goal || route.payload);
+                console.log('[Orchestrator] Nexus Agent Output:', result);
+                // We'll eventually fire a Nexus Bus event or update chat
+                break;
+            }
 
             default:
                 console.warn('[Orchestrator] Unhandled route type:', route.type);

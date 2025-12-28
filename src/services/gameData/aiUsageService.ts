@@ -11,7 +11,7 @@ import type { AIUsageMetrics } from '../../types';
 
 export interface AIUsageParams {
     model: string;
-    provider: 'gemini' | 'cloudflare' | 'local' | 'unknown';
+    provider: 'gemini' | 'cloudflare' | 'local' | 'local-rsmv' | 'unknown';
     taskType: 'text' | 'image' | 'code' | 'video' | 'audio' | '3d_model' | 'reasoning' | 'vision' | '3d';
     inputTokens: number;
     outputTokens: number;

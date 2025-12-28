@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
         define: {
             // Creates a global process.env object to prevent AI library crashes
             'process.env': {
-                ...env,
+                // ...env, // Do not expose all env vars
                 NODE_ENV: JSON.stringify(mode),
             },
             // Support both REACT_APP_ (docs) and VITE_ (Vite standard) prefixes
@@ -25,10 +25,12 @@ export default defineConfig(({ mode }) => {
             'process.env.REACT_APP_ENVIRONMENT': JSON.stringify(env.REACT_APP_ENVIRONMENT || 'development'),
         },
         resolve: {
-            alias: {
-                '@': path.resolve(process.cwd(), './src'),
-                'three': path.resolve(process.cwd(), './node_modules/three'),
-            }
+            alias: [
+                { find: '@', replacement: path.resolve(process.cwd(), './src') },
+                { find: 'three', replacement: path.resolve(process.cwd(), './node_modules/three') },
+                { find: 'fs/promises', replacement: path.resolve(process.cwd(), 'src', 'mocks', 'fs.ts') },
+                { find: 'fs', replacement: path.resolve(process.cwd(), 'src', 'mocks', 'fs.ts') },
+            ]
         }
     };
 });

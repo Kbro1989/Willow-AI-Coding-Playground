@@ -1,0 +1,266 @@
+src/components/RSMV/RealModelView.tsx(79,38): error TS2345: Argument of type 'Group<Object3DEventMap>' is not assignable to parameter of type 'SetStateAction<Object3D<Object3DEventMap> | "schematic" | null>'.
+  Type 'Group<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+src/components/RSMVBrowser.tsx(143,18): error TS2304: Cannot find name 'remoteCacheId'.
+src/components/RSMVBrowser.tsx(144,18): error TS2304: Cannot find name 'remoteModelId'.
+src/components/RSMVBrowser.tsx(148,24): error TS2304: Cannot find name 'remoteModelId'.
+src/components/RSMVBrowser.tsx(149,33): error TS2304: Cannot find name 'remoteModelId'.
+src/components/RSMVBrowser.tsx(156,9): error TS2304: Cannot find name 'setIsRemoteModalOpen'.
+src/components/RSMVBrowser.tsx(319,32): error TS2304: Cannot find name 'setIsRemoteModalOpen'.
+src/components/RSMVBrowser.tsx(538,8): error TS2304: Cannot find name 'isRemoteModalOpen'.
+src/components/RSMVBrowser.tsx(545,38): error TS2304: Cannot find name 'setIsRemoteModalOpen'.
+src/components/RSMVBrowser.tsx(552,26): error TS2304: Cannot find name 'remoteCacheId'.
+src/components/RSMVBrowser.tsx(553,36): error TS2304: Cannot find name 'setRemoteCacheId'.
+src/components/RSMVBrowser.tsx(562,26): error TS2304: Cannot find name 'remoteModelId'.
+src/components/RSMVBrowser.tsx(563,36): error TS2304: Cannot find name 'setRemoteModelId'.
+src/services/rsmv/3d/avatar.ts(5,38): error TS2307: Cannot find module '../../generated/avataroverrides' or its corresponding type declarations.
+src/services/rsmv/3d/avatar.ts(6,30): error TS2307: Cannot find module '../../generated/avatars' or its corresponding type declarations.
+src/services/rsmv/3d/avatar.ts(9,27): error TS2307: Cannot find module '../../generated/npcs' or its corresponding type declarations.
+src/services/rsmv/3d/avatar.ts(265,61): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+src/services/rsmv/3d/avatar.ts(271,67): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+src/services/rsmv/3d/classicmap.ts(2,37): error TS2307: Cannot find module '../../generated/mapsquare_locations' or its corresponding type declarations.
+src/services/rsmv/3d/classicmap.ts(3,33): error TS2307: Cannot find module '../../generated/mapsquare_tiles' or its corresponding type declarations.
+src/services/rsmv/3d/classicmap.ts(4,37): error TS2307: Cannot find module '../../generated/mapsquare_underlays' or its corresponding type declarations.
+src/services/rsmv/3d/classicmap.ts(5,25): error TS2307: Cannot find module '../../generated/objects' or its corresponding type declarations.
+src/services/rsmv/3d/jmat.ts(3,32): error TS2307: Cannot find module '../../generated/materials' or its corresponding type declarations.
+src/services/rsmv/3d/jmat.ts(4,38): error TS2307: Cannot find module 'cache' or its corresponding type declarations.
+src/services/rsmv/3d/mapsquare.ts(4,37): error TS2307: Cannot find module '../../generated/mapsquare_underlays' or its corresponding type declarations.
+src/services/rsmv/3d/mapsquare.ts(5,36): error TS2307: Cannot find module '../../generated/mapsquare_overlays' or its corresponding type declarations.
+src/services/rsmv/3d/mapsquare.ts(6,37): error TS2307: Cannot find module '../../generated/mapsquare_locations' or its corresponding type declarations.
+src/services/rsmv/3d/mapsquare.ts(8,33): error TS2307: Cannot find module '../../generated/mapsquare_tiles' or its corresponding type declarations.
+src/services/rsmv/3d/mapsquare.ts(9,38): error TS2307: Cannot find module '../../generated/mapsquare_watertiles' or its corresponding type declarations.
+src/services/rsmv/3d/mapsquare.ts(13,25): error TS2307: Cannot find module '../../generated/objects' or its corresponding type declarations.
+src/services/rsmv/3d/mapsquare.ts(22,37): error TS2307: Cannot find module '../../generated/mapsquare_tiles_nxt' or its corresponding type declarations.
+src/services/rsmv/3d/mapsquare.ts(24,67): error TS2307: Cannot find module '../map/chunksummary' or its corresponding type declarations.
+src/services/rsmv/3d/mapsquare.ts(512,14): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(513,14): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(514,14): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(532,3): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(533,3): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(534,3): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(1264,8): error TS2739: Type 'Mesh<any, any, any>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+src/services/rsmv/3d/mapsquare.ts(1271,5): error TS2322: Type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap> | null' is not assignable to type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/build/three.module").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap> | null'.
+  Type 'Object3D<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+src/services/rsmv/3d/mapsquare.ts(1524,11): error TS18046: 'tex.image' is of type 'unknown'.
+src/services/rsmv/3d/mapsquare.ts(1525,11): error TS18046: 'tex.image' is of type 'unknown'.
+src/services/rsmv/3d/mapsquare.ts(1786,49): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/3d/mapsquare.ts(2237,28): error TS2345: Argument of type 'BufferAttribute | InterleavedBufferAttribute' is not assignable to parameter of type 'BufferAttribute'.
+  Type 'InterleavedBufferAttribute' is missing the following properties from type 'BufferAttribute': id, usage, gpuType, updateRanges, and 12 more.
+src/services/rsmv/3d/mapsquare.ts(2252,17): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2252,33): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2252,49): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2255,6): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2256,6): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2257,6): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2275,7): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2275,24): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2276,7): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2276,24): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2277,7): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2277,24): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2278,7): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2278,24): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2284,7): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2284,24): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2285,7): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2285,24): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2286,7): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2286,24): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2292,6): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2293,6): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2294,6): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/mapsquare.ts(2296,7): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ArrayBufferView<ArrayBufferLike>'.
+  No index signature with a parameter of type 'number' was found on type 'ArrayBufferView<ArrayBufferLike>'.
+src/services/rsmv/3d/modelnodes.ts(13,26): error TS2307: Cannot find module '../map/svgrender' or its corresponding type declarations.
+src/services/rsmv/3d/modelnodes.ts(15,34): error TS2307: Cannot find module '../../generated/animgroupconfigs' or its corresponding type declarations.
+src/services/rsmv/3d/modelnodes.ts(16,19): error TS2307: Cannot find module 'node-fetch' or its corresponding type declarations.
+src/services/rsmv/3d/modelnodes.ts(20,32): error TS2307: Cannot find module '../map' or its corresponding type declarations.
+src/services/rsmv/3d/modelnodes.ts(77,36): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/3d/modelnodes.ts(147,34): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/services/rsmv/3d/modelnodes.ts(147,53): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/3d/modelnodes.ts(148,44): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/services/rsmv/3d/modelnodes.ts(148,63): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/3d/modelnodes.ts(195,7): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ diffuse?: number | undefined; normal?: number | undefined; compound?: number | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ diffuse?: number | undefined; normal?: number | undefined; compound?: number | undefined; }'.
+src/services/rsmv/3d/modelnodes.ts(196,61): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ diffuse?: number | undefined; normal?: number | undefined; compound?: number | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ diffuse?: number | undefined; normal?: number | undefined; compound?: number | undefined; }'.
+src/services/rsmv/3d/modelnodes.ts(233,4): error TS2739: Type 'Group<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+src/services/rsmv/3d/modelnodes.ts(297,22): error TS2345: Argument of type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/build/three.module").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>' is not assignable to parameter of type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>'.
+  The types returned by 'applyQuaternion(...)' are incompatible between these types.
+    Type 'Object3D<Object3DEventMap>' is not assignable to type 'this'.
+      'this' could be instantiated with an arbitrary type which could be unrelated to 'Object3D<Object3DEventMap>'.
+src/services/rsmv/3d/modelnodes.ts(314,44): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(clip: AnimationClip, optionalRoot?: Object3D<Object3DEventMap> | AnimationObjectGroup | undefined, blendMode?: AnimationBlendMode | undefined): AnimationAction', gave the following error.
+    Argument of type 'Object3D<Object3DEventMap>' is not assignable to parameter of type 'Object3D<Object3DEventMap> | AnimationObjectGroup | undefined'.
+      Type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/build/three.module").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>' is not assignable to type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>'.
+        The types returned by 'applyQuaternion(...)' are incompatible between these types.
+          Type 'Object3D<Object3DEventMap>' is not assignable to type 'this'.
+            'this' could be instantiated with an arbitrary type which could be unrelated to 'Object3D<Object3DEventMap>'.
+  Overload 2 of 2, '(clip: string | AnimationClip, optionalRoot?: Object3D<Object3DEventMap> | AnimationObjectGroup | undefined, blendMode?: AnimationBlendMode | undefined): AnimationAction | null', gave the following error.
+    Argument of type 'Object3D<Object3DEventMap>' is not assignable to parameter of type 'Object3D<Object3DEventMap> | AnimationObjectGroup | undefined'.
+      Type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/build/three.module").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>' is not assignable to type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>'.
+        The types returned by 'applyQuaternion(...)' are incompatible between these types.
+          Type 'Object3D<Object3DEventMap>' is not assignable to type 'this'.
+            'this' could be instantiated with an arbitrary type which could be unrelated to 'Object3D<Object3DEventMap>'.
+src/services/rsmv/3d/modelnodes.ts(450,29): error TS2345: Argument of type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/build/three.module").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>' is not assignable to parameter of type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>'.
+  The types returned by 'applyQuaternion(...)' are incompatible between these types.
+    Type 'Object3D<Object3DEventMap>' is not assignable to type 'this'.
+      'this' could be instantiated with an arbitrary type which could be unrelated to 'Object3D<Object3DEventMap>'.
+src/services/rsmv/3d/modelnodes.ts(479,11): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'typeof globalThis'.
+  No index signature with a parameter of type 'string' was found on type 'typeof globalThis'.
+src/services/rsmv/3d/modelnodes.ts(498,4): error TS2739: Type 'Group<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+src/services/rsmv/3d/modelnodes.ts(506,46): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/3d/modelnodes.ts(509,10): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'typeof globalThis'.
+  No index signature with a parameter of type 'string' was found on type 'typeof globalThis'.
+src/services/rsmv/3d/modelnodes.ts(510,6): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'typeof globalThis'.
+  No index signature with a parameter of type 'string' was found on type 'typeof globalThis'.
+src/services/rsmv/3d/modelnodes.ts(559,50): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/services/rsmv/3d/modelnodes.ts(559,53): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/services/rsmv/3d/nifParser.ts(12,37): error TS2339: Property 'readStringLine' does not exist on type 'Stream'.
+src/services/rsmv/3d/nifParser.ts(109,40): error TS2345: Argument of type 'Group<Object3DEventMap>' is not assignable to parameter of type 'Object3D<Object3DEventMap>'.
+  Type 'Group<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+src/services/rsmv/3d/nifParser.ts(143,78): error TS2551: Property 'readInt' does not exist on type 'Stream'. Did you mean 'readUInt'?
+src/services/rsmv/3d/nifParser.ts(147,40): error TS2551: Property 'readInt' does not exist on type 'Stream'. Did you mean 'readUInt'?
+src/services/rsmv/3d/nifParser.ts(153,74): error TS2551: Property 'readInt' does not exist on type 'Stream'. Did you mean 'readUInt'?
+src/services/rsmv/3d/nifParser.ts(157,72): error TS2551: Property 'readInt' does not exist on type 'Stream'. Did you mean 'readUInt'?
+src/services/rsmv/3d/nifParser.ts(160,29): error TS2551: Property 'readInt' does not exist on type 'Stream'. Did you mean 'readUInt'?
+src/services/rsmv/3d/nifParser.ts(161,37): error TS2551: Property 'readInt' does not exist on type 'Stream'. Did you mean 'readUInt'?
+src/services/rsmv/3d/nifParser.ts(262,9): error TS2739: Type 'Group<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+src/services/rsmv/3d/nifParser.ts(283,13): error TS2739: Type 'Mesh<BufferGeometry<NormalBufferAttributes, BufferGeometryEventMap>, MeshStandardMaterial, Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
+src/services/rsmv/3d/nifParser.ts(305,20): error TS2345: Argument of type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/build/three.module").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>' is not assignable to parameter of type 'import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3D<import("C:/Users/Destiny/Desktop/projects/OKComputer_rebuild my app for me/antigravity-engine/node_modules/@types/three/src/core/Object3D").Object3DEventMap>'.
+  The types returned by 'applyQuaternion(...)' are incompatible between these types.
+    Type 'Object3D<Object3DEventMap>' is not assignable to type 'this'.
+      'this' could be instantiated with an arbitrary type which could be unrelated to 'Object3D<Object3DEventMap>'.
+src/services/rsmv/3d/webglleaktest.ts(71,28): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/services/rsmv/3d/webglleaktest.ts(112,13): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/3d/webglleaktest.ts(113,13): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/3d/webglleaktest.ts(114,13): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/3d/webglleaktest.ts(115,13): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/3d/webglleaktest.ts(116,13): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/buildfiletypes.ts(32,25): error TS18046: 'e' is of type 'unknown'.
+src/services/rsmv/cache/downloader.ts(277,4): error TS2322: Type 'void | Buffer<any>' is not assignable to type 'Buffer<ArrayBufferLike>'.
+  Type 'void' is not assignable to type 'Buffer<ArrayBufferLike>'.
+src/services/rsmv/cache/downloader.ts(301,4): error TS2322: Type 'void | Buffer<any>' is not assignable to type 'Buffer<ArrayBufferLike>'.
+  Type 'void' is not assignable to type 'Buffer<ArrayBufferLike>'.
+src/services/rsmv/cache/fscache.ts(16,20): error TS2304: Cannot find name '__non_webpack_require__'.
+src/services/rsmv/cache/fscache.ts(18,13): error TS2304: Cannot find name '__non_webpack_require__'.
+src/services/rsmv/cache/index.ts(194,14): error TS2304: Cannot find name 'parse'.
+src/services/rsmv/cache/index.ts(196,8): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/cache/index.ts(219,16): error TS2304: Cannot find name 'parse'.
+src/services/rsmv/cache/legacycache.ts(134,70): error TS7006: Parameter 'usetga' implicitly has an 'any' type.
+src/services/rsmv/cache/openrs2loader.ts(205,4): error TS2322: Type 'void | Buffer<any>' is not assignable to type 'Buffer<ArrayBufferLike>'.
+  Type 'void' is not assignable to type 'Buffer<ArrayBufferLike>'.
+src/services/rsmv/clientscript/ast.ts(1,35): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/clientscript/ast.ts(2,39): error TS2307: Cannot find module '../../generated/clientscriptdata' or its corresponding type declarations.
+src/services/rsmv/clientscript/ast.ts(1010,56): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/ast.ts(1010,112): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/ast.ts(1014,95): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/ast.ts(1372,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/callibrator.ts(6,39): error TS2307: Cannot find module '../../generated/clientscriptdata' or its corresponding type declarations.
+src/services/rsmv/clientscript/callibrator.ts(7,35): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/clientscript/callibrator.ts(11,29): error TS2307: Cannot find module '../../generated/params' or its corresponding type declarations.
+src/services/rsmv/clientscript/callibrator.ts(13,31): error TS2307: Cannot find module '../../generated/dbtables' or its corresponding type declarations.
+src/services/rsmv/clientscript/callibrator.ts(772,25): error TS2322: Type 'ImmediateType | undefined' is not assignable to type '"unknown" | ImmediateType'.
+  Type 'undefined' is not assignable to type '"unknown" | ImmediateType'.
+src/services/rsmv/clientscript/callibrator.ts(905,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/callibrator.ts(1099,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/callibrator.ts(1111,53): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/codewriter.ts(24,49): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/codewriter.ts(30,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/definitions.ts(323,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/definitions.ts(368,12): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ int: number; boolean: number; type_2: number; quest: number; questhelp: number; cursor: number; seq: number; colour: number; loc_shape: number; component: number; idkit: number; midi: number; npc_mode: number; ... 133 more ...; scriptsubref: number; }'.
+  No index signature with a parameter of type 'string' was found on type '{ int: number; boolean: number; type_2: number; quest: number; questhelp: number; cursor: number; seq: number; colour: number; loc_shape: number; component: number; idkit: number; midi: number; npc_mode: number; ... 133 more ...; scriptsubref: number; }'.
+src/services/rsmv/clientscript/definitions.ts(404,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/extractmodule.ts(60,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/extractmodule.ts(236,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/extractmodule.ts(287,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/extractmodule.ts(298,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/index.ts(8,30): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/clientscript/index.ts(50,20): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/clientscript/interpreter.ts(1,30): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/clientscript/interpreter.ts(329,48): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/interpreter.ts(329,104): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/interpreter.ts(331,91): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/jsonwriter.ts(1,30): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/clientscript/jsonwriter.ts(582,238): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/services/rsmv/clientscript/jsonwriter.ts(582,241): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/services/rsmv/clientscript/jsonwriter.ts(605,35): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/util.ts(1,23): error TS2307: Cannot find module '../../generated/enums' or its corresponding type declarations.
+src/services/rsmv/clientscript/util.ts(2,24): error TS2307: Cannot find module '../../generated/params' or its corresponding type declarations.
+src/services/rsmv/clientscript/util.ts(3,25): error TS2307: Cannot find module '../../generated/structs' or its corresponding type declarations.
+src/services/rsmv/clientscript/util.ts(31,79): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/util.ts(35,85): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/util.ts(42,37): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/clientscript/util.ts(52,37): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/cliparser.ts(10,10): error TS2865: Import 'FileRange' conflicts with local value, so must be declared with a type-only import when 'isolatedModules' is enabled.
+src/services/rsmv/cliparser.ts(45,14): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'typeof globalThis'.
+  No index signature with a parameter of type 'string' was found on type 'typeof globalThis'.
+src/services/rsmv/imgutils.ts(157,4): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ImageData'.
+  No index signature with a parameter of type 'number' was found on type 'ImageData'.
+src/services/rsmv/imgutils.ts(158,4): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ImageData'.
+  No index signature with a parameter of type 'number' was found on type 'ImageData'.
+src/services/rsmv/imgutils.ts(159,4): error TS7053: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type 'ImageData'.
+  No index signature with a parameter of type 'number' was found on type 'ImageData'.
+src/services/rsmv/imgutils.ts(259,12): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/imgutils.ts(273,15): error TS18046: 'img.source.data' is of type 'unknown'.
+src/services/rsmv/imgutils.ts(274,16): error TS18046: 'img.source.data' is of type 'unknown'.
+src/services/rsmv/imgutils.ts(275,17): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'CanvasImageSource'.
+src/services/rsmv/libs/sqlite3wrap.ts(6,18): error TS2304: Cannot find name '__non_webpack_require__'.
+src/services/rsmv/libs/sqljsfork/dist/sql-wasm-workerfs.js(73,9): error TS1258: A default export must be at the top level of a file or module declaration.
+src/services/rsmv/scripts/extractfiles.ts(50,6): error TS2322: Type 'unknown' is not assignable to type 'Error | null'.
+src/services/rsmv/scripts/extractfiles.ts(71,9): error TS7022: 'newarch' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+src/services/rsmv/scripts/extractfiles.ts(73,10): error TS7022: 'nextbatchchunknr' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+src/services/rsmv/scripts/filetypes.ts(84,8): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/services/rsmv/scripts/gameinterfaces.ts(5,25): error TS2307: Cannot find module '../../generated/structs' or its corresponding type declarations.
+src/services/rsmv/scripts/gameinterfaces.ts(50,70): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/scripts/gameinterfaces.ts(51,81): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/scripts/musictrack.ts(56,17): error TS2740: Type 'Uint8Array<ArrayBuffer>' is missing the following properties from type 'Buffer<ArrayBufferLike>': write, toJSON, equals, compare, and 66 more.
+src/services/rsmv/scripts/quickchatlookup.ts(2,37): error TS2307: Cannot find module '../../generated/quickchatcategories' or its corresponding type declarations.
+src/services/rsmv/scripts/quickchatlookup.ts(4,32): error TS2307: Cannot find module '../../generated/quickchatlines' or its corresponding type declarations.
+src/services/rsmv/scripts/rendercutscene.ts(1,27): error TS2307: Cannot find module '../../generated/cutscenes' or its corresponding type declarations.
+src/services/rsmv/scripts/renderrsinterface.ts(1,28): error TS2307: Cannot find module '../../generated/interfaces' or its corresponding type declarations.
+src/services/rsmv/scripts/renderrsinterface.ts(192,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/scripts/renderrsinterface.ts(193,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/scripts/renderrsinterface.ts(553,53): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/services/rsmv/scripts/testdecode.ts(164,6): error TS2322: Type 'unknown' is not assignable to type 'Error | null'.
+src/services/rsmv/scripts/testdecode.ts(181,19): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/scripts/testdecode.ts(181,51): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/scripts/testdecode.ts(213,20): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/scripts/testdecode.ts(213,57): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/scripts/testdecode.ts(271,3): error TS2322: Type 'unknown' is not assignable to type 'Error | null'.
+src/services/rsmv/viewer/cs2viewer.tsx(2,30): error TS2307: Cannot find module '../../generated/clientscript' or its corresponding type declarations.
+src/services/rsmv/viewer/cs2viewer.tsx(14,47): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/viewer/cs2viewer.tsx(35,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/viewer/index.tsx(31,13): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/viewer/index.tsx(59,14): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/services/rsmv/viewer/index.tsx(85,15): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/viewer/index.tsx(94,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+src/services/rsmv/viewer/index.tsx(95,16): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.

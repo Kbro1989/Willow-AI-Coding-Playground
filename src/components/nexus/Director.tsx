@@ -65,15 +65,19 @@ const Director: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#050a15] text-cyan-50 font-mono">
+        <div className="h-full flex flex-col bg-[#050a15] text-cyan-50 font-mono relative overflow-hidden">
+            {/* Ambient Background Glow */}
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/5 blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/5 blur-[120px] pointer-events-none" />
+
             {/* Header / Session HUD */}
-            <div className="p-6 border-b border-cyan-500/10 flex items-center justify-between bg-black/20">
+            <div className="p-6 border-b border-cyan-500/10 flex items-center justify-between bg-black/40 backdrop-blur-xl z-10">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-cyan-500/10 rounded-2xl flex items-center justify-center border border-cyan-500/20">
+                    <div className="w-12 h-12 bg-cyan-500/10 rounded-2xl flex items-center justify-center border border-cyan-500/20 nexus-glass shadow-[0_0_20px_rgba(0,242,255,0.1)]">
                         <Brain className="w-6 h-6 text-cyan-400" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black uppercase tracking-[0.3em] text-white">Director Core</h1>
+                        <h1 className="text-xl font-black uppercase tracking-[0.3em] text-white text-glow-cyan">Director Core</h1>
                         <div className="text-[10px] text-cyan-500 font-bold uppercase tracking-widest flex items-center gap-2">
                             <Shield className="w-3 h-3" />
                             Session Overwatch Active
@@ -88,21 +92,21 @@ const Director: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-hidden z-10">
                 {/* Left: Memory Registry */}
-                <div className="w-2/3 border-r border-cyan-500/10 flex flex-col">
-                    <div className="p-4 border-b border-cyan-500/10 flex items-center justify-between bg-black/10">
+                <div className="w-2/3 border-r border-cyan-500/10 flex flex-col bg-black/10">
+                    <div className="p-4 border-b border-cyan-500/10 flex items-center justify-between bg-black/20 backdrop-blur-md">
                         <h2 className="text-xs font-black uppercase tracking-widest text-cyan-500 flex items-center gap-2">
                             <Database className="w-3 h-3" />
                             Nexus Memory Registry
                         </h2>
                         <div className="flex items-center gap-3">
-                            <span className="text-[9px] text-slate-500 uppercase">Context Injection: ON</span>
+                            <span className="text-[9px] text-slate-500 uppercase font-bold">Context Injection: ON</span>
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                        <div className="p-4 bg-cyan-950/10 border border-cyan-500/20 rounded-2xl">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+                        <div className="p-5 bg-cyan-950/10 border border-cyan-500/20 rounded-3xl nexus-glass">
                             <h3 className="text-[10px] uppercase font-black text-cyan-400 mb-4 flex items-center gap-2">
                                 <Plus className="w-3 h-3" />
                                 Inject Project Guidance (Permanent)
@@ -112,15 +116,15 @@ const Director: React.FC = () => {
                                     value={newGuidance}
                                     onChange={(e) => setNewGuidance(e.target.value)}
                                     placeholder="e.g. Always use functional patterns for 3D shaders..."
-                                    className="flex-1 nexus-input"
+                                    className="flex-1 nexus-input bg-black/60"
                                 />
-                                <button onClick={addGuidance} className="nexus-btn-primary px-8 py-2 text-xs font-black uppercase tracking-widest">
+                                <button onClick={addGuidance} className="nexus-btn-primary px-8 py-2 text-xs font-black uppercase tracking-widest rounded-xl">
                                     Inject
                                 </button>
                             </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {memories.map(mem => (
                                 <MemoryItem
                                     key={mem.id}
@@ -128,6 +132,7 @@ const Director: React.FC = () => {
                                     scope={mem.scope}
                                     content={mem.content}
                                     importance={mem.importance}
+                                    tags={mem.tags}
                                     onDelete={handleDelete}
                                 />
                             ))}
@@ -136,33 +141,33 @@ const Director: React.FC = () => {
                 </div>
 
                 {/* Right: Controller States */}
-                <div className="w-1/3 bg-black/20 p-6 space-y-8 overflow-y-auto">
+                <div className="w-1/3 bg-black/30 p-6 space-y-8 overflow-y-auto backdrop-blur-md">
                     <div>
                         <h2 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
                             <Zap className="w-3 h-3" />
                             Active Orchestrators
                         </h2>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             <OrchestratorItem name="TaskClassifier" status="standby" />
                             <OrchestratorItem name="VibeRunner" status="ready" />
                             <OrchestratorItem name="TokenLimiter" status="monitoring" />
                         </div>
                     </div>
 
-                    <div className="p-6 bg-cyan-950/20 border border-cyan-500/20 rounded-3xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
-                            <Brain className="w-16 h-16 text-cyan-400" />
+                    <div className="p-8 bg-cyan-950/20 border border-cyan-500/20 rounded-3xl relative overflow-hidden group nexus-glass shadow-2xl">
+                        <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-opacity">
+                            <Brain className="w-20 h-20 text-cyan-400" />
                         </div>
-                        <h3 className="text-sm font-black text-white uppercase mb-2">Autonomous Reflection</h3>
-                        <p className="text-[11px] text-cyan-300 leading-relaxed mb-4">
-                            Director is analyzing current system telemetry. No anomalies detected in current execution trace.
+                        <h3 className="text-sm font-black text-white uppercase mb-3 tracking-widest">Autonomous Reflection</h3>
+                        <p className="text-[11px] text-cyan-300/80 leading-relaxed mb-6 font-medium">
+                            Director is analyzing current system telemetry. Current state indicates high coherence across all creative nodes.
                         </p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button onClick={handleAudit} className="nexus-btn-primary py-3 text-[10px] font-black uppercase tracking-[0.2em]">
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={handleAudit} className="nexus-btn-primary py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl">
                                 Trigger Audit
                             </button>
-                            <button onClick={handleStressTest} className="nexus-btn-accent py-3 text-[10px] font-black uppercase tracking-[0.2em]">
-                                Run Stress Test
+                            <button onClick={handleStressTest} className="nexus-btn-accent py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl">
+                                Stress Test
                             </button>
                         </div>
                     </div>
@@ -182,32 +187,37 @@ const HudStat = ({ label, value, icon, color = 'text-cyan-400' }: { label: strin
     </div>
 );
 
-const MemoryItem = ({ id, scope, content, importance, onDelete }: { id: string, scope: string, content: string, importance: number, onDelete: (id: string) => void }) => (
-    <div className="p-4 bg-black/40 border border-white/5 rounded-2xl flex items-start gap-4 hover:border-cyan-500/20 transition-all group">
-        <div className={`mt-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${scope === 'project' ? 'bg-purple-500/20 text-purple-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
+const MemoryItem = ({ id, scope, content, importance, tags, onDelete }: { id: string, scope: string, content: string, importance: number, tags?: string[], onDelete: (id: string) => void }) => (
+    <div className="p-5 bg-black/40 border border-white/5 rounded-2xl flex items-start gap-5 hover:border-cyan-500/30 transition-all group nexus-glass shadow-lg">
+        <div className={`mt-1 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] shadow-sm ${scope === 'project' ? 'bg-purple-500/20 text-purple-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
             {scope}
         </div>
         <div className="flex-1">
-            <p className="text-xs text-slate-300 leading-relaxed">{content}</p>
-            <div className="flex items-center gap-3 mt-2">
-                <div className="flex-1 h-0.5 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-500/40" style={{ width: `${importance * 100}%` }}></div>
+            <p className="text-xs text-slate-200 leading-relaxed font-medium">{content}</p>
+            {tags && tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                    {tags.map(t => <span key={t} className="text-[7px] bg-white/5 text-slate-500 px-1.5 py-0.5 rounded-md uppercase font-bold border border-white/5">{t}</span>)}
                 </div>
-                <span className="text-[9px] text-slate-600 font-bold">Imp: {importance.toFixed(1)}</span>
+            )}
+            <div className="flex items-center gap-4 mt-4">
+                <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-cyan-500/30 shadow-[0_0_10px_rgba(0,242,255,0.2)]" style={{ width: `${importance * 100}%` }}></div>
+                </div>
+                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Weight: {importance.toFixed(1)}</span>
             </div>
         </div>
-        <button onClick={() => onDelete(id)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-600 hover:text-red-500 transition-all">
-            <Trash2 className="w-3 h-3" />
+        <button onClick={() => onDelete(id)} className="opacity-0 group-hover:opacity-100 p-2 text-slate-600 hover:text-red-500 transition-all rounded-lg hover:bg-red-500/10">
+            <Trash2 className="w-4 h-4" />
         </button>
     </div>
 );
 
 const OrchestratorItem = ({ name, status }: { name: string, status: string }) => (
-    <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
-        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{name}</span>
-        <div className="flex items-center gap-2">
-            <div className={`w-1.5 h-1.5 rounded-full ${status === 'ready' || status === 'monitoring' ? 'bg-emerald-500 animate-pulse' : 'bg-cyan-500'}`}></div>
-            <span className="text-[9px] text-slate-500 uppercase font-bold">{status}</span>
+    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all group nexus-glass">
+        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest group-hover:text-white transition-colors">{name}</span>
+        <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${status === 'ready' || status === 'monitoring' ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]' : 'bg-cyan-500 shadow-[0_0_10px_#00f2ff]'}`}></div>
+            <span className="text-[9px] text-slate-500 uppercase font-bold tracking-widest">{status}</span>
         </div>
     </div>
 );
