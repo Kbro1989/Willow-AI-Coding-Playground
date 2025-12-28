@@ -150,6 +150,8 @@ export interface WorldConfig {
   vegetationDensity: number;
   waterLevel: number;
   atmosphereDensity: number;
+  atmosphereColor?: string;
+  timeOfDay?: number;
   brushSize: number;
   brushStrength: number;
   activeTool: 'raise' | 'lower' | 'smooth' | 'none';
@@ -183,6 +185,8 @@ export interface CompositingConfig {
   exposure: number;
   vignette: number;
   chromaticAberration: number;
+  scanlines?: number;
+  noise?: number;
   tonemapping: 'ACES' | 'Reinhard' | 'Cineon';
 }
 
@@ -263,6 +267,7 @@ export interface SceneObject {
     metallic: number;
     roughness: number;
     emissive: number;
+    shaderPreset?: 'glass' | 'chrome' | 'hologram' | 'neon' | 'none';
   };
   behaviors?: string[];
 }

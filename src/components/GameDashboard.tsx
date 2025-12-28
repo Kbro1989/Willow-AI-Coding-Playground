@@ -3,7 +3,8 @@ import { AnnotationOverlay } from './AnnotationOverlay';
 import ErrorBoundary from './ErrorBoundary';
 import { ViewportManager } from '../hooks/useViewportSync';
 import { Canvas, useFrame, useThree, ThreeElements } from '@react-three/fiber';
-import { OrbitControls, Sky, Environment, ContactShadows, PerspectiveCamera, Float, Stars, Grid, Gltf } from '@react-three/drei';
+import { OrbitControls, Sky, Environment, ContactShadows, PerspectiveCamera, Float, Stars, Grid, Gltf, MeshWobbleMaterial, MeshDistortMaterial } from '@react-three/drei';
+import { EffectComposer, Bloom, Vignette, ChromaticAberration, Scanline, Noise } from '@react-three/postprocessing';
 import { XR, createXRStore } from '@react-three/xr';
 import * as THREE from 'three';
 import {
@@ -19,6 +20,37 @@ declare module 'react' {
     interface IntrinsicElements extends ThreeElements { }
   }
 }
+
+// Safe wrapper for EffectComposer that waits for renderer initialization
+const SafeEffectComposer: React.FC<{ compositingConfig: CompositingConfig }> = ({ compositingConfig }) => {
+  const { gl } = useThree();
+
+  // Don't render until WebGL context is ready
+  if (!gl) return null;
+
+  return (
+    <EffectComposer>
+      <Bloom
+        intensity={compositingConfig.bloom || 0}
+        luminanceThreshold={1.0}
+        luminanceSmoothing={0.9}
+      />
+      <ChromaticAberration
+        offset={new THREE.Vector2(compositingConfig.chromaticAberration || 0, compositingConfig.chromaticAberration || 0)}
+      />
+      <Vignette
+        offset={0.5}
+        darkness={compositingConfig.vignette || 0}
+      />
+      {compositingConfig.scanlines && compositingConfig.scanlines > 0 && (
+        <Scanline opacity={compositingConfig.scanlines} />
+      )}
+      {compositingConfig.noise && compositingConfig.noise > 0 && (
+        <Noise opacity={compositingConfig.noise} />
+      )}
+    </EffectComposer>
+  );
+};
 
 interface GameDashboardProps {
   onBuild: (prompt?: string) => void;
@@ -166,7 +198,7 @@ const LiveObject: React.FC<{ obj: SceneObject, isSelected: boolean, onSelect: ()
         meshRef.current.position.y = obj.position[1] + Math.sin(state.clock.elapsedTime) * 0.5;
       }
 
-      // Pathfind behavior: Move toward target, pick new target when reached
+      // Pathfind behavior
       if (obj.behaviors?.includes('pathfind')) {
         const current = meshRef.current.position;
         const target = targetRef.current;
@@ -178,19 +210,18 @@ const LiveObject: React.FC<{ obj: SceneObject, isSelected: boolean, onSelect: ()
           meshRef.current.position.add(direction.multiplyScalar(speed));
           meshRef.current.lookAt(target);
         } else {
-          // Arrived, pick new random target
           targetRef.current.set(Math.random() * 20 - 10, obj.position[1], Math.random() * 20 - 10);
         }
       }
 
-      // Reactive behavior: React to environment (wind effect simulation)
+      // Reactive behavior
       if (obj.behaviors?.includes('reactive')) {
         const windStrength = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
         meshRef.current.rotation.z = windStrength;
         meshRef.current.position.x = obj.position[0] + Math.sin(state.clock.elapsedTime * 2) * 0.05;
       }
 
-      // Trigger behavior: Pulse when activated
+      // Trigger behavior
       if (obj.behaviors?.includes('trigger')) {
         const pulseScale = 1 + Math.sin(state.clock.elapsedTime * 4) * 0.1;
         if (triggerActiveRef.current) {
@@ -202,25 +233,98 @@ const LiveObject: React.FC<{ obj: SceneObject, isSelected: boolean, onSelect: ()
     }
   });
 
+  const renderMaterial = () => {
+    const mat = obj.material || { baseColor: '#ffffff', metallic: 0, roughness: 0.5, emissive: 0 };
+    const preset = mat.shaderPreset || 'none';
+
+    if (preset === 'hologram') {
+      return (
+        <MeshDistortMaterial
+          color={mat.baseColor}
+          speed={5}
+          distort={0.4}
+          radius={1}
+          emissive={mat.baseColor}
+          emissiveIntensity={2}
+          transparent
+          opacity={0.6}
+        />
+      );
+    }
+    if (preset === 'glass') {
+      return (
+        <meshPhysicalMaterial
+          color={mat.baseColor}
+          transmission={1}
+          thickness={0.5}
+          roughness={mat.roughness}
+          metalness={mat.metallic}
+          ior={1.5}
+          clearcoat={1}
+        />
+      );
+    }
+    if (preset === 'neon') {
+      return (
+        <meshStandardMaterial
+          color={mat.baseColor}
+          emissive={mat.baseColor}
+          emissiveIntensity={10}
+        />
+      );
+    }
+    if (preset === 'chrome') {
+      return (
+        <meshStandardMaterial
+          color={mat.baseColor}
+          metalness={1}
+          roughness={0}
+        />
+      );
+    }
+
+    return (
+      <meshStandardMaterial
+        color={mat.baseColor}
+        metalness={mat.metallic}
+        roughness={mat.roughness}
+        emissive={mat.baseColor}
+        emissiveIntensity={mat.emissive}
+      />
+    );
+  };
+
   const getGeometry = () => {
     if (obj.modelUrl) {
       return (
         <Suspense fallback={<mesh><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial wireframe color="#00f2ff" opacity={0.3} transparent /></mesh>}>
-          <Gltf src={obj.modelUrl} />
+          <Gltf src={obj.modelUrl} castShadow receiveShadow />
         </Suspense>
       );
     }
 
     switch (obj.type) {
-      case 'prop': return <mesh><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial
-        color={obj.material?.baseColor || '#ffffff'}
-        metalness={obj.material?.metallic || 0}
-        roughness={obj.material?.roughness || 1}
-        emissive={obj.material?.baseColor || '#000000'}
-        emissiveIntensity={obj.material?.emissive || 0}
-      /></mesh>;
-      case 'light': return <mesh><sphereGeometry args={[0.2, 16, 16]} /><meshStandardMaterial emissive="#ffff00" emissiveIntensity={2} /></mesh>;
-      default: return <mesh><boxGeometry args={[1, 1, 1]} /></mesh>;
+      case 'prop':
+        return (
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[1, 1, 1]} />
+            {renderMaterial()}
+          </mesh>
+        );
+      case 'light':
+        return (
+          <mesh>
+            <sphereGeometry args={[0.2, 16, 16]} />
+            <meshStandardMaterial emissive={obj.material?.baseColor || "#ffff00"} emissiveIntensity={5} />
+          </mesh>
+        );
+      default:
+        return (
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshStandardMaterial color={obj.material?.baseColor || "#ffffff"} />
+          </mesh>
+        );
     }
   };
 
@@ -242,7 +346,6 @@ const LiveObject: React.FC<{ obj: SceneObject, isSelected: boolean, onSelect: ()
             <boxGeometry args={[1, 1, 1]} />
             <meshBasicMaterial color="#00f2ff" wireframe transparent opacity={0.5} />
           </mesh>
-          {/* Enhanced Gizmo: Axis indicators */}
           <group>
             <mesh position={[0.8, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
               <coneGeometry args={[0.08, 0.2, 8]} />
@@ -459,11 +562,37 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                     <span className="text-[9px] font-black uppercase text-slate-600 tracking-widest px-2">Material Synthesis</span>
                     <button onClick={() => handleMaterialUpdate('baseColor', '#' + Math.floor(Math.random() * 16777215).toString(16))} className="text-[8px] bg-cyan-900/40 hover:bg-cyan-500 hover:text-white px-2 py-1 rounded transition-all uppercase">RND Color</button>
                   </div>
-                  <div className="flex space-x-2">
-                    <input type="color" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.baseColor || '#ffffff'} onChange={(e) => handleMaterialUpdate('baseColor', e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent border-none" />
-                    <div className="flex-1 space-y-2">
-                      <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.metallic || 0} onChange={(e) => handleMaterialUpdate('metallic', parseFloat(e.target.value))} className="w-full h-1 accent-cyan-500" title="Metallic" />
-                      <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.roughness || 0.5} onChange={(e) => handleMaterialUpdate('roughness', parseFloat(e.target.value))} className="w-full h-1 accent-emerald-500" title="Roughness" />
+                  <div className="space-y-4 bg-[#0a1222]/50 p-4 rounded-2xl border border-white/5">
+                    <div className="flex items-center space-x-4">
+                      <input type="color" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.baseColor || '#ffffff'} onChange={(e) => handleMaterialUpdate('baseColor', e.target.value)} className="w-12 h-12 rounded-xl cursor-pointer bg-transparent border-2 border-white/10" />
+                      <div className="flex-1">
+                        <label className="text-[8px] font-black text-slate-500 uppercase block mb-1">Shader Preset</label>
+                        <select
+                          value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.shaderPreset || 'none'}
+                          onChange={(e) => handleMaterialUpdate('shaderPreset', e.target.value)}
+                          className="w-full bg-[#050a15] border border-cyan-900/40 rounded-lg p-2 text-[10px] text-cyan-400 outline-none"
+                        >
+                          <option value="none">Standard PBR</option>
+                          <option value="glass">💎 Glass (Physical)</option>
+                          <option value="chrome">💿 Chrome (Mirror)</option>
+                          <option value="hologram">👻 Hologram (Distort)</option>
+                          <option value="neon">💡 Neon (Emissive)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <div className="flex justify-between"><span className="text-[8px] uppercase text-slate-500">Metallic</span><span className="text-[8px] text-cyan-400">{(sceneObjects.find(o => o.id === selectedObjectId)?.material?.metallic || 0).toFixed(1)}</span></div>
+                        <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.metallic || 0} onChange={(e) => handleMaterialUpdate('metallic', parseFloat(e.target.value))} className="w-full h-1 accent-cyan-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between"><span className="text-[8px] uppercase text-slate-500">Roughness</span><span className="text-[8px] text-emerald-400">{(sceneObjects.find(o => o.id === selectedObjectId)?.material?.roughness || 0.5).toFixed(1)}</span></div>
+                        <input type="range" min="0" max="1" step="0.1" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.roughness || 0.5} onChange={(e) => handleMaterialUpdate('roughness', parseFloat(e.target.value))} className="w-full h-1 accent-emerald-500" />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        <div className="flex justify-between"><span className="text-[8px] uppercase text-slate-500">Emissive Intensity</span><span className="text-[8px] text-orange-400">{(sceneObjects.find(o => o.id === selectedObjectId)?.material?.emissive || 0).toFixed(1)}</span></div>
+                        <input type="range" min="0" max="10" step="0.5" value={sceneObjects.find(o => o.id === selectedObjectId)?.material?.emissive || 0} onChange={(e) => handleMaterialUpdate('emissive', parseFloat(e.target.value))} className="w-full h-1 accent-orange-500" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -485,10 +614,39 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-40 opacity-20 text-center space-y-4 border-2 border-dashed border-white/10 rounded-2xl">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Select an Entity</p>
+              <div className="flex flex-col items-center justify-center p-12 opacity-40 text-center space-y-6 border-2 border-dashed border-white/10 rounded-[3rem] bg-white/5">
+                <div className="w-16 h-16 rounded-full bg-cyan-500/20 flex items-center justify-center animate-pulse">
+                  <svg className="w-8 h-8 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+                </div>
+                <div>
+                  <h5 className="text-[12px] font-black uppercase tracking-[0.4em] text-white">Ghost Select Active</h5>
+                  <p className="text-[9px] text-slate-500 mt-2">Target an entity in the viewport or Hierarchy to synthesize.</p>
+                </div>
               </div>
             )}
+
+            {/* Layout Hierarchy / Entity List */}
+            <div className="mt-8 pt-8 border-t border-cyan-900/40">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 px-2">Scene Hierarchy</h4>
+                <span className="text-[9px] text-slate-600 font-mono">{sceneObjects.length} Entities</span>
+              </div>
+              <div className="space-y-1 max-h-64 overflow-y-auto no-scrollbar">
+                {sceneObjects.map(obj => (
+                  <div
+                    key={obj.id}
+                    onClick={() => setSelectedObjectId(obj.id)}
+                    className={`p-3 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all flex items-center justify-between group ${selectedObjectId === obj.id ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/30' : 'text-slate-500 hover:text-white hover:bg-white/5 border border-transparent'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="opacity-40">{obj.type === 'npc' ? '👤' : obj.type === 'light' ? '💡' : '📦'}</span>
+                      {obj.name}
+                    </div>
+                    {selectedObjectId === obj.id && <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>}
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="mt-8 pt-8 border-t border-cyan-900/40">
               <div className="flex items-center justify-between mb-4">
@@ -514,25 +672,41 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
       case 'world':
         return (
           <div className="p-6 space-y-8 overflow-y-auto no-scrollbar h-full">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2">Procedural Generation</h4>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-[9px] font-black uppercase text-slate-500">World Seed</label>
-                  <button
-                    className="w-4 h-4 flex items-center justify-center rounded bg-white/5 text-slate-600 hover:text-cyan-400 transition-colors text-[8px]"
-                    onClick={() => neuralRegistry.emit('ui:explain', { id: 'world-seed', context: 'The numerical value used as a starting point for generating the procedural terrain and biome distribution.' })}
-                  >
-                    ?
-                  </button>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2">Atmosphere & Time</h4>
+            <div className="space-y-6">
+              <div className="p-4 bg-[#0a1222]/50 border border-white/5 rounded-2xl space-y-4">
+                <div className="space-y-1">
+                  <div className="flex justify-between"><span className="text-[9px] font-black uppercase text-slate-500">Local Time</span><span className="text-[10px] font-mono text-cyan-400">{((worldConfig.timeOfDay || 12)).toFixed(1)}h</span></div>
+                  <input type="range" min="0" max="24" step="0.5" value={worldConfig.timeOfDay || 12} onChange={(e) => onUpdateWorld({ timeOfDay: parseFloat(e.target.value) })} className="w-full h-1 accent-cyan-500" />
                 </div>
-                <div className="flex space-x-2">
-                  <input type="number" value={worldConfig.seed} onChange={(e) => onUpdateWorld({ seed: parseInt(e.target.value) || 0 })} className="flex-1 bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-center text-xs font-mono text-cyan-400 outline-none focus:border-cyan-500" />
-                  <button onClick={() => onUpdateWorld({ seed: Math.floor(Math.random() * 999999) })} className="px-4 bg-cyan-600/20 hover:bg-cyan-600 text-cyan-400 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all">Random</button>
+
+                <div>
+                  <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Atmospheric Injector</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'cyberpunk', label: '🌆 Cyberpunk', color: '#ff00ff', density: 0.8 },
+                      { id: 'golden', label: '☀️ Golden Hour', color: '#ffaa00', density: 0.2 },
+                      { id: 'space', label: '🌌 Deep Space', color: '#050a15', density: 0.1 },
+                      { id: 'toxic', label: '🤢 Toxic Fog', color: '#00ff00', density: 1.5 }
+                    ].map(preset => (
+                      <button
+                        key={preset.id}
+                        onClick={() => onUpdateWorld({
+                          atmosphereColor: preset.color,
+                          atmosphereDensity: preset.density,
+                          biome: preset.id === 'cyberpunk' ? 'cyber' : worldConfig.biome
+                        })}
+                        className="py-2 bg-white/5 hover:bg-cyan-500/20 border border-white/10 rounded-lg text-[9px] font-black uppercase text-slate-300 transition-all"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
+
               <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Biome</label>
+                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Terrain Biome</label>
                 <select value={worldConfig.biome} onChange={(e) => onUpdateWorld({ biome: e.target.value as any })} className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-xs text-cyan-400 outline-none">
                   <option value="temperate">🌲 Temperate Forest</option>
                   <option value="arid">🏜️ Arid Desert</option>
@@ -542,65 +716,35 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                   <option value="urban">🏙️ Urban</option>
                 </select>
               </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Terrain Complexity <span className="text-cyan-600">{Math.round(worldConfig.terrainScale * 10)}/10</span></label>
-                <input type="range" min="0.1" max="1" step="0.1" value={worldConfig.terrainScale} onChange={(e) => onUpdateWorld({ terrainScale: parseFloat(e.target.value) })} className="w-full accent-cyan-500" />
-              </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Vegetation Density <span className="text-emerald-500">{Math.round(worldConfig.vegetationDensity * 100)}%</span></label>
-                <input type="range" min="0" max="1" step="0.05" value={worldConfig.vegetationDensity} onChange={(e) => onUpdateWorld({ vegetationDensity: parseFloat(e.target.value) })} className="w-full accent-emerald-500" />
-              </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Water Level <span className="text-blue-400">{Math.round(worldConfig.waterLevel * 100)}%</span></label>
-                <input type="range" min="0" max="1" step="0.05" value={worldConfig.waterLevel} onChange={(e) => onUpdateWorld({ waterLevel: parseFloat(e.target.value) })} className="w-full accent-blue-500" />
-              </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Base Matrix (Synthetic Environment)</label>
-                <select
-                  value={worldConfig.syntheticEnvironment || 'none'}
-                  onChange={(e) => onUpdateWorld({ syntheticEnvironment: e.target.value as any })}
-                  className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-xs text-cyan-400 outline-none focus:border-cyan-500"
-                >
-                  <option value="none">None (Procedural Only)</option>
-                  <option value="living_room">Living Room (Cozy)</option>
-                  <option value="music_room">Music Room (Creative)</option>
-                  <option value="meeting_room">Meeting Room (Corporate)</option>
-                  <option value="office_large">Executive Office (Large)</option>
-                  <option value="office_small">Standard Office (Small)</option>
-                </select>
-              </div>
             </div>
 
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2 pt-4">Environment</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2 pt-4">Procedural DNA</h4>
             <div className="space-y-4">
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Atmosphere Density</label>
-                <input type="range" min="0" max="1" step="0.01" value={worldConfig.atmosphereDensity} onChange={(e) => onUpdateWorld({ atmosphereDensity: parseFloat(e.target.value) })} className="w-full accent-cyan-500" />
+              <div className="flex space-x-2">
+                <input type="number" value={worldConfig.seed} onChange={(e) => onUpdateWorld({ seed: parseInt(e.target.value) || 0 })} className="flex-1 bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-center text-xs font-mono text-cyan-400 outline-none focus:border-cyan-500" />
+                <button onClick={() => onUpdateWorld({ seed: Math.floor(Math.random() * 999999) })} className="px-4 bg-cyan-600/20 hover:bg-cyan-600 text-cyan-400 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all">RND Seed</button>
               </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Physics Time Scale</label>
-                <input type="range" min="0" max="2" step="0.1" value={physics.timeScale} onChange={(e) => onUpdatePhysics({ timeScale: parseFloat(e.target.value) })} className="w-full accent-cyan-500" />
-              </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Gravity</label>
-                <input type="number" value={physics.gravity} onChange={(e) => onUpdatePhysics({ gravity: parseFloat(e.target.value) })} className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-center text-xs font-mono text-cyan-400 outline-none focus:border-cyan-500" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[8px] uppercase text-slate-500 mb-1 block">Complexity</label>
+                  <input type="range" min="0.1" max="1" step="0.1" value={worldConfig.terrainScale} onChange={(e) => onUpdateWorld({ terrainScale: parseFloat(e.target.value) })} className="w-full accent-cyan-500" />
+                </div>
+                <div>
+                  <label className="text-[8px] uppercase text-slate-500 mb-1 block">Vegetation</label>
+                  <input type="range" min="0" max="1" step="0.05" value={worldConfig.vegetationDensity} onChange={(e) => onUpdateWorld({ vegetationDensity: parseFloat(e.target.value) })} className="w-full accent-emerald-500" />
+                </div>
               </div>
             </div>
 
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2 pt-4">Terrain Sculpting</h4>
-            <div className="grid grid-cols-3 gap-2">
-              {['raise', 'lower', 'smooth'].map(tool => (
-                <button key={tool} onClick={() => onUpdateWorld({ activeTool: tool as any })} className={`py-2 rounded-xl text-[9px] font-black uppercase ${worldConfig.activeTool === tool ? 'bg-cyan-600 text-white' : 'bg-cyan-900/20 text-slate-500'}`}>{tool}</button>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Brush Size</label>
-                <input type="range" min="1" max="10" step="1" value={worldConfig.brushSize} onChange={(e) => onUpdateWorld({ brushSize: parseInt(e.target.value) })} className="w-full accent-cyan-500" />
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2 pt-4">Physics Console</h4>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-[9px] font-black uppercase text-slate-500">Gravity Strength</span>
+                <input type="number" value={physics.gravity} onChange={(e) => onUpdatePhysics({ gravity: parseFloat(e.target.value) })} className="w-20 bg-[#050a15] border border-cyan-900/40 rounded p-1 text-center text-[10px] font-mono text-cyan-400 outline-none" />
               </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Brush Strength</label>
-                <input type="range" min="0.1" max="1" step="0.1" value={worldConfig.brushStrength} onChange={(e) => onUpdateWorld({ brushStrength: parseFloat(e.target.value) })} className="w-full accent-cyan-500" />
+              <div className="flex justify-between items-center">
+                <span className="text-[9px] font-black uppercase text-slate-500">Time dilation</span>
+                <input type="range" min="0" max="2" step="0.1" value={physics.timeScale} onChange={(e) => onUpdatePhysics({ timeScale: parseFloat(e.target.value) })} className="w-32 accent-purple-500" />
               </div>
             </div>
 
@@ -608,50 +752,112 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
               onClick={() => onRunAction('GENERATE_WORLD')}
               className="w-full py-4 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-cyan-500/20 mt-4"
             >
-              🌍 Generate World
+              🌍 Re-materialize Reality
             </button>
           </div>
         );
       case 'data':
         return (
           <div className="p-6 space-y-6 overflow-y-auto no-scrollbar h-full">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2">Neural Variables</h4>
-            <div className="space-y-2">
-              {Object.entries(variableData).length === 0 ? (
-                <div className="text-[10px] text-slate-500 italic p-4 text-center border border-dashed border-cyan-900/30 rounded-xl">No global variables synced.</div>
-              ) : Object.entries(variableData).map(([k, v]) => (
-                <div key={k} className="flex justify-between items-center bg-[#0a1222] p-3 rounded-xl border border-cyan-900/30 shadow-sm">
-                  <span className="text-[10px] font-mono text-cyan-400">{k}</span>
-                  <span className="text-[10px] text-slate-300">{String(v)}</span>
-                </div>
-              ))}
-            </div>
-
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2 pt-4">Runtime State</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2">Telemetry & Metrics</h4>
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 bg-cyan-950/20 rounded-2xl border border-cyan-500/10">
+              <div className="p-4 bg-cyan-950/20 rounded-2xl border border-cyan-500/10 backdrop-blur-md">
                 <div className="text-[8px] uppercase text-slate-500 mb-1 font-black tracking-widest">Entities</div>
                 <div className="text-2xl font-black text-cyan-50">{sceneObjects.length}</div>
               </div>
-              <div className="p-4 bg-cyan-950/20 rounded-2xl border border-cyan-500/10">
-                <div className="text-[8px] uppercase text-slate-500 mb-1 font-black tracking-widest">Sim Time</div>
-                <div className="text-2xl font-black text-cyan-50">{simulation.time.toFixed(1)}s</div>
+              <div className="p-4 bg-emerald-950/20 rounded-2xl border border-emerald-500/10 backdrop-blur-md">
+                <div className="text-[8px] uppercase text-slate-500 mb-1 font-black tracking-widest">Uptime</div>
+                <div className="text-2xl font-black text-emerald-50">{simulation.time.toFixed(1)}s</div>
               </div>
+            </div>
+
+            {/* Live activity graph (simulated) */}
+            <div className="p-4 bg-[#050a15] rounded-2xl border border-white/5 h-32 relative overflow-hidden group">
+              <div className="flex justify-between items-start relative z-10">
+                <span className="text-[8px] font-black text-cyan-500 uppercase">Neural Activity (Hz)</span>
+                <span className="text-[10px] font-mono text-cyan-50 italic">STABLE</span>
+              </div>
+              <div className="absolute inset-0 flex items-end opacity-40 group-hover:opacity-60 transition-opacity">
+                {[...Array(20)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 bg-cyan-500 mx-0.5 rounded-t-sm animate-pulse"
+                    style={{
+                      height: `${30 + Math.sin(simulation.time + i) * 20}%`,
+                      animationDelay: `${i * 0.1}s`,
+                      animationDuration: '2s'
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2 pt-4">Entity Inspector</h4>
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="Search Entities..."
+                className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-[10px] text-cyan-400 outline-none focus:border-cyan-50"
+              />
+              <div className="max-h-60 overflow-y-auto no-scrollbar space-y-1">
+                {sceneObjects.map(obj => (
+                  <button
+                    key={obj.id}
+                    onClick={() => setSelectedObjectId(obj.id)}
+                    className={`w-full flex justify-between items-center p-3 rounded-xl transition-all ${selectedObjectId === obj.id ? 'bg-cyan-600 text-white shadow-lg' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
+                  >
+                    <span className="text-[10px] font-black uppercase truncate">{obj.name}</span>
+                    <span className="text-[8px] opacity-60 font-mono">[{obj.type}]</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2 pt-4">Neural State Variables</h4>
+            <div className="space-y-2">
+              {Object.entries(variableData || {}).length === 0 ? (
+                <div className="text-[10px] text-slate-500 italic p-4 text-center border border-dashed border-cyan-900/30 rounded-xl">No global variables synced.</div>
+              ) : Object.entries(variableData || {}).map(([k, v]) => (
+                <div key={k} className="flex justify-between items-center bg-[#0a1222] p-3 rounded-xl border border-cyan-900/30 shadow-sm">
+                  <span className="text-[10px] font-mono text-cyan-400 truncate w-1/2">{k}</span>
+                  <span className="text-[10px] text-slate-300 truncate w-1/2 text-right">{String(v)}</span>
+                </div>
+              ))}
             </div>
           </div>
         );
       case 'rendering':
         return (
           <div className="p-6 space-y-8 overflow-y-auto no-scrollbar h-full">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2">Render Engine</h4>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black uppercase text-slate-500">Bloom</span>
-                <input type="checkbox" checked={compositingConfig.bloom > 0} onChange={(e) => onUpdateConfig('compositing', { bloom: e.target.checked ? 1.5 : 0 })} className="accent-cyan-500" />
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2">Render Engine & Post-FX</h4>
+            <div className="space-y-6">
+              <div className="p-4 bg-[#0a1222]/50 border border-white/5 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase text-slate-500">Bloom Pulse</span>
+                  <input type="range" min="0" max="5" step="0.5" value={compositingConfig.bloom} onChange={(e) => onUpdateConfig('compositing', { bloom: parseFloat(e.target.value) })} className="accent-cyan-500 w-32" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase text-slate-500">Chromatic Aberration</span>
+                  <input type="range" min="0" max="0.01" step="0.001" value={compositingConfig.chromaticAberration} onChange={(e) => onUpdateConfig('compositing', { chromaticAberration: parseFloat(e.target.value) })} className="accent-cyan-500 w-32" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase text-slate-500">Vignette Intensity</span>
+                  <input type="range" min="0" max="1" step="0.1" value={compositingConfig.vignette} onChange={(e) => onUpdateConfig('compositing', { vignette: parseFloat(e.target.value) })} className="accent-cyan-500 w-32" />
+                </div>
+                <div className="h-px bg-white/5"></div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase text-slate-500">Retro Scanlines</span>
+                  <input type="range" min="0" max="1" step="0.1" value={compositingConfig.scanlines || 0} onChange={(e) => onUpdateConfig('compositing', { scanlines: parseFloat(e.target.value) })} className="accent-cyan-500 w-32" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase text-slate-500">Film Grain / Noise</span>
+                  <input type="range" min="0" max="1" step="0.1" value={compositingConfig.noise || 0} onChange={(e) => onUpdateConfig('compositing', { noise: parseFloat(e.target.value) })} className="accent-cyan-500 w-32" />
+                </div>
               </div>
+
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-[9px] font-black uppercase text-slate-500">Exposure</label>
+                  <label className="text-[9px] font-black uppercase text-slate-500">Global Exposure</label>
                   <button
                     className="w-4 h-4 flex items-center justify-center rounded bg-white/5 text-slate-600 hover:text-cyan-400 transition-colors text-[8px]"
                     onClick={() => neuralRegistry.emit('ui:explain', { id: 'render-exposure', context: 'Controls the overall brightness of the scene, similar to a physical camera lens exposure.' })}
@@ -661,13 +867,25 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                 </div>
                 <input type="range" min="0" max="3" step="0.1" value={compositingConfig.exposure} onChange={(e) => onUpdateConfig('compositing', { exposure: parseFloat(e.target.value) })} className="w-full accent-cyan-500" />
               </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Resolution</label>
-                <select value={renderConfig.resolution} onChange={(e) => onUpdateConfig('render', { resolution: e.target.value })} className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-2 text-xs text-cyan-400 outline-none">
-                  <option value="720p">720p (Performance)</option>
-                  <option value="1080p">1080p (Balanced)</option>
-                  <option value="4K">4K (Ultra)</option>
-                </select>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Target Output</label>
+                  <select value={renderConfig.resolution} onChange={(e) => onUpdateConfig('render', { resolution: e.target.value })} className="w-full bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-[10px] text-cyan-400 outline-none">
+                    <option value="720p">720p (Performance)</option>
+                    <option value="1080p">1080p (Balanced)</option>
+                    <option value="4K">4K (Ultra)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Anti-Aliasing</label>
+                  <button
+                    onClick={() => onUpdateConfig('render', { denoising: !renderConfig.denoising })}
+                    className={`w-full py-3 rounded-xl text-[9px] font-black uppercase transition-all ${renderConfig.denoising ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-500'}`}
+                  >
+                    {renderConfig.denoising ? 'FXAA ACTIVE' : 'FXAA DISABLED'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -812,10 +1030,25 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                 />
                 <OrbitControls makeDefault enabled={!isAnnotating} />
                 <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-                <Sky sunPosition={[100, Math.max(0.01, worldConfig.atmosphereDensity) * 50, 100]} />
-                <Environment preset="night" />
-                <ambientLight intensity={0.5} />
-                <pointLight position={[10, 10, 10]} intensity={1} castShadow />
+                <Sky
+                  sunPosition={[
+                    100 * Math.cos((((worldConfig.timeOfDay || 12) - 6) / 24) * Math.PI * 2),
+                    100 * Math.sin((((worldConfig.timeOfDay || 12) - 6) / 24) * Math.PI * 2),
+                    100
+                  ]}
+                  turbidity={10 * (worldConfig.atmosphereDensity || 0.1)}
+                  rayleigh={3 * (worldConfig.atmosphereDensity || 0.1)}
+                  mieCoefficient={0.005}
+                  mieDirectionalG={0.8}
+                />
+                <Environment preset={(worldConfig.timeOfDay || 12) > 18 || (worldConfig.timeOfDay || 12) < 6 ? "night" : "sunset"} />
+                <ambientLight intensity={((worldConfig.timeOfDay || 12) > 18 || (worldConfig.timeOfDay || 12) < 6) ? 0.2 : 0.5} color={worldConfig.atmosphereColor || "#ffffff"} />
+                <pointLight
+                  position={[10, 20, 10]}
+                  intensity={((worldConfig.timeOfDay || 12) > 18 || (worldConfig.timeOfDay || 12) < 6) ? 0.5 : 2}
+                  color={worldConfig.atmosphereColor || "#ffffff"}
+                  castShadow
+                />
 
                 <ViewportManager />
                 <SyntheticEnvironment envName={worldConfig.syntheticEnvironment || 'none'} />
@@ -844,6 +1077,9 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                     <meshStandardMaterial color="#0a1222" roughness={1} metalness={0.1} />
                   )}
                 </mesh>
+
+                {/* Post-Processing Effects Layer */}
+                <SafeEffectComposer compositingConfig={compositingConfig} />
               </XR>
             </Canvas>
           </Suspense>
