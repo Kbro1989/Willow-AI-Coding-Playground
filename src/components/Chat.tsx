@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { GoogleGenerativeAI, FunctionDeclaration, SchemaType } from "@google/generative-ai";
 import { ideTools } from '../services/geminiService';
-import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPreferences, Extension, SceneObject, PhysicsConfig, WorldConfig, RenderConfig, CompositingConfig, SimulationState, EngineAction, EngineLog } from '../types';
+import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPreferences, Extension, SceneObject, PhysicsConfig, WorldConfig, RenderConfig, CompositingConfig, SimulationState, EngineAction, EngineLog, AIModelMode, ProjectEnv, ActiveView } from '../types';
 // Hybrid: Cloudflare for text/images now through modelRouter, Gemini for live audio/video
 import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
 import { cloudlareLimiter as limiter } from '../services/cloudflareService';
@@ -9,6 +9,9 @@ import { modelRouter, ModelResponse, generate3D, generateImage, generateCinemati
 import { localBridgeClient } from '../services/localBridgeService';
 import { behaviorBridge } from '../services/logic/behaviorBridge';
 import { VoiceService } from '../services/voice/voiceService';
+import { neuralRegistry } from '../services/ai/NeuralRegistry';
+import { directorMemory } from '../services/directorMemoryService';
+import { Brain, History, Shield, Zap, Circle, Search } from 'lucide-react';
 
 
 interface ChatProps {
@@ -38,6 +41,12 @@ interface ChatProps {
   onTriggerBuild?: () => void;
   onTriggerPresentation?: () => void;
   engineLogs?: EngineLog[];
+  selectionContext?: string;
+  aiMode: AIModelMode;
+  projectEnv: ProjectEnv;
+  isPanic: boolean;
+  activeView: ActiveView;
+  bridgeStatus: 'offline' | 'direct' | 'relay';
 }
 
 export interface ChatHandle {
@@ -49,7 +58,8 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
   project, sceneObjects, physics, worldConfig, renderConfig, compositingConfig, simulation,
   isOverwatchActive, messages, setMessages, userPrefs, onFileUpdate, onAddSceneObject, onUpdateSceneObject,
   onUpdatePhysics, onUpdateWorld, onUpdateConfig, onRemoveSceneObject, onInjectScript,
-  onSyncVariableData, extensions, projectVersion, onUpdateVersion, onTriggerBuild, onTriggerPresentation, engineLogs = []
+  onSyncVariableData, extensions, projectVersion, onUpdateVersion, onTriggerBuild, onTriggerPresentation, engineLogs = [],
+  selectionContext = '', aiMode, projectEnv, isPanic, activeView, bridgeStatus
 }, ref) => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -57,6 +67,8 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showMemoryHUD, setShowMemoryHUD] = useState(false);
+  const [activeLimbs, setActiveLimbs] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const liveManager = useRef<LiveDirectorSession>(new LiveDirectorSession());
 
@@ -67,13 +79,24 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, isTyping]);
 
-  // Local Bridge Status Polling
-  const [bridgeStatus, setBridgeStatus] = useState(localBridgeClient.getStatus());
+  // Local Bridge Status Polling (Internal for specific UI indicators if needed)
+  const [localBridgeStatus, setLocalBridgeStatus] = useState(localBridgeClient.getStatus());
   useEffect(() => {
     const interval = setInterval(() => {
       const status = localBridgeClient.getStatus();
-      setBridgeStatus(prev => (prev.isConnected === status.isConnected && prev.isCloudMode === status.isCloudMode) ? prev : status);
+      setLocalBridgeStatus(prev => (prev.isConnected === status.isConnected && prev.isCloudMode === status.isCloudMode) ? prev : status);
     }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Neural Limb Activity Polling
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const limbs = neuralRegistry.getAllLimbs();
+      // Mock logic for "active" limbs - in real app would use heartbeat
+      const active = limbs.filter(l => Math.random() > 0.7).map(l => l.id);
+      setActiveLimbs(active);
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -85,10 +108,17 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
 
 
 
-
   const executeTool = async (call: any) => {
     const { name, args } = call;
     console.log(`[SYMPHONY] Executing Tool: ${name}`, args);
+
+    if (name === 'call_limb') {
+      const { limbId, capability, params } = args;
+      setActiveAgent(`Linking via ${limbId}...`);
+      const result = await neuralRegistry.callCapability(limbId, capability, params);
+      setActiveAgent(null);
+      return JSON.stringify(result);
+    }
 
     let toolResult: any = { success: false, message: 'Tool execution failed.' }; // Default failure
 
@@ -211,6 +241,25 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
             addMessage({ role: 'assistant', content: `Error deleting file \`${args.filePath}\`: ${toolResult.error}`, isError: true, model: 'Local Code Agent' });
           }
           break;
+        case 'call_limb': // Neural Registry - Call Limb Capability
+          try {
+            const params = typeof args.params === 'string' ? JSON.parse(args.params) : args.params;
+            toolResult = await neuralRegistry.callCapability(args.limbId, args.capability, params);
+            addMessage({
+              role: 'assistant',
+              content: `Capability \`${args.capability}\` on limb \`${args.limbId}\` executed successfully.`,
+              model: 'Neural Spine'
+            });
+          } catch (err: any) {
+            toolResult = { success: false, error: err.message };
+            addMessage({
+              role: 'assistant',
+              content: `Error calling capability \`${args.capability}\` on limb \`${args.limbId}\`: ${err.message}`,
+              isError: true,
+              model: 'Neural Spine'
+            });
+          }
+          break;
         default:
           toolResult = { status: 'error', message: `Tool '${name}' not found.` };
           addMessage({ role: 'assistant', content: `Unknown tool call: ${name}`, isError: true, model: 'Symphony Orchestrator' });
@@ -313,6 +362,31 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
       tools.push('delete_local_file');
     }
 
+    if (/rsmv|cache|game model|item/i.test(prompt)) {
+      steps.push(`Analyze model within RSMV Browser`);
+      tools.push('call_limb');
+    }
+
+    if (/forge|media|generate asset|switch tab/i.test(prompt)) {
+      steps.push(`Orchestrate asset generation in Media Forge`);
+      tools.push('call_limb');
+    }
+
+    if (/git|commit|push|version|staged/i.test(prompt)) {
+      steps.push(`Interact with Source Control repository`);
+      tools.push('call_limb');
+    }
+
+    if (/bridge|tunnel|health|reconnect/i.test(prompt)) {
+      steps.push(`Audit Local Bridge physical uplink`);
+      tools.push('call_limb');
+    }
+
+    if (/stress test|load test|diagnostics/i.test(prompt)) {
+      steps.push(`Execute system-wide integrity diagnostic`);
+      tools.push('call_limb');
+    }
+
     // Default fallback
     if (steps.length === 0) {
       steps.push(`Process user request with AI`);
@@ -359,7 +433,21 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           fps: 144
         });
 
-        const systemPrompt = `You are the Antigravity Engine Architect. Master of solo game creation. Goal: Zero friction. Execute multi-step synthesis.\r\n\r\nCRITICAL DIRECTIVE: SELF-CORRECTION\r\nWhen you modify code (ide_filesystem_mutation), you MUST immediately verify your work using 'ide_read_diagnostics'.\r\nIf valid errors (TypeScript, Lint, Build) appear, you MUST attempt to fix them in the same turn or the next.\r\nDo not ask the user for permission to fix broken code. Just fix it.\r\n\r\nYou have access to IDE tools for file mutation, scene updates, testing, and DIAGNOSTICS. Use them.`;
+        const systemPrompt = `You are the Antigravity Engine Architect. Master of solo game creation. Goal: Zero friction. Execute multi-step synthesis.\r\n\r\n` +
+          `CRITICAL CONTEXT:\r\n` +
+          `Source: AI_CHAT_SIDEBAR\r\n` +
+          `AI_Mode: ${aiMode}\r\n` +
+          `Project_Env: ${projectEnv}\r\n` +
+          `Bridge_Status: ${bridgeStatus}\r\n` +
+          `Panic_State: ${isPanic ? 'ACTIVE (CRITICAL)' : 'Normal'}\r\n` +
+          `Active_View: ${activeView}\r\n` +
+          `Active_File: ${project.activeFile || 'None'}\r\n` +
+          `Current_Selection:\r\n${selectionContext || 'None'}\r\n\r\n` +
+          `CRITICAL DIRECTIVE: SELF-CORRECTION\r\n` +
+          `When you modify code (ide_filesystem_mutation), you MUST immediately verify your work using 'ide_read_diagnostics'.\r\n` +
+          `If valid errors (TypeScript, Lint, Build) appear, you MUST attempt to fix them in the same turn or the next.\r\n` +
+          `Do not ask the user for permission to fix broken code. Just fix it.\r\n\r\n` +
+          `You have access to IDE tools for file mutation, scene updates, testing, and DIAGNOSTICS. Use them.`;
 
         const history = messages.map(m => ({
           role: m.role === 'assistant' ? 'model' as const : m.role === 'user' ? 'user' as const : 'user' as const,
@@ -546,12 +634,33 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
       {/* Status Indicator */}
       <div className="px-12 py-3 bg-[#050a15] border-b border-cyan-900/30 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div className={`w-3 h-3 rounded-full ${bridgeStatus.isConnected ? 'bg-green-500' : bridgeStatus.isCloudMode ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></div>
+          <div className={`w-3 h-3 rounded-full ${localBridgeStatus.isConnected ? 'bg-green-500' : localBridgeStatus.isCloudMode ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">
-            {bridgeStatus.isConnected ? 'Local Bridge Connected' : bridgeStatus.isCloudMode ? 'Cloud Mode Active' : 'Local Bridge Disconnected'}
+            {localBridgeStatus.isConnected ? 'Local Bridge Connected' : localBridgeStatus.isCloudMode ? 'Cloud Mode Active' : 'Local Bridge Disconnected'}
           </span>
         </div>
         <div className="flex items-center space-x-4">
+          {/* Active Limbs HUD */}
+          <div className="flex items-center gap-2 px-3 py-1 bg-black/40 border border-white/5 rounded-full">
+            <Zap className={`w-3 h-3 ${activeLimbs.length > 0 ? 'text-cyan-400 animate-pulse' : 'text-slate-700'}`} />
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar max-w-[150px]">
+              {activeLimbs.length === 0 ? (
+                <span className="text-[7px] font-black uppercase tracking-widest text-slate-700">All Limbs Idle</span>
+              ) : (
+                activeLimbs.map(lid => (
+                  <span key={lid} className="text-[7px] font-black uppercase tracking-widest text-cyan-400 whitespace-nowrap">{lid}</span>
+                ))
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowMemoryHUD(!showMemoryHUD)}
+            className={`p-1.5 rounded-lg border transition-all ${showMemoryHUD ? 'bg-purple-600/20 border-purple-500/50 text-purple-400' : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300'}`}
+            title="Toggle Neural Memory HUD"
+          >
+            <Brain className="w-4 h-4" />
+          </button>
           <button
             onClick={handleDownloadProject}
             className="px-3 py-1 bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-bold rounded transition-colors"
@@ -572,38 +681,70 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-12 space-y-12 no-scrollbar" ref={scrollRef}>
-        <div className="flex flex-col items-center opacity-30 mb-8">
-          <div className="w-px h-16 bg-gradient-to-b from-transparent via-cyan-500 to-transparent mb-4"></div>
-          <span className="text-[10px] font-black uppercase tracking-[0.6em] text-cyan-400">Antigravity Director Core</span>
+      {/* Memory HUD Overlay */}
+      {showMemoryHUD && (
+        <div className="absolute top-16 right-4 left-4 z-50 bg-[#0a1222]/95 backdrop-blur-2xl border border-purple-500/30 rounded-2xl p-4 shadow-3xl animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center justify-between mb-4 border-b border-purple-500/10 pb-2">
+            <div className="flex items-center gap-2">
+              <Brain className="w-4 h-4 text-purple-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-purple-200">Neural Memory Pool</span>
+            </div>
+            <button onClick={() => directorMemory.clear('session')} className="text-[8px] font-black uppercase text-slate-500 hover:text-rose-400 transition-colors">Wipe Session</button>
+          </div>
+          <div className="max-h-[300px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+            {directorMemory.getAll().length === 0 ? (
+              <div className="py-10 text-center text-slate-600 border border-dashed border-white/5 rounded-xl">
+                <span className="text-[9px] uppercase font-black tracking-widest">Awaiting Neural Impressions...</span>
+              </div>
+            ) : (
+              directorMemory.getAll().map((m) => (
+                <div key={m.id} className="p-3 bg-white/5 border border-white/5 rounded-xl hover:border-purple-500/20 transition-all group">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className={`text-[7px] font-black uppercase px-1.5 rounded ${m.scope === 'project' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                      {m.scope}
+                    </span>
+                    <span className="text-[7px] text-slate-600 font-mono">{new Date(m.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-300 leading-relaxed font-medium">{m.content}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar" ref={scrollRef}>
+        <div className="flex flex-col items-center opacity-30 mb-4">
+          <div className="w-px h-12 bg-gradient-to-b from-transparent via-cyan-500 to-transparent mb-2"></div>
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-cyan-400">Cognitive Sidebar</span>
         </div>
 
         {messages.map((m) => (
           <div key={m.id} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-6 duration-500`}>
-            <div className={`max-w-[85%] rounded-[3rem] p-10 shadow-2xl border ${m.role === 'user' ? 'bg-cyan-600 border-cyan-400/30 text-white rounded-tr-none' :
+            <div className={`max-w-[95%] rounded-2xl p-6 shadow-2xl border ${m.role === 'user' ? 'bg-cyan-600 border-cyan-400/30 text-white rounded-tr-none' :
               m.isError ? 'bg-rose-950/40 border-rose-500/30 text-rose-100 rounded-tl-none' :
                 'bg-[#0a1222] border-cyan-900/40 text-cyan-50 rounded-tl-none'
               }`}>
-              <div className="text-[15px] leading-relaxed prose prose-invert max-w-none whitespace-pre-wrap font-medium tracking-wide">
+              <div className="text-[13px] leading-relaxed prose prose-invert max-w-none whitespace-pre-wrap font-medium tracking-wide">
                 {m.content}
               </div>
 
-              {m.imageUrl && <div className="mt-8 rounded-[2rem] overflow-hidden border border-cyan-500/20 shadow-xl"><img src={m.imageUrl} alt="Neural Asset" className="w-full" /></div>}
-              {m.videoUrl && <div className="mt-8 rounded-[2rem] overflow-hidden border border-cyan-500/20 shadow-xl"><video src={m.videoUrl} controls className="w-full" /></div>}
-              {m.audioUrl && <div className="mt-8"><audio src={m.audioUrl} controls className="w-full" /></div>}
+              {m.imageUrl && <div className="mt-4 rounded-xl overflow-hidden border border-cyan-500/20 shadow-xl"><img src={m.imageUrl} alt="Neural Asset" className="w-full" /></div>}
+              {m.videoUrl && <div className="mt-4 rounded-xl overflow-hidden border border-cyan-500/20 shadow-xl"><video src={m.videoUrl} controls className="w-full" /></div>}
+              {m.audioUrl && <div className="mt-4"><audio src={m.audioUrl} controls className="w-full" /></div>}
 
 
               {m.plan && (
-                <div className="mt-10 p-10 bg-black/60 rounded-[3rem] border border-amber-500/20 shadow-inner">
-                  <div className="flex items-center justify-between mb-8">
-                    <span className="text-[12px] font-black uppercase tracking-[0.4em] text-amber-500">Antigravity Sprint: {m.plan.version}</span>
-                    <button onClick={() => { handleSend(`Director: Confirming the ${m.plan!.version} protocol. Execute multi-step synthesis.`); if (onUpdateVersion) onUpdateVersion(m.plan!.version); }} className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all">Execute Plan</button>
+                <div className="mt-6 p-6 bg-black/60 rounded-2xl border border-amber-500/20 shadow-inner">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500">Antigravity Sprint: {m.plan.version}</span>
+                    <button onClick={() => { handleSend(`Director: Confirming the ${m.plan!.version} protocol. Execute multi-step synthesis.`); if (onUpdateVersion) onUpdateVersion(m.plan!.version); }} className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all">Execute</button>
                   </div>
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 gap-2">
                     {m.plan.tasks.map((t, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 bg-cyan-950/20 border border-cyan-500/10 rounded-2xl">
-                        <span className="text-[11px] font-medium text-cyan-50/80">{t.description}</span>
-                        <span className="text-[8px] font-black uppercase text-cyan-600/40 font-mono">[{t.type}]</span>
+                      <div key={i} className="flex items-center justify-between p-3 bg-cyan-950/20 border border-cyan-500/10 rounded-xl">
+                        <span className="text-[10px] font-medium text-cyan-50/80">{t.description}</span>
+                        <span className="text-[7px] font-black uppercase text-cyan-600/40 font-mono">[{t.type}]</span>
                       </div>
                     ))}
                   </div>
@@ -646,8 +787,36 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
         )}
       </div>
 
-      <div className="px-12 pb-12 bg-[#050a15] border-t border-cyan-900/30 shadow-2xl pt-6">
-        <div className="flex items-center space-x-6 mb-6 px-4">
+      <div className="px-6 pb-6 bg-[#050a15] border-t border-cyan-900/30 shadow-2xl pt-4">
+        {/* Quick Action Tool Surface */}
+        <div className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar pb-2">
+          <button
+            onClick={() => handleSend(`Explain the current context (Active File: ${project.activeFile}, Selection: ${selectionContext ? 'Active' : 'Empty'})`)}
+            className="shrink-0 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest text-cyan-400 hover:bg-cyan-500 hover:text-black transition-all"
+          >
+            🔍 Explain
+          </button>
+          <button
+            onClick={() => handleSend(`Review and suggest optimizations for the current code selection.`)}
+            className="shrink-0 px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest text-purple-400 hover:bg-purple-500 hover:text-white transition-all"
+          >
+            🛠️ Refactor
+          </button>
+          <button
+            onClick={() => handleSend(`Generate a vitest test case for the current logic.`)}
+            className="shrink-0 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all"
+          >
+            🧪 Test
+          </button>
+          <button
+            onClick={() => onTriggerBuild?.()}
+            className="shrink-0 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest text-amber-400 hover:bg-amber-500 hover:text-black transition-all"
+          >
+            🏗️ Build
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-4 mb-4 px-2">
           <button
             onClick={async () => { if (isLive) { liveManager.current.close(); setIsLive(false); } else { await liveManager.current.connect((t, r) => { if (r === 'model') addMessage({ role: 'assistant', content: t, model: 'Live Director' }); }); setIsLive(true); } }}
             className={`p-5 rounded-full border transition-all ${isLive ? 'bg-cyan-600 border-cyan-400 text-white shadow-[0_0_20px_#00f2ff]' : 'bg-cyan-950/40 border-cyan-500/20 text-cyan-500 hover:bg-cyan-600/10'}`}
@@ -671,9 +840,9 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           <input
             type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isTyping}
             placeholder="Direct Antigravity Command..."
-            className="w-full bg-[#0a1222] border border-cyan-500/10 focus:border-cyan-500/40 rounded-[2.5rem] px-10 py-6 text-[17px] text-cyan-50 outline-none transition-all shadow-inner placeholder:text-cyan-950 font-medium"
+            className="w-full bg-[#0a1222] border border-cyan-500/10 focus:border-cyan-500/40 rounded-2xl px-6 py-4 text-[14px] text-cyan-50 outline-none transition-all shadow-inner placeholder:text-cyan-950 font-medium"
           />
-          <button type="submit" disabled={!input.trim() || isTyping} className="absolute right-4 top-3 p-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-[2rem] transition-all disabled:opacity-20"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg></button>
+          <button type="submit" disabled={!input.trim() || isTyping} className="absolute right-2 top-2 p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl transition-all disabled:opacity-20"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg></button>
         </form>
       </div>
     </div>

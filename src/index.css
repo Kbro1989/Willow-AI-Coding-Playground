@@ -28,10 +28,15 @@ body {
   }
 
   .nexus-glass {
-    background: var(--glass-panel);
-    backdrop-filter: blur(var(--glass-blur));
-    border: var(--glass-border);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    background: rgba(5, 10, 21, 0.75);
+    backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(0, 242, 255, 0.12);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .nexus-glass-edge {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    @apply nexus-glass;
   }
   
   .glow-cyan {

@@ -18,14 +18,20 @@ import { chat } from './modelRouter';
 export const googleSearch = async (query: string): Promise<SearchResult[]> => {
     if (!query.trim()) return [];
 
+    if (!SEARCH_ENGINE_ID) {
+        console.warn('[Google] Search aborted: Missing VITE_GOOGLE_CSE_ID. Please configure in .env or Settings.');
+        return [];
+    }
+
     try {
         // Uses Pages Function at /api/google-search (same origin in production)
         const url = `${API_BASE}/api/google-search?q=${encodeURIComponent(query)}&cx=${encodeURIComponent(SEARCH_ENGINE_ID)}`;
         const response = await fetch(url);
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Search failed: ${response.statusText}`);
+            // Log warning but don't crash the engine; return empty results
+            console.error(`[Google] API failure: ${response.status} ${response.statusText}`);
+            return [];
         }
 
         const data = await response.json();
@@ -36,7 +42,7 @@ export const googleSearch = async (query: string): Promise<SearchResult[]> => {
             snippet: item.snippet
         }));
     } catch (error) {
-        console.error('[Google] Search error:', error);
+        console.error('[Google] Search network error:', error);
         return [];
     }
 };

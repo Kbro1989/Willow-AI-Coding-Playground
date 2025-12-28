@@ -18,6 +18,26 @@ export const FEATURED_MODELS: Record<GameSource, RSMVModelEntry[]> = {
     { id: 11694, name: 'Armadyl godsword', category: 'items', gameSource: 'runescape', vertexCount: 1024, materialCount: 3, tags: ['weapon', 'melee', 'godsword'], examine: 'A very powerful godsword.' },
     { id: 1050, name: 'Santa hat', category: 'items', gameSource: 'runescape', vertexCount: 128, materialCount: 1, tags: ['holiday', 'rare'], examine: 'Ho ho ho!' },
     { id: 50, name: 'King Black Dragon', category: 'npcs', gameSource: 'runescape', vertexCount: 4096, materialCount: 6, boneCount: 48, tags: ['boss', 'dragon'], description: 'A fearsome three-headed dragon.' },
+    {
+      id: 9999,
+      name: 'Pick Of Gods (Character)',
+      category: 'models',
+      gameSource: 'runescape',
+      vertexCount: 0,
+      tags: ['player', 'character', 'reference'],
+      examine: 'The user\'s primary RuneScape character.',
+      filePath: 'models/pick_of_gods.glb'
+    },
+    {
+      id: 9998,
+      name: 'Pick Of Gods (Simple)',
+      category: 'models',
+      gameSource: 'runescape',
+      vertexCount: 0,
+      tags: ['player', 'character', 'simple'],
+      examine: 'Simple STL reference of the user\'s character.',
+      filePath: 'models/pick_of_gods.stl'
+    },
   ],
   morrowind: [
     { id: 1, name: 'Frost Atronach', category: 'npcs', gameSource: 'morrowind', vertexCount: 3200, materialCount: 4, boneCount: 24, tags: ['daedra', 'summon'], filePath: 'Meshes/Atronach_Frost.nif' },

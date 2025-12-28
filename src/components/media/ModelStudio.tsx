@@ -17,6 +17,22 @@ const ModelStudio: React.FC = () => {
     const [texturePrompt, setTexturePrompt] = useState('');
     const [meshPrompt, setMeshPrompt] = useState(''); // New state for mesh prompt
     const [isProcessing, setIsProcessing] = useState(false);
+    const [ingestedModel, setIngestedModel] = useState<any>(null);
+
+    // Listen for RSMV Ingestion
+    React.useEffect(() => {
+        const handleIngest = (e: CustomEvent) => {
+            const { model } = e.detail;
+            if (model) {
+                console.log(`[ModelStudio] Ingesting RSMV Model: ${model.name}`);
+                setIngestedModel(model);
+                setMeshPrompt(`RuneScape Model: ${model.name}. ${model.examine || ''}`);
+                setMode('preview'); // Switch to preview to show the intent
+            }
+        };
+        window.addEventListener('rsmv:ingest', handleIngest as EventListener);
+        return () => window.removeEventListener('rsmv:ingest', handleIngest as EventListener);
+    }, []);
 
     const handleSkeletonExport = (data: any) => {
         setSkeletonData(data);

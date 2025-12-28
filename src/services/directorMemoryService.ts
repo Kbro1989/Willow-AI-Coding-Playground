@@ -62,6 +62,18 @@ class DirectorMemoryService {
         return entry;
     }
 
+    /**
+     * Specialized lore injection for world-building
+     */
+    async addLore(assetName: string, lore: string, source: string = 'RSMV') {
+        return this.addMemory(
+            `[LORE] ${assetName}: ${lore}`,
+            'project',
+            1.0,
+            ['lore', source, assetName]
+        );
+    }
+
     getAll(): MemoryEntry[] {
         return [...this.projectMemory, ...this.sessionMemory, ...this.ephemeralMemory].sort((a, b) => b.timestamp - a.timestamp);
     }

@@ -5,6 +5,8 @@ import { pipelineService } from '../../services/ai/pipelineService';
 import { universalOrchestrator } from '../../services/ai/universalOrchestrator';
 import { agentSprintService, SprintState } from '../../services/ai/agentSprintService';
 
+import { MiniModel } from '../media/MiniModel';
+
 const AssistantOverlay: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [context, setContext] = useState<UnifiedContext | null>(null);
@@ -60,9 +62,11 @@ const AssistantOverlay: React.FC = () => {
         return (
             <button
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 w-12 h-12 bg-cyan-500 rounded-full shadow-[0_0_20px_rgba(0,242,255,0.4)] flex items-center justify-center hover:scale-110 transition-transform z-50 group"
+                className="fixed bottom-6 right-6 w-14 h-14 bg-cyan-500/20 backdrop-blur-md rounded-full shadow-[0_0_20px_rgba(0,242,255,0.4)] border border-cyan-500/50 flex items-center justify-center hover:scale-110 transition-transform z-50 group overflow-hidden"
             >
-                <Bot className="w-6 h-6 text-white" />
+                <div className="w-full h-full relative">
+                    <MiniModel url="/models/pick_of_gods.glb" />
+                </div>
                 <div className="absolute -top-10 right-0 bg-black/80 px-3 py-1 rounded-lg text-[10px] text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-cyan-500/30">
                     AI Assistant Active
                 </div>

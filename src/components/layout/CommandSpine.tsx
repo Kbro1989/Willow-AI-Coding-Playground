@@ -1,9 +1,9 @@
 
 import React from 'react';
 import {
-    Blocks, ChevronDown, Search, Undo2, Redo2, Cpu, Bell, ShieldAlert
+    Blocks, ChevronDown, Search, Undo2, Redo2, Cpu, Bell, ShieldAlert, Brain
 } from 'lucide-react';
-import { ProjectEnv, AIModelMode } from '../../types';
+import { ProjectEnv, AIModelMode, AIIntent } from '../../types';
 import { localBridgeClient } from '../../services/localBridgeService';
 import { Network, Link2, Link2Off } from 'lucide-react';
 import { UIActionDispatcher } from '../../ui/ui-actions';
@@ -11,28 +11,96 @@ import { UIActionDispatcher } from '../../ui/ui-actions';
 interface CommandSpineProps {
     projectEnv: ProjectEnv;
     aiMode: AIModelMode;
+    activeView: string;
     showPerformanceHUD: boolean;
+    isAiPanelVisible: boolean;
     isPanic: boolean;
     dispatch: UIActionDispatcher;
 }
 
 export const CommandSpine: React.FC<CommandSpineProps> = ({
-    projectEnv, aiMode, showPerformanceHUD, isPanic, dispatch
+    projectEnv, aiMode, activeView, showPerformanceHUD, isAiPanelVisible, isPanic, dispatch
 }) => {
-    const [bridgeStatus, setBridgeStatus] = React.useState(localBridgeClient.getStatus());
     const [searchValue, setSearchValue] = React.useState('');
     const [isSearching, setIsSearching] = React.useState(false);
+    const [isPulsing, setIsPulsing] = React.useState(false);
+
+    const [bridgeStatus, setBridgeStatus] = React.useState(localBridgeClient.getStatus());
 
     React.useEffect(() => {
-        return localBridgeClient.onStatusChange(s => setBridgeStatus({ ...s, syncMode: localBridgeClient.getStatus().syncMode }));
+        let unsubBus: (() => void) | undefined;
+
+        import('../../services/nexusCommandBus').then(({ nexusBus }) => {
+            unsubBus = nexusBus.subscribe(() => {
+                setIsPulsing(true);
+                setTimeout(() => setIsPulsing(false), 800);
+            });
+        });
+
+        const unsubBridge = localBridgeClient.onStatusChange(s => setBridgeStatus({ ...s, syncMode: localBridgeClient.getStatus().syncMode }));
+
+        return () => {
+            if (unsubBus) unsubBus();
+            unsubBridge();
+        };
     }, []);
+
+    const placeholderMap: Record<AIModelMode, string> = {
+        assist: 'ASK / SEARCH / COMMAND',
+        refactor: 'DESCRIBE CHANGE TO APPLY',
+        explain: 'WHAT SHOULD I EXPLAIN?',
+        generate: 'WHAT SHOULD I CREATE?',
+        lockdown: 'AUDIT / VERIFY / HARDEN'
+    };
 
     const handleSearch = async (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && searchValue.trim()) {
             setIsSearching(true);
             try {
+                let verb: AIIntent['verb'] = 'search';
+                let text = searchValue.trim();
+
+                // Prefix detection
+                if (text.startsWith('/refactor ')) {
+                    verb = 'refactor';
+                    text = text.replace('/refactor ', '');
+                } else if (text.startsWith('/explain ')) {
+                    verb = 'explain';
+                    text = text.replace('/explain ', '');
+                } else if (text.startsWith('/generate ')) {
+                    verb = 'generate';
+                    text = text.replace('/generate ', '');
+                } else if (text.startsWith('/audit ')) {
+                    verb = 'audit';
+                    text = text.replace('/audit ', '');
+                } else if (text.startsWith('/sprint ')) {
+                    verb = 'sprint';
+                    text = text.replace('/sprint ', '');
+                } else {
+                    // Default verb mapping based on current AI Mode
+                    const modeVerbMap: Record<AIModelMode, AIIntent['verb']> = {
+                        assist: 'search',
+                        refactor: 'refactor',
+                        explain: 'explain',
+                        generate: 'generate',
+                        lockdown: 'audit'
+                    };
+                    verb = modeVerbMap[aiMode] || 'search';
+                }
+
                 const { universalOrchestrator } = await import('../../services/ai/universalOrchestrator');
-                await universalOrchestrator.dispatch(searchValue);
+                await universalOrchestrator.dispatchIntent({
+                    source: 'omnibar',
+                    verb,
+                    payload: { text },
+                    context: {
+                        aiMode,
+                        projectEnv,
+                        bridgeStatus: bridgeStatus.isConnected ? 'direct' : 'offline',
+                        panic: isPanic,
+                        view: activeView as any
+                    }
+                });
                 setSearchValue('');
             } catch (err) {
                 console.error('[OMNI_BAR] Dispatch failed:', err);
@@ -93,8 +161,8 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                         value={searchValue}
                         onChange={(e) => setSearchValue(e.target.value)}
                         onKeyDown={handleSearch}
-                        placeholder={isSearching ? "ANALYZING INTENT..." : "CMD+K OMNI-SEARCH"}
-                        className="bg-black/40 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-[10px] font-black tracking-widest text-white focus:outline-none focus:border-cyan-500/50 min-w-[200px] nexus-glass"
+                        placeholder={isSearching ? `INTENT: SEARCH | MODE: ${aiMode.toUpperCase()} | ENV: ${projectEnv.toUpperCase()}` : placeholderMap[aiMode]}
+                        className="bg-black/40 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-[10px] font-black tracking-widest text-white focus:outline-none focus:border-cyan-500/50 min-w-[300px] nexus-glass"
                     />
                 </div>
                 <div className="flex gap-2">
@@ -106,6 +174,14 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                     <button onClick={() => dispatch({ type: 'SYSTEM_TOGGLE_PERFORMANCE_HUD' })} className={`p-2 rounded-xl transition-all ${showPerformanceHUD ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-500 hover:bg-white/5'}`}>
                         <Cpu className="w-4 h-4" />
                     </button>
+                    <button
+                        onClick={() => dispatch({ type: 'SYSTEM_TOGGLE_AI_PANEL' })}
+                        className={`p-2 rounded-xl transition-all relative ${isAiPanelVisible ? 'bg-purple-500/10 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : 'text-slate-500 hover:bg-white/5'}`}
+                        title="Toggle Cognitive Sidebar"
+                    >
+                        <Brain className={`w-4 h-4 transition-all duration-300 ${isPulsing ? 'scale-125 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]' : ''}`} />
+                        {isPulsing && <div className="absolute inset-0 bg-purple-500/20 rounded-xl animate-ping" />}
+                    </button>
                     <Bell className="w-4 h-4 text-slate-500 hover:text-white" />
                     <button onClick={() => dispatch({ type: 'SYSTEM_PANIC' })} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isPanic ? 'bg-red-500 text-white animate-bounce' : 'bg-red-900/20 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white'}`}>
                         PANIC (KILL)
@@ -113,6 +189,6 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                 </div>
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-purple-600 border border-white/10 flex items-center justify-center text-[10px] font-black text-white">OP</div>
             </div>
-        </div>
+        </div >
     );
 };

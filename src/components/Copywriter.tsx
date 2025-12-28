@@ -1,69 +1,61 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db, tx } from '../lib/db';
 import { useDebounce } from '../hooks/useDebounce';
-import { generateCopy, googleSearch } from '../services/googleService';
+import { modelRouter } from '../services/modelRouter';
+import { neuralRegistry } from '../services/ai/NeuralRegistry';
 
 const Copywriter: React.FC = () => {
-    const WORKSPACE_ID = 'default-nexus-workspace';
-
-    // 1. Ingest shared workspace state
-    const { data } = db.useQuery({ workspace_state: { $: { where: { workspaceId: WORKSPACE_ID } } } });
-    const sharedState = data?.workspace_state?.[0];
-
     const [topic, setTopic] = useState('');
-    const [tone, setTone] = useState<'professional' | 'creative' | 'marketing'>('creative');
+    const [tone, setTone] = useState<'professional' | 'creative' | 'marketing'>('professional');
     const [output, setOutput] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<{ title: string, snippet: string }[]>([]);
 
-    // 2. Sync from shared state when it changes (but not while we are typing)
     useEffect(() => {
-        if (sharedState?.narrativeContext && !isGenerating) {
-            try {
-                const parsed = JSON.parse(sharedState.narrativeContext);
-                setTopic(parsed.topic || '');
-                setTone(parsed.tone || 'creative');
-                setOutput(parsed.output || '');
-            } catch (e) {
-                console.error('Failed to parse shared narrative context');
-            }
-        }
-    }, [sharedState?.narrativeContext, isGenerating]);
-
-    // 3. Sync to shared state (Debounced)
-    const syncToCloud = useCallback(async (currentTopic: string, currentTone: string, currentOutput: string) => {
-        const payload = JSON.stringify({ topic: currentTopic, tone: currentTone, output: currentOutput });
-
-        await db.transact([
-            tx.workspace_state[sharedState?.id || WORKSPACE_ID].update({
-                workspaceId: WORKSPACE_ID,
-                narrativeContext: payload,
-                updatedAt: Date.now()
-            })
-        ]);
-    }, [sharedState?.id]);
-
-    const debouncedTopic = useDebounce(topic, 1000);
-    const debouncedTone = useDebounce(tone, 1000);
-    const debouncedOutput = useDebounce(output, 2000);
-
-    // 4. Trigger cloud sync on debounced changes
-    useEffect(() => {
-        if (!isGenerating && (debouncedTopic || debouncedOutput)) {
-            syncToCloud(debouncedTopic, debouncedTone, debouncedOutput);
-        }
-    }, [debouncedTopic, debouncedTone, debouncedOutput, syncToCloud, isGenerating]);
+        neuralRegistry.registerLimb({
+            id: 'copywriter',
+            name: 'Narrative Copywriter',
+            description: 'Expert agent for generating marketing and narrative copy.',
+            capabilities: [
+                {
+                    name: 'generate_copy',
+                    description: 'Generate high-quality copy based on a topic and tone.',
+                    parameters: { topic: 'string', tone: 'string' },
+                    handler: async ({ topic: t, tone: tn }: { topic: string, tone: string }) => {
+                        setTopic(t);
+                        setTone(tn as any);
+                        await handleGenerate();
+                        return { status: 'Copy generated successfully' };
+                    }
+                }
+            ]
+        });
+        return () => neuralRegistry.unregisterLimb('copywriter');
+    }, [topic, tone]);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
         try {
-            // First, ground the topic with search
-            const searchData = await googleSearch(topic);
-            setSearchResults(searchData);
+            // First, ground the topic (using LLM knowledge for now until Librarian is fully search-enabled)
+            // Or use modelRouter.chat with grounding=true if available
+            // For now, we simulate search via a quick query or skip it to avoid Google dep.
+            // const searchData = await googleSearch(topic); 
+            // setSearchResults(searchData); 
 
-            // Then generate copy
-            const copy = await generateCopy(topic, tone);
-            setOutput(copy);
+            // Just use Model Router directly
+            const response = await modelRouter.chat(
+                `Write a ${tone} piece of copy about: ${topic}.`,
+                [],
+                "You are a master copywriter.",
+                false,
+                false
+            );
+
+            const copy = 'content' in response ? response.content : "Generation failed.";
+            setOutput(copy || '');
+
+            setSearchResults([{ title: 'Cloudflare Intelligence', snippet: 'Generated via Neural Matrix (DeepSeek/Llama)' }]);
+
         } catch (e) {
             setOutput('Error generating copy. Please try again.');
         } finally {

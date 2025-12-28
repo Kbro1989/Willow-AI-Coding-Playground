@@ -15,11 +15,11 @@ export class Buffer {
     constructor(bytes: number[]);
 }
 
-interface TextureGroup {
+export interface TextureGroup {
     getTexture(id: number): ImageData;
     getSprite(id: number): ImageData;
 }
 
-interface TextureOp {
-    childOps: TextureOp[]
+export class TextureOp {
+    childOps: TextureOp[];
 }

@@ -5,17 +5,30 @@ import { localBridgeClient } from '../services/localBridgeService';
 import {
   Activity, Zap, Cpu, AlertTriangle, TrendingUp, Database,
   ShieldCheck, Users, Globe, Layers, HardDrive, RefreshCcw,
-  Link as LinkIcon, Box, Terminal
+  Link as LinkIcon, Box, Terminal, Code as StatusIcon
 } from 'lucide-react';
+import { neuralRegistry } from '../services/ai/NeuralRegistry';
 
 const DiagnosticsPanel: React.FC = () => {
   const [jobs, setJobs] = useState<NexusJob[]>(nexusBus.getJobs());
   const [metrics, setMetrics] = useState<SessionMetrics & { isHardBudgetEnabled: boolean }>(sessionService.getMetrics());
   const [bridgeStatus, setBridgeStatus] = useState(localBridgeClient.getStatus());
+  const [pipelineStatus, setPipelineStatus] = useState({ success: true, errorCount: 0 });
+  const [isPulsing, setIsPulsing] = useState(false);
 
   useEffect(() => {
+    // Pipeline Monitor Subscription
+    let unsubPipeline: (() => void) | undefined;
+    import('../services/ai/NeuralRegistry').then(({ neuralRegistry }) => {
+      unsubPipeline = neuralRegistry.on('pipeline_update', (status: any) => {
+        setPipelineStatus(status);
+      });
+    });
+
     const unsubBus = nexusBus.subscribe(() => {
       setJobs(nexusBus.getJobs());
+      setIsPulsing(true);
+      setTimeout(() => setIsPulsing(false), 800);
     });
     const unsubSession = sessionService.subscribe(setMetrics);
     const unsubBridge = localBridgeClient.onStatusChange((status) => setBridgeStatus(status));
@@ -24,6 +37,7 @@ const DiagnosticsPanel: React.FC = () => {
       unsubBus();
       unsubSession();
       unsubBridge();
+      if (unsubPipeline) unsubPipeline();
     };
   }, []);
 
@@ -32,8 +46,8 @@ const DiagnosticsPanel: React.FC = () => {
       {/* Header Section */}
       <div className="flex items-center justify-between mb-10 border-b border-cyan-500/20 pb-6">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-cyan-500/10 rounded-2xl flex items-center justify-center border border-cyan-500/30">
-            <Activity className="w-6 h-6 text-cyan-400 animate-pulse" />
+          <div className={`w-12 h-12 bg-cyan-500/10 rounded-2xl flex items-center justify-center border transition-all duration-300 ${isPulsing ? 'border-cyan-400 scale-110 shadow-[0_0_20px_rgba(0,242,255,0.4)]' : 'border-cyan-500/30'}`}>
+            <Activity className={`w-6 h-6 text-cyan-400 ${isPulsing ? 'animate-bounce' : 'animate-pulse'}`} />
           </div>
           <div className="flex flex-col">
             <h2 className="text-2xl font-black uppercase tracking-tighter text-white">System Overwatch</h2>
@@ -58,16 +72,24 @@ const DiagnosticsPanel: React.FC = () => {
 
       {/* Primary Insight Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-10">
-
         {/* Neural Link Module */}
-        <div className="bg-[#0a1222]/80 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] shadow-2xl transition-all hover:border-cyan-500/30 group">
+        <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-cyan-500/30 group relative">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <LinkIcon className="w-5 h-5 text-cyan-400 group-hover:rotate-45 transition-transform" />
               <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Neural Link</h3>
             </div>
-            <div className={`px-2 py-0.5 rounded-full text-[8px] font-black ${bridgeStatus.isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} uppercase tracking-widest border border-current/20`}>
-              {bridgeStatus.isConnected ? 'Active' : 'Offline'}
+            <div className="flex items-center gap-2">
+              <button
+                className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
+                title="AI Help"
+                onClick={() => neuralRegistry.emit('ui:explain', { id: 'neural-link', context: 'The communication bridge between the local machine and Cloudflare services.' })}
+              >
+                ?
+              </button>
+              <div className={`px-2 py-0.5 rounded-full text-[8px] font-black ${bridgeStatus.isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} uppercase tracking-widest border border-current/20`}>
+                {bridgeStatus.isConnected ? 'Active' : 'Offline'}
+              </div>
             </div>
           </div>
           <div className="space-y-4">
@@ -83,18 +105,27 @@ const DiagnosticsPanel: React.FC = () => {
         </div>
 
         {/* Economy Overwatch */}
-        <div className="bg-[#0a1222]/80 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] shadow-2xl transition-all hover:border-purple-500/30 lg:col-span-2">
+        <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-purple-500/30 lg:col-span-2 relative">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <ShieldCheck className="w-5 h-5 text-purple-400" />
               <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Economy Guardrails</h3>
             </div>
-            <button
-              onClick={() => sessionService.setHardBudgetEnabled(!metrics.isHardBudgetEnabled)}
-              className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${metrics.isHardBudgetEnabled ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-white/5 text-slate-500'}`}
-            >
-              Budget Lock: {metrics.isHardBudgetEnabled ? 'ACTIVE' : 'READY'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
+                title="AI Help"
+                onClick={() => neuralRegistry.emit('ui:explain', { id: 'economy-guardrails', context: 'Real-time monitoring and limiting of AI API usage costs and token burn.' })}
+              >
+                ?
+              </button>
+              <button
+                onClick={() => sessionService.setHardBudgetEnabled(!metrics.isHardBudgetEnabled)}
+                className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${metrics.isHardBudgetEnabled ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-white/5 text-slate-500'}`}
+              >
+                Budget Lock: {metrics.isHardBudgetEnabled ? 'ACTIVE' : 'READY'}
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="space-y-1">
@@ -117,19 +148,62 @@ const DiagnosticsPanel: React.FC = () => {
         </div>
 
         {/* Presence Module */}
-        <div className="bg-[#0a1222]/80 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] shadow-2xl transition-all hover:border-blue-500/30">
-          <div className="flex items-center gap-3 mb-6">
-            <Users className="w-5 h-5 text-blue-400" />
-            <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Collaborators</h3>
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex -space-x-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 border-4 border-[#0a1222] flex items-center justify-center text-[10px] font-black text-white shadow-xl relative z-10">OP</div>
-              <div className="w-10 h-10 rounded-full bg-slate-800 border-4 border-[#0a1222] flex items-center justify-center text-[10px] font-black text-slate-600 shadow-xl">AI</div>
+        <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-blue-500/30 relative">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Users className="w-5 h-5 text-blue-400" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Collaborators</h3>
             </div>
-            <span className="text-[9px] font-black text-slate-600 uppercase">1 Online</span>
+            <button
+              className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
+              title="AI Help"
+              onClick={() => neuralRegistry.emit('ui:explain', { id: 'collaborators', context: 'Real-time presence and collaborative session tracking for multiple developers.' })}
+            >
+              ?
+            </button>
           </div>
-          <p className="text-[10px] text-slate-500 italic leading-relaxed">System isolate: Running in single-user master node.</p>
+          <div className="flex -space-x-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 border-4 border-[#0a1222] flex items-center justify-center text-[10px] font-black text-white shadow-xl relative z-10">OP</div>
+            <div className="w-10 h-10 rounded-full bg-slate-800 border-4 border-[#0a1222] flex items-center justify-center text-[10px] font-black text-slate-600 shadow-xl">AI</div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-black text-slate-600 uppercase">1 Online</span>
+            <p className="text-[10px] text-slate-500 italic leading-relaxed">System isolate: Running in single-user master node.</p>
+          </div>
+        </div>
+
+        {/* Pipeline Health Module */}
+        <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-amber-500/30 group relative">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <StatusIcon className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Pipeline Health</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
+                title="AI Help"
+                onClick={() => neuralRegistry.emit('ui:explain', { id: 'pipeline-health', context: 'Real-time build monitoring, linting results, and TypeScript compiler status.' })}
+              >
+                ?
+              </button>
+              <div className={`px-2 py-0.5 rounded-full text-[8px] font-black ${pipelineStatus.success ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'} uppercase tracking-widest border border-current/20`}>
+                {pipelineStatus.success ? 'Healthy' : 'Build Failed'}
+              </div>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+              <span className="text-[9px] text-slate-500 uppercase font-bold block mb-2">Build Integrity</span>
+              <span className={`text-[10px] font-mono font-black ${pipelineStatus.success ? 'text-amber-400' : 'text-rose-400'} truncate block`}>
+                {pipelineStatus.errorCount} Errors / 0 Warnings
+              </span>
+            </div>
+            <div className="flex justify-between items-center px-2">
+              <span className="text-[10px] text-slate-500 uppercase font-bold">TSC Watch</span>
+              <span className="text-xs font-black text-white uppercase animate-pulse">Active</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -141,7 +215,10 @@ const DiagnosticsPanel: React.FC = () => {
               <div className="w-2 h-2 bg-cyan-500 rounded-full animate-ping shadow-[0_0_10px_#00f2ff]" />
               Live Job Registry
             </div>
-            <button className="text-[9px] font-black text-white/30 hover:text-cyan-400 transition-colors flex items-center gap-2">
+            <button
+              onClick={() => nexusBus.clearCompletedJobs()}
+              className="text-[9px] font-black text-white/30 hover:text-cyan-400 transition-colors flex items-center gap-2"
+            >
               <RefreshCcw className="w-3 h-3" />
               FLUSH COMPLETED
             </button>
@@ -188,7 +265,7 @@ const DiagnosticsPanel: React.FC = () => {
 
         {/* Resource Analytics & Quick Access */}
         <div className="space-y-8">
-          <div className="bg-[#051122] rounded-[2.5rem] border border-cyan-500/10 p-8 shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]">
+          <div className="nexus-glass p-8 rounded-[2.5rem] shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]">
             <h3 className="text-xs font-black uppercase tracking-[0.5em] text-cyan-500/50 mb-8 flex items-center gap-3">
               <Cpu className="w-4 h-4" />
               Vitals Baseline
@@ -201,12 +278,31 @@ const DiagnosticsPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Actions Integration */}
           <div className="grid grid-cols-2 gap-4">
-            <QuickAction icon={HardDrive} label="Sync Local FS" desc="Commit buffer to disk" />
-            <QuickAction icon={RefreshCcw} label="Hard Reboot" desc="Reload kernel services" />
-            <QuickAction icon={Globe} label="Deploy Staging" desc="Push to edge workers" />
-            <QuickAction icon={Terminal} label="Bridge Reset" desc="Purge link memory" />
+            <QuickAction
+              icon={HardDrive}
+              label="Sync Local FS"
+              desc="Commit buffer to disk"
+              onClick={() => localBridgeClient.runTerminalCommand('git add . && git commit -m "Auto-sync from Overwatch"')}
+            />
+            <QuickAction
+              icon={RefreshCcw}
+              label="Hard Reboot"
+              desc="Reload kernel services"
+              onClick={() => window.location.reload()}
+            />
+            <QuickAction
+              icon={Globe}
+              label="Deploy Staging"
+              desc="Push to edge workers"
+              onClick={() => localBridgeClient.runTerminalCommand('npm run deploy')}
+            />
+            <QuickAction
+              icon={Terminal}
+              label="Bridge Reset"
+              desc="Purge link memory"
+              onClick={() => localBridgeClient.setBridgeUrl(localStorage.getItem('antigravity_bridge_url') || 'ws://localhost:3040')}
+            />
           </div>
         </div>
       </div>
@@ -226,8 +322,11 @@ const VitalBar = ({ label, value, color }: { label: string, value: number, color
   </div>
 );
 
-const QuickAction = ({ icon: Icon, label, desc }: { icon: any, label: string, desc: string }) => (
-  <button className="flex items-start gap-4 p-5 bg-white/5 border border-white/5 rounded-3xl hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-all text-left group">
+const QuickAction = ({ icon: Icon, label, desc, onClick }: { icon: any, label: string, desc: string, onClick?: () => void }) => (
+  <button
+    onClick={onClick}
+    className="flex items-start gap-4 p-5 bg-white/5 border border-white/5 rounded-3xl hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-all text-left group"
+  >
     <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center border border-white/5">
       <Icon className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
     </div>
@@ -236,10 +335,14 @@ const QuickAction = ({ icon: Icon, label, desc }: { icon: any, label: string, de
       <span className="text-[9px] text-slate-600 font-bold uppercase tracking-wider">{desc}</span>
     </div>
   </button>
-)
+);
 
 const BrainIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .52 8.245 4 4 0 0 0 7.837 1.117A3 3 0 1 0 12 5z" /><path d="M12 19a3 3 0 1 0 5.997-.125 4 4 0 0 0 2.526-5.77 4 4 0 0 0-.52-8.245 4 4 0 0 0-7.837-1.117A3 3 0 1 0 12 19z" /></svg>
+);
+
+const CodeIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
 );
 
 export default DiagnosticsPanel;

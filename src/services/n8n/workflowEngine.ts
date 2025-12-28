@@ -4,11 +4,11 @@
  */
 
 import { NodeType, getNodeDefinition } from './nodeDefinitions';
-import { modelRouter, ModelResponse } from '../../services/modelRouter';
-import { createFile, executeCommand } from '../../services/bridgeService';
-import { orchestrate } from '../../services/agents/orchestratorAgent';
-import { nexusBus } from '../../services/nexusCommandBus';
-import { logTask } from '../../services/loggingService';
+import { modelRouter, ModelResponse } from '../modelRouter';
+import { createFile, executeCommand } from '../bridgeService';
+import { orchestrate } from '../agents/orchestratorAgent';
+import { nexusBus } from '../nexusCommandBus';
+import { logTask } from '../loggingService';
 
 export interface WorkflowNode {
   id: string;
@@ -199,7 +199,7 @@ export class WorkflowEngine {
   /**
    * Execute a single node
    */
-  private async executeNode(node: WorkflowNode, inputs: Record<string, any>, signal?: AbortSignal): Promise<any> {
+  public async executeNode(node: WorkflowNode, inputs: Record<string, any>, signal?: AbortSignal): Promise<any> {
     const def = getNodeDefinition(node.type);
 
     switch (node.type) {
@@ -262,7 +262,7 @@ export class WorkflowEngine {
         return { output: audioResponse.audioUrl || audioResponse.content };
 
       case 'ai_logic_refactor':
-        const { behaviorSynthesis } = await import('../../services/behaviorSynthesisService');
+        const { behaviorSynthesis } = await import('../behaviorSynthesisService');
         const refactorResult = await behaviorSynthesis.refactorTree(
           inputs.tree || [],
           inputs.goal || node.parameters.goal || 'Refactor for better performance'

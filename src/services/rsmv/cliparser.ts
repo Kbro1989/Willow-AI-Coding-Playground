@@ -2,7 +2,6 @@ import * as cmdts from "cmd-ts";
 import { ArgParser } from "cmd-ts/dist/cjs/argparser";
 
 import { CacheFileSource, CallbackCacheLoader } from "./cache";
-import { CacheFileSource, CallbackCacheLoader } from "./cache";
 import type { CacheDownloader as CacheDownloaderType } from "./cache/downloader";
 import type { GameCacheLoader as GameCacheLoaderType } from "./cache/sqlite";
 import type { RawFileLoader as RawFileLoaderType } from "./cache/rawfiles";

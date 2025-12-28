@@ -1,50 +1,45 @@
-# Antigravity Engine Dockerfile
-# Multi-stage build for production/containerized deployment
-# NOTE: Primary deployment is Cloudflare Workers. This is for alternative hosting or testing.
-
-# Build stage
-FROM node:20-alpine AS builder
+# Stage 1: Build
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++ git
+# Install system dependencies if needed (e.g. for native modules)
+RUN apt-get update && apt-get install -y python3 make g++
 
-# Copy definition files first
 COPY package*.json ./
-COPY tsconfig.json ./
-COPY wrangler.toml ./
+COPY tsconfig*.json ./
 
 # Install dependencies
 RUN npm ci
 
-# Copy source code
-COPY src/ ./src/
-COPY public/ ./public/
-COPY buildScripts/ ./buildScripts/
+# Copy source
+COPY . .
 
-# Build application
+# Set high memory limit for the build process
+ENV NODE_OPTIONS="--max-old-space-size=8192"
+
+# Run the full build pipeline
+# This will use the simplified vite config we just set up
 RUN npm run build:all
 
-# Production stage (if running as a Node service)
-FROM node:20-alpine AS runner
+# Stage 2: Runtime
+# We use wrangler to serve the Pages application locally, simulating the Edge environment
+FROM node:20-slim
 
 WORKDIR /app
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S antigravity -u 1001
+# Install wrangler globally or ensure it's in node_modules
+RUN npm install -g wrangler
 
-# Copy built artifacts and dependencies
-COPY --from=builder --chown=antigravity:nodejs /app/dist ./dist
-COPY --from=builder --chown=antigravity:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=antigravity:nodejs /app/package*.json ./
+# Copy build artifacts and necessary config
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/wrangler.toml ./wrangler.toml
+COPY --from=builder /app/node_modules ./node_modules
 
-USER antigravity
+# Expose Wrangler's port
+EXPOSE 8788
 
-EXPOSE 3000
-
-# Health check (assuming a health endpoint exists in the worker/server)
-# HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:3000/health || exit 1
-
-CMD ["node", "dist/worker.js"]
+# Start the application in local mode
+CMD ["wrangler", "pages", "dev", "dist", "--ip", "0.0.0.0", "--port", "8788", "--no-show-interactive-dev-session"]

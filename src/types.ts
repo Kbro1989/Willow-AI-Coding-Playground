@@ -49,7 +49,19 @@ export type ActiveView =
   | 'deploy'
   | 'rsmv'
   | 'shader'
+  | 'limbs'
   | 'matrix';
+
+export interface UnifiedContext {
+  recentMemories: string[];
+  activeGraphName?: string;
+  narrativeSummary?: string;
+  activeFile?: string;
+  activeView: ActiveView;
+  activeSubTab?: string;
+  projectEnv: ProjectEnv;
+}
+
 export type AIModelMode = 'assist' | 'refactor' | 'explain' | 'generate' | 'lockdown';
 export type ProjectEnv = 'local' | 'cloud' | 'hybrid';
 
@@ -114,6 +126,7 @@ export interface UserPreferences {
   architecturalDecisions: string[];
   artisticPreferences?: string[];
   optimizationTargets?: string[];
+  creativeLiberty?: string[];
   lastLearningUpdate: number;
 }
 
@@ -271,6 +284,25 @@ export interface AIMediaRequest {
   mode: AIModelMode;
   input: string;
   context: readonly any[];
+}
+
+export interface AIIntent {
+  source: 'omnibar' | 'chat' | 'direct_button' | 'workflow' | 'health_guard';
+  verb: 'explain' | 'refactor' | 'search' | 'build' | 'analyze' | 'sprint' | 'generate' | 'audit' | 'heal';
+  payload: {
+    text?: string;
+    selection?: string;
+    fileId?: FileId | null;
+    data?: any;
+    reason?: string;
+  };
+  context: {
+    aiMode: AIModelMode;
+    projectEnv: ProjectEnv;
+    bridgeStatus: 'offline' | 'direct' | 'relay';
+    panic: boolean;
+    view: ActiveView;
+  };
 }
 
 export interface PhysicsConfig {

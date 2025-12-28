@@ -4,46 +4,84 @@ import { agentSprintService } from './agentSprintService';
 import { nexusBus } from '../nexusCommandBus';
 import { localBridgeClient } from '../localBridgeService';
 import { contextService } from './contextService';
-
-export type OrchestrationRoute =
-    | { type: 'sprint', goal: string }
-    | { type: 'pipeline', id: string, params: any }
-    | { type: 'action', cmd: string, payload: any }
-    | { type: 'terminal', command: string }
-    | { type: 'navigation', view: string }
-    | { type: 'nexus', persona: 'nexus' | 'forge' | 'chronos', goal: string };
+import { neuralRegistry } from './NeuralRegistry';
+import { AIIntent } from '../../types';
 
 class UniversalOrchestrator {
     private isInterpreting = false;
 
+    public async dispatch(prompt: string, contextOverride?: any) {
+        return this.dispatchIntent({
+            source: 'omnibar',
+            verb: 'search',
+            payload: { text: prompt },
+            context: {
+                aiMode: 'assist',
+                projectEnv: 'local',
+                bridgeStatus: 'offline',
+                panic: false,
+                view: 'console'
+            }
+        });
+    }
+
     /**
      * The primary entry point for any human or AI prompt.
-     * "AI or Human first... from anywhere."
      */
-    public async dispatch(prompt: string, contextOverride?: any) {
+    public async dispatchIntent(intent: AIIntent) {
         if (this.isInterpreting) return;
         this.isInterpreting = true;
 
         try {
             const context = await contextService.getUnifiedContext();
+            const memorySummary = (await import('../directorMemoryService')).directorMemory.getContextSummary();
+            const prompt = intent.payload.text || '';
+            const neuralSchema = neuralRegistry.getNeuralSchema();
 
             // 1. Intent Classification
             const classificationPrompt = `
-                SYSTEM: You are the Antigravity Universal Orchestrator.
-                USER PROMPT: "${prompt}"
-                CONTEXT: ${JSON.stringify(context)}
+                SYTEM: You are the Antigravity Universal Orchestrator.
+                SOURCE: ${intent.source}
+                VIRTUAL INTENT: ${intent.verb}
+                AI_MODE: ${intent.context.aiMode}
+                ENV: ${intent.context.projectEnv}
+                BRIDGE: ${intent.context.bridgeStatus}
+                PANIC_STATE: ${intent.context.panic ? 'ACTIVE (CRITICAL)' : 'NORMAL'}
+                ACTIVE_VIEW: ${context.activeView}
+                ACTIVE_SUBTAB: ${context.activeSubTab || 'None'}
+                
+                USER PROMPT: "${intent.payload.text || ''}"
+                SELECTION: "${intent.payload.selection || 'None'}"
+                ACTIVE_FILE: "${intent.payload.fileId || 'None'}"
+                
+                MEMORY_CONTEXT: ${memorySummary || 'No recent memories.'}
+                CRITICAL LORE: Identify any [LORE] tagged entries in memories above and ensure all generated content adheres to established world-building.
 
-                Route this prompt to the most effective system.
-                Available Routes:
-                - "sprint": Complex goal requiring multiple steps (e.g. "Build a feature", "Refactor X").
-                - "pipeline": Trigger a predefined N8N workflow (e.g. "Run image generation pipeline").
-                - "terminal": Direct bridge command (e.g. "npm install", "git status").
-                - "navigation": Change UI view (dashboard, editor, forge, pipelines, rsmv, shader).
-                - "action": Direct engine action (spawn object, update sky).
-                - "nexus": Specialized expert assistance (Librarian, Forge Master, Oracle). Use for asset search, shader generation, or lore.
+                UNIFIED_CONTEXT: ${JSON.stringify(context)}
+
+                SPATIAL WEIGHTING (OMNI-PRESENCE):
+                - If ACTIVE_VIEW is "editor", prioritize code-related limbs.
+                - If ACTIVE_VIEW is "forge" or "rsmv", prioritize asset/3d limbs.
+                - If ACTIVE_VIEW is "shader", prioritize material/graphics limbs.
+                - If ACTIVE_VIEW is "pipelines", prioritize workflow/n8n limbs.
+
+                Neural Limbs (Registered Capabilities):
+                ${JSON.stringify(neuralSchema, null, 2)}
+
+                Route this intent to the most effective system.
+                - "sprint": Complex multi-step goals (e.g., "Build a full feature").
+                - "terminal": Direct bridge commands (e.g., "npm install").
+                - "navigation": Change UI view.
+                - "limb": Invoke a specialized capability from a registered limb (N8N, Git, Forge, RSMV, Copywriter, Bridge, Diagnostics).
+                
+                Mandatory "Total Synthesis" Directive:
+                Use the "limb" route whenever possible for dashboard interaction. Use the "bridge" limb to check system status before suggesting fixes. Use the "git" limb to track progress.
+
+                Available Views: dashboard, editor, forge, pipelines, rsmv, shader, behavior, narrative, world, persistence, assets, settings.
 
                 RETURN JSON ONLY:
-                { "type": "sprint"|"pipeline"|"terminal"|"navigation"|"action"|"nexus", "payload": ... }
+                { "type": "sprint"|"terminal"|"navigation"|"action"|"limb", "payload": ... }
+                If type is "limb", payload MUST be: { "limbId": "...", "capability": "...", "params": { ... } }
             `;
 
             const response = await modelRouter.route({
@@ -55,7 +93,7 @@ class UniversalOrchestrator {
             const content = 'content' in response ? response.content : '';
             if (!content) throw new Error('Failed to classify intent');
 
-            const route = JSON.parse(content.match(/\{[\s\S]*\}/)?.[0] || '{}') as { type: string, payload: any };
+            const route = JSON.parse(content.match(/\{[\s\S]*\}/)?.[0] || '{}');
 
             // 2. Execution
             await this.executeRoute(route);
@@ -93,6 +131,22 @@ class UniversalOrchestrator {
                 }
                 break;
 
+            case 'limb': {
+                const { limbId, capability, params } = route.payload;
+                const memory = (await import('../directorMemoryService')).directorMemory;
+
+                // Telemetry: Record intention
+                await memory.addMemory(`Initiating Limb Call: ${limbId}.${capability} with params ${JSON.stringify(params)}`, 'session', 0.4, ['telemetry', 'limb-call']);
+
+                const result = await neuralRegistry.callCapability(limbId, capability, params);
+
+                // Telemetry: Record result
+                await memory.addMemory(`Limb ${limbId}.${capability} Result: ${JSON.stringify(result).slice(0, 100)}...`, 'session', 0.5, ['telemetry', 'result']);
+
+                console.log(`[Orchestrator] Limb Result (${limbId}.${capability}):`, result);
+                break;
+            }
+
             case 'action':
                 if ((window as any).antigravity?.runAction) {
                     (window as any).antigravity.runAction({
@@ -102,11 +156,12 @@ class UniversalOrchestrator {
                 }
                 break;
 
-            case 'nexus': {
-                const { processAIPipeline } = await import('../rsmv/rsmvCompiler');
-                const result = await processAIPipeline(route.payload.persona || 'nexus', route.payload.goal || route.payload);
-                console.log('[Orchestrator] Nexus Agent Output:', result);
-                // We'll eventually fire a Nexus Bus event or update chat
+            case 'heal': {
+                const { text, reason } = route.payload;
+                console.log(`[Orchestrator] Initiating Autonomous Healing: ${reason}`);
+
+                // Trigger a specialized sprint to fix the reported issues
+                await agentSprintService.startSprint(`HEAL_REQUEST: ${text}. Reason: ${reason}. Resolve all syntax/logic errors currently reported in the health guard metadata.`);
                 break;
             }
 

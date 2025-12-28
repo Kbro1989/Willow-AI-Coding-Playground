@@ -43,46 +43,50 @@ export class VoiceService {
      * In reality, uses browser SpeechSynthesis and records it to a Blob (simulated).
      */
     async synthesize(text: string, voiceId: string): Promise<Blob> {
+        try {
+            const WORKER_URL = 'https://ai-game-studio.kristain33rs.workers.dev';
+            const response = await fetch(`${WORKER_URL}/api/speech`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, voiceId })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Speech synthesis failed: ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            const clipId = `clip-${Date.now()}`;
+            this.generatedClips.set(clipId, blob);
+            console.log(`[VoiceService] Generated real-time clip ${clipId}`);
+            return blob;
+        } catch (error) {
+            console.error("[VoiceService] Synthesis Failed, falling back to local SpeechSynthesis", error);
+            return this.synthesizeLocal(text, voiceId);
+        }
+    }
+
+    /**
+     * Fallback to browser SpeechSynthesis
+     */
+    private async synthesizeLocal(text: string, voiceId: string): Promise<Blob> {
         return new Promise((resolve, reject) => {
             const preset = MOCK_VOICES.find(v => v.id === voiceId) || MOCK_VOICES[0];
-
-            // Since we can't easily record SpeechSynthesis output to a Blob in a pure browser mock without MediaStreamDestination shenanigans (which are flaky),
-            // we will simulate the "network delay" and return a dummy Blob or try to use a basic oscillator "glitch" noise if text is short, 
-            // BUT for a "Voice Service" UI, users usually want to HEAR it.
-            // A better mock approach for "Clip Generation" that results in a file is to use the Web Audio API to render an AudioBuffer.
-            // However, SpeechSynthesis is audio-only output.
-
-            // Strategy: We will play the audio using SpeechSynthesis for immediate feedback,
-            // but the "Blob" returned will be a placeholder WAV generated via Web Audio API 
-            // that roughly matches the duration, so it can be "saved" and "dragged".
-
             const utter = new SpeechSynthesisUtterance(text);
             utter.pitch = preset.pitch;
             utter.rate = preset.rate;
 
-            // Try to pick a voice that matches
             const systemVoices = this.synthesis.getVoices();
-            // Simple heuristic to pick a gender/style if possible, otherwise default
             const targetVoice = systemVoices.find(v => v.name.includes("Google") || v.lang.startsWith("en")) || systemVoices[0];
             if (targetVoice) utter.voice = targetVoice;
 
-            // We'll use the 'end' event to resolve the blob, acting like "downloading"
             utter.onend = () => {
-                // Generate a mock WAV blob of silence/beep with duration roughly estimated
-                const estimatedDuration = text.length * 0.1; // coarse estimate
+                const estimatedDuration = text.length * 0.1;
                 const mockBlob = this.createMockWav(estimatedDuration);
-                const clipId = `clip-${Date.now()}`;
-                this.generatedClips.set(clipId, mockBlob);
-                console.log(`[VoiceService] Generated clip ${clipId} for text: "${text.substring(0, 20)}..."`);
                 resolve(mockBlob);
             };
 
-            utter.onerror = (e) => {
-                console.error("Speech synthesis error", e);
-                reject(e);
-            };
-
-            // Speak it immediately (Preview)
+            utter.onerror = (e) => reject(e);
             this.synthesis.speak(utter);
         });
     }

@@ -1,6 +1,5 @@
-name = "antigravity-engine"
-pages_build_output_dir = "dist"
-compatibility_date = "2025-02-14"
+# Antigravity Engine - Bindings & Environment Config
+# This file works in tandem with wrangler.json (Dual-Config)
 
 # Global Variables
 [vars]

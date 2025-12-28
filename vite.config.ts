@@ -31,6 +31,20 @@ export default defineConfig(({ mode }) => {
                 { find: 'fs/promises', replacement: path.resolve(process.cwd(), 'src', 'mocks', 'fs.ts') },
                 { find: 'fs', replacement: path.resolve(process.cwd(), 'src', 'mocks', 'fs.ts') },
             ]
+        },
+        build: {
+            sourcemap: false,
+            minify: false, // Aggressive simplification to unblock "100x" scale build
+            rollupOptions: {
+                output: {
+                    manualChunks: {
+                        'vendor-react': ['react', 'react-dom'],
+                        'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
+                        'vendor-db': ['@instantdb/react'],
+                        'vendor-utils': ['lucide-react', 'classnames']
+                    }
+                }
+            }
         }
     };
 });

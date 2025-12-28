@@ -4,21 +4,14 @@
  */
 
 import directorMemory from '../directorMemoryService';
-import graphStateService from '../gameData/graphStateService';
-import { db } from '../../lib/db';
-import { ProjectEnv } from '../../types';
+import { ProjectEnv, ActiveView, UnifiedContext as UnifiedContextType } from '../../types';
 
-export interface UnifiedContext {
-    recentMemories: string[];
-    activeGraphName?: string;
-    narrativeSummary?: string;
-    activeFile?: string;
-    projectEnv: ProjectEnv;
-}
+export type { UnifiedContextType as UnifiedContext };
 
 class ContextService {
-    private localState: { activeFile: string; projectEnv: ProjectEnv } = {
+    private localState: { activeFile: string; activeView: ActiveView; activeSubTab?: string; projectEnv: ProjectEnv } = {
         activeFile: '',
+        activeView: 'console',
         projectEnv: 'local'
     };
 
@@ -32,19 +25,17 @@ class ContextService {
     /**
      * Aggregate all available context into a structured object
      */
-    async getUnifiedContext(): Promise<UnifiedContext> {
+    async getUnifiedContext(): Promise<UnifiedContextType> {
         // 1. Get Memory Context
         const memories = directorMemory.getAll()
-            .slice(0, 5)
+            .slice(0, 10)
             .map(m => `[${m.scope.toUpperCase()}] ${m.content}`);
-
-        // 2. Get Narrative Context (from DB)
-        // In a real implementation, this would fetch from InstantDB directly 
-        // using a non-hook client or by caching the last seen state.
 
         return {
             recentMemories: memories,
             activeFile: this.localState.activeFile,
+            activeView: this.localState.activeView,
+            activeSubTab: this.localState.activeSubTab,
             projectEnv: this.localState.projectEnv,
             activeGraphName: 'Main Neural Net',
             narrativeSummary: 'Interactive storytelling session active.'
@@ -58,7 +49,8 @@ class ContextService {
         const ctx = await this.getUnifiedContext();
 
         return `
-[SYSTEM_CONTEXT]
+[SYSTEM_SPATIAL_CONTEXT]
+Location: ${ctx.activeView}${ctx.activeSubTab ? ` > ${ctx.activeSubTab}` : ''}
 Env: ${ctx.projectEnv}
 File: ${ctx.activeFile || 'None'}
 Graph: ${ctx.activeGraphName}

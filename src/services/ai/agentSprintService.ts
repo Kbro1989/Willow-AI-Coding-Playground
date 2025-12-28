@@ -2,6 +2,8 @@ import { modelRouter, ModelRequest } from '../modelRouter';
 import { contextService } from './contextService';
 import { Message } from '../../types';
 import { nexusBus } from '../nexusCommandBus';
+import { directorMemory } from '../directorMemoryService';
+import { neuralRegistry } from './NeuralRegistry';
 
 export interface SprintStep {
     id: string;
@@ -115,6 +117,10 @@ class AgentSprintService {
             if (this.state.status !== 'failed') {
                 this.state.status = 'completed';
                 this.state.currentStepIndex = -1;
+
+                // Autonomous Mission Wrap-up
+                await this.wrapUpSuccessfulMission(goal);
+
                 this.notify();
             }
 
@@ -193,6 +199,31 @@ class AgentSprintService {
         this.notify();
     }
 
+
+    private async wrapUpSuccessfulMission(goal: string) {
+        console.log(`[AgentSprint] Wrapping up mission: "${goal}"`);
+
+        // 1. Record in Director Memory
+        await directorMemory.addMemory(
+            `Mission Completed: "${goal}" successfully executed across ${this.state.steps.length} steps.`,
+            'project',
+            0.8,
+            ['sprint', 'success']
+        );
+
+        // 2. Autonomous Git Commit (if git limb is available)
+        try {
+            const hasGit = neuralRegistry.getNeuralSchema().some(l => l.id === 'git');
+            if (hasGit) {
+                console.log('[AgentSprint] Triggering autonomous git commit...');
+                await neuralRegistry.callCapability('git', 'commit_version', {
+                    message: `AI Auto-Commit: Completed mission "${goal}"`
+                });
+            }
+        } catch (err) {
+            console.warn('[AgentSprint] Auto-commit failed:', err);
+        }
+    }
 
     public getState() {
         return this.state;

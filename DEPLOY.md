@@ -36,9 +36,9 @@ antigravity-engine/
 │   │   ├── GameDashboard.tsx
 │   │   ├── PipelineBuilder.tsx
 │   │   └── index.ts
-│   ├── services/            # AI and utility services
+│   ├── services/            # AI and orchestration services (universalOrchestrator, etc.)
 │   │   ├── modelRouter.ts
-│   │   ├── geminiService.ts
+│   │   ├── ...               # universalOrchestrator, contextService, etc.
 │   │   ├── cloudflareService.ts
 │   │   └── index.ts
 │   ├── types/               # TypeScript definitions
@@ -57,7 +57,8 @@ antigravity-engine/
 ### ✅ Core Components
 - **API Key Manager**: Modal for managing AI API keys with security
 - **Behavior Tree Editor**: Visual node-based AI behavior editor
-- **Chat Interface**: Advanced AI chat with multi-turn orchestration
+- **Chat Interface**: Persistent sidebar with context-aware code selection
+- **Intent Orchestrator**: Structured `AIIntent` protocol for global system orchestration
 - **Code Editor**: AI-powered editor with completions and refactoring
 - **Game Dashboard**: 3D viewport with Three.js integration
 - **The Forge**: Multi-modal AI interface (text, code, image, video)
@@ -116,8 +117,8 @@ npm install --legacy-peer-deps
 ## Production Deployment
 
 1. Build the project: `npm run build`
-2. Serve the `build/` directory with any static file server
-3. Configure environment variables for production AI keys
+2. Serve the `dist/` directory with any static file server
+3. Configure environment variables for production AI keys (wrangler for Pages)
 
 ## Customization
 

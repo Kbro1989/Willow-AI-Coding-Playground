@@ -11,10 +11,11 @@ graph TD
     Valid --> Class[Task Classifier]
     
     subgraph Classification
-        Class --> CodeTask[Code Task]
-        Class --> MediaTask[Media Task]
-        Class --> 3DTask[3D Task]
-        Class --> GameTask[Game State Task]
+        Class --> Intent[Intent Formalizer: AIIntent]
+        Intent --> CodeTask[Code Task]
+        Intent --> MediaTask[Media Task]
+        Intent --> 3DTask[3D Task]
+        Intent --> GameTask[Game State Task]
     end
     
     CodeTask & MediaTask & 3DTask & GameTask --> Router[Routing & Orchestration Layer]
@@ -31,27 +32,27 @@ graph TD
     Render --> Logs[[Logging / Metrics / Observability]]
 ```
 
-## 2. Core Routing & Orchestration (routeToModel.ts)
+## 2. Intent-Driven Orchestration (universalOrchestrator.ts)
 
-Every task must pass through this decision matrix. **No direct AI calls allowed from UI.**
+The engine dispatches **Structured Intents** instead of raw strings. This ensures context-aware execution.
 
 ```mermaid
 flowchart TD
-    Input[Normalized Task Payload] --> Throttling{Throttling Check?}
-    Throttling -- FAIL --> Delay[Queue / Delay]
-    Throttling -- PASS --> LocCheck{Execute Locally?}
+    Input[AIIntent Object] --> Context{Context Check}
+    Context -- Mode/Env/Panic --> Classifier[Intent Classifier]
+    Classifier --> Type{Route Type?}
     
-    LocCheck -- YES --> vibeRun[vibeRun Sandbox]
-    LocCheck -- NO --> RemCheck{Requires FS/OS?}
-    
-    RemCheck -- YES --> Bridge[localBridgeService]
-    RemCheck -- NO --> AI[External AI Adapter]
-    
-    vibeRun -- Failure --> AI
-    AI -- Gemini/Worker --> Process[Processing Pipelines]
-    Bridge --> Process
-    vibeRun --> Process
+    Type -- Sprint --> Sprint[Agent Sprint Service]
+    Type -- Terminal --> Term[Local Bridge]
+    Type -- Action --> Actions[Engine Logic]
+    Type -- Nexus --> Specialist[Librarian/Oracle]
 ```
+
+### AIIntent Schema
+- **`source`**: Origin (`omnibar`, `chat`, `direct_button`).
+- **`verb`**: Desired operation (`explain`, `refactor`, `generate`).
+- **`context`**: Real-time snapshot (`aiMode`, `projectEnv`, `panicState`).
+- **`payload`**: Dynamic data (`selection`, `activeFile`, `text`).
 
 ## 3. Post-Execution Processing Pipelines
 
@@ -88,9 +89,19 @@ graph LR
 
     Spine --> Nav[Primary Navigation]
 
+    subgraph Layout ["Engine Workspace Layout"]
+        EDIT_PANEL[Center: Editor / Viewport]
+        AI_SIDEBAR[Right: Cognitive Sidebar]
+        SPINE[Top: Global Command Spine]
+    end
+
+    SPINE --> AI_SIDEBAR
+    AI_SIDEBAR -- Context --> EDIT_PANEL
+    EDIT_PANEL -- Selection --> AI_SIDEBAR
+
     subgraph NavGroups ["15 Control Surfaces"]
         DASH[Dashboard: Stats]
-        DIR[Director: AI Core]
+        DIR[Director: Cognitive Sidebar]
         EDIT[Editor: Code]
         MAT[Matrix: 3D/World]
         FORG[Forge: Gen AI]
@@ -113,7 +124,7 @@ graph LR
 
 ## 6. Hard Rules & Constraints
 
-1.  **Strict Routing**: No task bypasses `routeToModel.ts`.
+1.  **Strict Routing**: No task bypasses `universalOrchestrator.ts`.
 2.  **Zero-Direct-AI**: UI components must never call providers directly.
 3.  **Sandboxed Flow**: All browser-side execution must be trapped in `vibeRun`.
 4.  **Full Observability**: Every step—from validation to rendering—is logged via `loggingService`.

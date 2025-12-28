@@ -19,6 +19,7 @@ export type UIAction =
     | { type: 'SYSTEM_PANIC' }
     | { type: 'SYSTEM_TOGGLE_PERFORMANCE_HUD' }
     | { type: 'SYSTEM_TOGGLE_KEY_MANAGER' }
+    | { type: 'SYSTEM_TOGGLE_AI_PANEL' }
     | { type: 'BRIDGE_TOGGLE_RELAY' }
     | { type: 'EDITOR_OPEN_FILE'; fileId: FileId }
     | { type: 'EDITOR_SAVE_ACTIVE' }

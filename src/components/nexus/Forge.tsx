@@ -3,6 +3,7 @@ import ImageStudio from '../media/ImageStudio';
 import AudioWorkshop from '../media/AudioWorkshop';
 import { VideoStudio } from '../media/VideoStudio';
 import ModelStudio from '../media/ModelStudio';
+import { AnnotationOverlay } from '../AnnotationOverlay';
 import { forgeMedia, ForgeAsset } from '../../services/forgeMediaService';
 import { Hammer, Image as ImageIcon, Music, Video, Box, Layers, History, ExternalLink, Trash2 } from 'lucide-react';
 
@@ -10,6 +11,44 @@ type ForgeTab = 'image' | 'audio' | 'video' | 'model' | 'library';
 
 const Forge: React.FC = () => {
     const [activeTab, setActiveTab] = useState<ForgeTab>('image');
+    const [isAnnotating, setIsAnnotating] = useState(false);
+
+    // Listen for Global Forge Commands (from ApplicationLimbs)
+    React.useEffect(() => {
+        const handleTabSwitch = (e: CustomEvent) => {
+            const { tab } = e.detail;
+            if (tab) {
+                setActiveTab(tab as ForgeTab);
+                // Trigger a visual pulse or toast
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-20 right-8 bg-purple-500/20 border border-purple-500/50 text-white p-4 rounded-xl backdrop-blur-md animate-in slide-in-from-right fade-in duration-300 z-[9999] shadow-[0_0_30px_rgba(168,85,247,0.4)]';
+                toast.innerHTML = `<div class="flex items-center gap-3"><div class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div><div class="text-xs font-black uppercase tracking-widest">Neural Impulse: ${tab}</div></div>`;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2500);
+            }
+        };
+
+        const handleIngest = (e: CustomEvent) => {
+            const { model, target } = e.detail;
+            if (model) {
+                console.log(`[Forge] Ingesting asset: ${model.name} for ${target}`);
+                setActiveTab(target === 'shader' ? 'model' : 'model');
+
+                // Visual Pulse
+                const pulse = document.createElement('div');
+                pulse.className = 'fixed inset-0 pointer-events-none bg-cyan-500/10 animate-pulse z-[100]';
+                document.body.appendChild(pulse);
+                setTimeout(() => pulse.remove(), 1000);
+            }
+        };
+
+        window.addEventListener('forge:switch-tab', handleTabSwitch as EventListener);
+        window.addEventListener('rsmv:ingest', handleIngest as EventListener);
+        return () => {
+            window.removeEventListener('forge:switch-tab', handleTabSwitch as EventListener);
+            window.removeEventListener('rsmv:ingest', handleIngest as EventListener);
+        };
+    }, []);
 
     return (
         <div className="h-full flex flex-col bg-[#050a15] text-cyan-50 font-mono">
@@ -49,6 +88,16 @@ const Forge: React.FC = () => {
                 {/* Right Pipeline Sidebar (Recent Generations) */}
                 <ForgeSidebar />
             </div>
+
+            {/* Visual AI Agency Overlay */}
+            <AnnotationOverlay
+                isActive={isAnnotating}
+                onClose={() => setIsAnnotating(false)}
+                onProcess={(img, mode) => {
+                    console.log(`[Forge] Processed Annotation: ${mode}`, img);
+                    setIsAnnotating(false);
+                }}
+            />
         </div>
     );
 };

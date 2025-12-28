@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import ReactFlow, {
     Node, Edge, Controls, Background, Connection,
     addEdge, applyNodeChanges, applyEdgeChanges,
@@ -9,6 +9,7 @@ import 'reactflow/dist/style.css';
 import { NODE_DEFINITIONS, NodeType, NodeDefinition } from '../services/n8n/nodeDefinitions';
 import { workflowEngine, Workflow } from '../services/n8n/workflowEngine';
 import { Play, Save, Plus, Trash2, Settings, Terminal } from 'lucide-react';
+import { neuralRegistry } from '../services/ai/NeuralRegistry';
 
 interface CustomNodeProps {
     data: {
@@ -111,10 +112,6 @@ const N8NWorkflow: React.FC = () => {
     const [isRunning, setIsRunning] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
 
-    const onNodesChange = useCallback((changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
-    const onEdgesChange = useCallback((changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
-    const onConnect = useCallback((connection: Connection) => setEdges((eds) => addEdge(connection, eds)), []);
-
     const onDragOver = useCallback((event: React.DragEvent) => {
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
@@ -144,6 +141,10 @@ const N8NWorkflow: React.FC = () => {
         setNodes((nds) => nds.concat(newNode));
         setSelectedNode(newNode); // Auto-select on add
     }, []);
+
+    const onNodesChange = useCallback((changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
+    const onEdgesChange = useCallback((changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
+    const onConnect = useCallback((connection: Connection) => setEdges((eds) => addEdge(connection, eds)), []);
 
     const onDrop = useCallback(
         (event: React.DragEvent) => {
@@ -193,6 +194,38 @@ const N8NWorkflow: React.FC = () => {
             setIsRunning(false);
         }
     };
+
+    useEffect(() => {
+        neuralRegistry.registerLimb({
+            id: 'pipeline',
+            name: 'N8N Pipelines',
+            description: 'Automated AI workflows and node-based logic engine.',
+            capabilities: [
+                {
+                    name: 'execute_workflow',
+                    description: 'Trigger the current visual workflow execution.',
+                    parameters: {},
+                    handler: async () => {
+                        await handleExecute();
+                        return { success: true };
+                    }
+                },
+                {
+                    name: 'add_node',
+                    description: 'Programmatically add a node to the pipeline.',
+                    parameters: {
+                        type: { type: 'string', description: 'The type of node (input, ai, transform, etc.).' },
+                        label: { type: 'string', description: 'Display label for the node.' }
+                    },
+                    handler: async (params) => {
+                        addNode(params.type as NodeType);
+                        return { success: true };
+                    }
+                }
+            ]
+        });
+        return () => neuralRegistry.unregisterLimb('pipeline');
+    }, [handleExecute, addNode]);
 
     const updateNodeParam = (nodeId: string, key: string, value: any) => {
         setNodes(nds => nds.map(n => {
@@ -283,6 +316,24 @@ const N8NWorkflow: React.FC = () => {
                                 <div className="text-xl font-bold text-white">{selectedNode.data.label}</div>
                                 <div className="flex gap-2">
                                     <button
+                                        onClick={async () => {
+                                            if (!selectedNode) return;
+                                            setLogs(prev => [...prev, `Testing node: ${selectedNode.data.label}...`]);
+                                            try {
+                                                const result = await workflowEngine.executeNode(
+                                                    {
+                                                        id: selectedNode.id,
+                                                        type: selectedNode.data.type,
+                                                        position: selectedNode.position,
+                                                        parameters: selectedNode.data.parameters
+                                                    },
+                                                    {} // Mock empty inputs for isolated test
+                                                );
+                                                setLogs(prev => [...prev, `Test Result: ${JSON.stringify(result, null, 2)}`]);
+                                            } catch (e) {
+                                                setLogs(prev => [...prev, `Test Failed: ${e}`]);
+                                            }
+                                        }}
                                         className="p-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all"
                                         title="Test this node"
                                     >

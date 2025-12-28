@@ -3,7 +3,8 @@ import React from 'react';
 import {
     Code2, Box, Library, Settings, Activity,
     Hammer, Blocks, Bot, Globe, Database,
-    Users, Ship, LayoutDashboard, Zap, Search
+    Users, Ship, LayoutDashboard, Zap, Search,
+    Sparkles, Cpu
 } from 'lucide-react';
 import { ActiveView, NavItem } from '../../types';
 import { UIActionDispatcher } from '../../ui/ui-actions';
@@ -36,9 +37,10 @@ export const PrimaryNav: React.FC<PrimaryNavProps> = ({ activeView, dispatch }) 
         { id: 'persistence', label: 'DATA PERSISTENCE', icon: Database },
         { id: 'collab', label: 'NEURAL LINK', icon: Users },
         { id: 'deploy', label: 'SHIP / DEPLOY', icon: Ship },
-        { id: 'rsmv', label: 'RSMV ASSETS', icon: LayoutDashboard },
         { id: 'shader', label: 'SHADER LAB', icon: Zap },
+        { id: 'matrix', label: 'ORACLE WHISPERS', icon: Sparkles },
         { id: 'assets', label: 'REGISTRY', icon: Library },
+        { id: 'limbs', label: 'NEURAL LIMBS', icon: Cpu },
         { id: 'console', label: 'SYSTEM CONSOLE', icon: Activity },
         { id: 'settings', label: 'CONFIG', icon: Settings },
     ];

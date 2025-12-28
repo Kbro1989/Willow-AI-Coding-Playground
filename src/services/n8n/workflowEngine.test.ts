@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WorkflowEngine, Workflow } from './workflowEngine';
-import { modelRouter } from '../../services/modelRouter';
-import { nexusBus } from '../../services/nexusCommandBus';
+import { modelRouter } from '../modelRouter';
+import { nexusBus } from '../nexusCommandBus';
 
 // Mock dependencies
 vi.mock('../../services/modelRouter', () => ({

@@ -3,6 +3,20 @@ import { Users, Link2, MousePointer2, MessageSquare } from 'lucide-react';
 import { CollaborativeCanvas } from '../media/CollaborativeCanvas';
 
 const Link: React.FC = () => {
+    // Listen for Collaborative Impulses
+    React.useEffect(() => {
+        const handleCollaborate = (e: CustomEvent) => {
+            const { action } = e.detail;
+            if (action === 'invite') {
+                navigator.clipboard.writeText(window.location.href);
+                // Visual Pulse trigger (we'll just use the existing alert for now, or a better UI feedback)
+                console.log('🔗 Collaboration Pulse Received: Invite Link Copied.');
+            }
+        };
+        window.addEventListener('nexus:collaborate', handleCollaborate as EventListener);
+        return () => window.removeEventListener('nexus:collaborate', handleCollaborate as EventListener);
+    }, []);
+
     return (
         <div className="h-full flex flex-col bg-[#050a15]">
             <div className="p-6 border-b border-white/5 bg-black/20 flex items-center justify-between">

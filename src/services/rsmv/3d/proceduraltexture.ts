@@ -1,6 +1,6 @@
 // @ts-ignore
 import * as Proctexes from "../libs/proctexes";
-const { Texture: _Texture, Buffer: JavaStream, TextureOp: _TextureOp } = Proctexes;
+const { Texture: _Texture, Buffer: JavaStream, TextureOp: _TextureOp } = Proctexes as any;
 type Texture = any;
 const Texture = _Texture;
 type TextureOp = any;

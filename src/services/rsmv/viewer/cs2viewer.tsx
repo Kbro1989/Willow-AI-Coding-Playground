@@ -7,6 +7,7 @@ import { ThreejsSceneCache } from "../3d/modeltothree";
 import { prepareClientScript, renderClientScript } from "../clientscript";
 import { ClientscriptObfuscation } from "../clientscript/callibrator";
 import classNames from "classnames";
+import { neuralRegistry } from "../../../services/ai/NeuralRegistry";
 
 export function ClientScriptViewer(p: { data: string, fileid: number }) {
     let redraw = useForceUpdate();
@@ -71,7 +72,15 @@ export function ClientScriptViewer(p: { data: string, fileid: number }) {
                     <input type="button" className="sub-btn" value="restart" onClick={e => reset()} />
                     <input type="button" className="sub-btn" value="next" onClick={e => { inter.next(); redraw(); }} />
                     <input type="button" className={classNames("sub-btn", { active: viewMode == "opcode" })} value="Opcode" onClick={() => setViewMode("opcode")} />
-                    <input type="button" className={classNames("sub-btn", { active: viewMode == "source" })} value="Source" onClick={() => setViewMode("source")} />
+                    <div className="inline-flex items-center gap-1">
+                        <input type="button" className={classNames("sub-btn", { active: viewMode == "source" })} value="Source" onClick={() => setViewMode("source")} />
+                        <button
+                            className="w-4 h-4 flex items-center justify-center rounded bg-white/5 text-slate-600 hover:text-cyan-400 transition-colors text-[8px]"
+                            onClick={() => neuralRegistry.emit('ui:explain', { id: 'cs2-decompiler', context: 'Decompile Clientscript2 bytecode into a high-level representation using the heuristic-based engine.' })}
+                        >
+                            ?
+                        </button>
+                    </div>
                 </div>
                 <div className="cs-valuegroup">
                     <div>{inter.intstack.map((q, i) => <IntValue key={i} index={i} inter={inter} type="stack" />)}</div>

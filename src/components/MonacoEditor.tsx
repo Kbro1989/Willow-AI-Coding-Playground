@@ -6,6 +6,7 @@ interface MonacoEditorProps {
     content: string;
     filename: string;
     onChange: (content: string) => void;
+    onSelectionChange?: (selection: string) => void;
     theme?: 'vs-dark' | 'light';
     readOnly?: boolean;
 }
@@ -14,6 +15,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     content,
     filename,
     onChange,
+    onSelectionChange,
     theme = 'vs-dark',
     readOnly = false
 }) => {
@@ -44,6 +46,21 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         });
 
         monaco.editor.setTheme('nexus-dark');
+
+        // Selection tracking
+        editor.onDidChangeCursorSelection((e) => {
+            if (onSelectionChange) {
+                const model = editor.getModel();
+                if (model) {
+                    const selection = editor.getSelection();
+                    if (selection && !selection.isEmpty()) {
+                        onSelectionChange(model.getValueInRange(selection));
+                    } else {
+                        onSelectionChange('');
+                    }
+                }
+            }
+        });
     };
 
     const handleEditorChange: OnChange = (value) => {

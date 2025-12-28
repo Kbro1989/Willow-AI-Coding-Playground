@@ -6,6 +6,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { NODE_DEFINITIONS, NodeType, getNodesByCategory } from '../services/n8n/nodeDefinitions';
 import { WorkflowNode, WorkflowConnection, Workflow, workflowEngine, WORKFLOW_TEMPLATES } from '../services/n8n/workflowEngine';
+import { neuralRegistry } from '../services/ai/NeuralRegistry';
 
 interface PipelineBuilderProps {
   onClose?: () => void;
@@ -52,6 +53,33 @@ export const PipelineBuilder: React.FC<PipelineBuilderProps> = ({ onClose }) => 
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, []);
+
+  const handleLoadTemplate = useCallback((templateId: string) => {
+    const template = WORKFLOW_TEMPLATES[templateId];
+    if (template) {
+      setWorkflow({
+        ...template,
+        id: `pipeline-${Date.now()}`
+      });
+      setSelectedNodeId(null);
+    }
+  }, []);
+
+  // Listen for Global Pipeline Commands
+  useEffect(() => {
+    const onGlobalLoad = (e: any) => {
+      const { templateId } = e.detail;
+      if (templateId) {
+        setIsExecuting(true);
+        setTimeout(() => {
+          handleLoadTemplate(templateId);
+          setIsExecuting(false);
+        }, 800);
+      }
+    };
+    window.addEventListener('pipeline:load-template', onGlobalLoad as EventListener);
+    return () => window.removeEventListener('pipeline:load-template', onGlobalLoad as EventListener);
+  }, [handleLoadTemplate]);
 
   // Add node to canvas
   const handleAddNode = useCallback((type: NodeType, position?: { x: number; y: number }) => {
@@ -169,15 +197,6 @@ export const PipelineBuilder: React.FC<PipelineBuilderProps> = ({ onClose }) => 
     }
   }, [workflow]);
 
-  // Load template
-  const handleLoadTemplate = useCallback((templateId: string) => {
-    const template = WORKFLOW_TEMPLATES[templateId];
-    if (template) {
-      setWorkflow(template);
-      setShowTemplates(false);
-    }
-  }, []);
-
   // Clear canvas
   const handleClear = useCallback(() => {
     if (confirm('Clear entire pipeline?')) {
@@ -205,10 +224,10 @@ export const PipelineBuilder: React.FC<PipelineBuilderProps> = ({ onClose }) => 
           height="100"
           rx="8"
           className={`transition-all ${isSelected
-              ? 'fill-cyan-600 stroke-cyan-400 stroke-2'
-              : node.isExecuting
-                ? 'fill-yellow-600 stroke-yellow-400 stroke-2'
-                : 'fill-slate-800 stroke-slate-600 stroke-1'
+            ? 'fill-cyan-600 stroke-cyan-400 stroke-2'
+            : node.isExecuting
+              ? 'fill-yellow-600 stroke-yellow-400 stroke-2'
+              : 'fill-slate-800 stroke-slate-600 stroke-1'
             }`}
         />
 

@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 interface BehaviorNode {
   id: string;
@@ -92,14 +92,62 @@ const BehaviorTreeEditor: React.FC<BehaviorTreeEditorProps> = ({ onSave, onDebug
 
   const toggleSimulation = () => {
     setIsSimulating(!isSimulating);
-    if (!isSimulating) {
-      // Start simulation loop
-      const interval = setInterval(() => {
+  };
+
+  // Neural Limb Registration
+  useEffect(() => {
+    const { neuralRegistry } = require('../services/ai/NeuralRegistry');
+    const limb = {
+      id: 'behavior_engine',
+      name: 'Behavior Engine',
+      description: 'System for creating and simulating complex NPC behavior trees.',
+      capabilities: [
+        {
+          name: 'load_tree',
+          description: 'Load a specific behavior tree configuration.',
+          parameters: { treeData: 'BehaviorNode[]' },
+          handler: async ({ treeData }: { treeData: BehaviorNode[] }) => {
+            setNodes(treeData);
+            return { status: 'Behavior tree loaded', nodeCount: treeData.length };
+          }
+        },
+        {
+          name: 'simulate_tick',
+          description: 'Execute a single simulation tick across all nodes.',
+          parameters: {},
+          handler: async () => {
+            simulateStep();
+            return { status: 'Simulation tick completed' };
+          }
+        },
+        {
+          name: 'toggle_debug',
+          description: 'Start or stop the behavior simulation loop.',
+          parameters: { active: 'boolean' },
+          handler: async ({ active }: { active: boolean }) => {
+            if (active !== isSimulating) toggleSimulation();
+            return { status: `Debug mode ${active ? 'activated' : 'deactivated'}` };
+          }
+        }
+      ],
+      getContext: () => ({ nodeCount: nodes.length, isSimulating })
+    };
+
+    neuralRegistry.registerLimb(limb);
+    return () => neuralRegistry.unregisterLimb('behavior_engine');
+  }, [nodes, isSimulating]);
+  // Controlled Simulation Loop
+  useEffect(() => {
+    let interval: any;
+    if (isSimulating) {
+      interval = setInterval(() => {
         simulateStep();
       }, 1000);
-      setTimeout(() => clearInterval(interval), 10000); // Auto-stop after 10s
     }
-  };
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isSimulating]);
 
   return (
     <div className="h-full flex flex-col bg-[#050a15] overflow-hidden">

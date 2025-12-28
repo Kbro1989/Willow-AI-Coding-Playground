@@ -274,6 +274,24 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
 
   useEffect(() => { verifyJagexLauncher().then(setIsLauncherLinked); }, []);
 
+  const ITEMS_PER_PAGE = 40;
+  const filteredModels = useMemo(() => models.filter(m =>
+    !searchQuery ||
+    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.id.toString().includes(searchQuery) ||
+    m.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
+  ), [models, searchQuery]);
+
+  // Listen for Global RSMV commands
+  useEffect(() => {
+    const handleGlobalSearch = (e: CustomEvent) => {
+      const { query } = e.detail;
+      if (query) setSearchQuery(query);
+    };
+    window.addEventListener('rsmv:search', handleGlobalSearch as EventListener);
+    return () => window.removeEventListener('rsmv:search', handleGlobalSearch as EventListener);
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     const fetchModels = async () => {
@@ -295,13 +313,6 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
     return () => { isMounted = false; };
   }, [gameSource, category]);
 
-  const ITEMS_PER_PAGE = 40;
-  const filteredModels = useMemo(() => models.filter(m =>
-    !searchQuery ||
-    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.id.toString().includes(searchQuery) ||
-    m.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
-  ), [models, searchQuery]);
 
   const totalPages = Math.ceil(filteredModels.length / ITEMS_PER_PAGE);
   const paginatedModels = filteredModels.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -368,7 +379,7 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
       const lore = 'content' in response ? response.content : 'Lore synthesis failed.';
 
       if (lore) {
-        await directorMemory.addMemory(`[LORE] ${selectedModel.name}: ${lore}`, 'project', 1.0, ['lore', 'rsmv', selectedModel.name]);
+        await directorMemory.addLore(selectedModel.name, lore, selectedModel.gameSource);
         setAnalysisText(lore);
       }
     } catch (err: any) {
@@ -381,6 +392,16 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   const handleForgeBridge = (target: 'forge' | 'shader') => {
     if (!selectedModel) return;
     addLog(`Bridging asset ${selectedModel.name} to ${target}...`, 'info', 'Nexus');
+
+    // Dispatch full payload via global event
+    window.dispatchEvent(new CustomEvent('rsmv:ingest', {
+      detail: {
+        model: selectedModel,
+        target,
+        timestamp: Date.now()
+      }
+    }));
+
     (window as any).antigravity?.setTab(target);
   };
 

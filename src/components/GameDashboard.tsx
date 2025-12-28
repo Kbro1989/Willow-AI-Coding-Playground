@@ -11,6 +11,7 @@ import {
   RenderConfig, CompositingConfig, SimulationState,
   WorldConfig, NeuralNode, NeuralEdge, EngineLog, SculptPoint
 } from '../types';
+import { neuralRegistry } from '../services/ai/NeuralRegistry';
 
 // Augment the 'react' module's JSX namespace to include ThreeElements
 declare module 'react' {
@@ -516,7 +517,15 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
             <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2">Procedural Generation</h4>
             <div className="space-y-4">
               <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">World Seed</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[9px] font-black uppercase text-slate-500">World Seed</label>
+                  <button
+                    className="w-4 h-4 flex items-center justify-center rounded bg-white/5 text-slate-600 hover:text-cyan-400 transition-colors text-[8px]"
+                    onClick={() => neuralRegistry.emit('ui:explain', { id: 'world-seed', context: 'The numerical value used as a starting point for generating the procedural terrain and biome distribution.' })}
+                  >
+                    ?
+                  </button>
+                </div>
                 <div className="flex space-x-2">
                   <input type="number" value={worldConfig.seed} onChange={(e) => onUpdateWorld({ seed: parseInt(e.target.value) || 0 })} className="flex-1 bg-[#050a15] border border-cyan-900/40 rounded-xl p-3 text-center text-xs font-mono text-cyan-400 outline-none focus:border-cyan-500" />
                   <button onClick={() => onUpdateWorld({ seed: Math.floor(Math.random() * 999999) })} className="px-4 bg-cyan-600/20 hover:bg-cyan-600 text-cyan-400 hover:text-white rounded-xl text-[9px] font-black uppercase transition-all">Random</button>
@@ -641,7 +650,15 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                 <input type="checkbox" checked={compositingConfig.bloom > 0} onChange={(e) => onUpdateConfig('compositing', { bloom: e.target.checked ? 1.5 : 0 })} className="accent-cyan-500" />
               </div>
               <div>
-                <label className="text-[9px] font-black uppercase text-slate-500 block mb-2">Exposure</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[9px] font-black uppercase text-slate-500">Exposure</label>
+                  <button
+                    className="w-4 h-4 flex items-center justify-center rounded bg-white/5 text-slate-600 hover:text-cyan-400 transition-colors text-[8px]"
+                    onClick={() => neuralRegistry.emit('ui:explain', { id: 'render-exposure', context: 'Controls the overall brightness of the scene, similar to a physical camera lens exposure.' })}
+                  >
+                    ?
+                  </button>
+                </div>
                 <input type="range" min="0" max="3" step="0.1" value={compositingConfig.exposure} onChange={(e) => onUpdateConfig('compositing', { exposure: parseFloat(e.target.value) })} className="w-full accent-cyan-500" />
               </div>
               <div>
@@ -863,7 +880,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
 
         {/* Precision Sidebar - Fixed width, high density, properly contained */}
         {!isFullscreen && (
-          <div className="w-[380px] bg-[#0a1222] border-l border-cyan-900/40 shrink-0 flex flex-col h-full overflow-hidden shadow-2xl">
+          <div className="w-[380px] bg-[#0a1222] border-l border-cyan-900/40 shrink-0 flex flex-col h-full overflow-hidden shadow-2xl nexus-glass">
             <div className="flex-1 overflow-y-auto no-scrollbar">
               {renderSidebarContent()}
             </div>

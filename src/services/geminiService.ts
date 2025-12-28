@@ -259,6 +259,19 @@ export const ideTools: FunctionDeclaration[] = [
       },
       required: ['filePath']
     }
+  },
+  {
+    name: 'call_limb',
+    description: 'Invoke a specialized capability on a registered dashboard limb (e.g., RSMV, Forge).',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        limbId: { type: SchemaType.STRING, description: 'The ID of the limb (e.g., "rsmv", "forge").' },
+        capability: { type: SchemaType.STRING, description: 'The name of the capability to invoke.' },
+        params: { type: SchemaType.STRING, description: 'JSON string of parameters for the capability.' }
+      },
+      required: ['limbId', 'capability', 'params']
+    }
   }
 ];
 

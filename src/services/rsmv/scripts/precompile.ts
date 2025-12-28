@@ -27,7 +27,7 @@ async function precompileModels(ids: number[], outputDir: string, cachePath?: st
             const model = await rsmv.loadModel(id);
 
             // Use the existing exporter logic
-            const glbBuffer = await exportThreeJsGltf(model.scene);
+            const glbBuffer = await exportThreeJsGltf(model.scene as any);
             const outputPath = path.join(outputDir, `model_${id}.glb`);
 
             await fs.writeFile(outputPath, Buffer.from(glbBuffer));

@@ -1,5 +1,5 @@
 import { CacheFileSource, CacheIndex, SubFile } from "../cache";
-import type { GameCacheLoader } from "../cache/sqlite";
+import { GameCacheLoader } from "../cache/sqlite";
 import { FileRange, getOrInsert } from "../utils";
 import { ScriptFS, ScriptOutput } from "../scriptrunner";
 import { cacheFileDecodeModes, DecodeMode, DecodeModeFactory } from "./filetypes";

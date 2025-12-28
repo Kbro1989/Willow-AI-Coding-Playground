@@ -11,12 +11,13 @@ interface EditorProps {
   fileId: FileId | null;
   content: string;
   onContentChange: (content: string) => void;
+  onSelectionChange?: (selection: string) => void;
   lastSaved?: number;
   isSyncing?: boolean;
   dispatch: UIActionDispatcher;
 }
 
-const Editor: React.FC<EditorProps> = ({ content, fileId, onContentChange, lastSaved, isSyncing, dispatch }) => {
+const Editor: React.FC<EditorProps> = ({ content, fileId, onContentChange, onSelectionChange, lastSaved, isSyncing, dispatch }) => {
   const filename = fileId || '';
   const onChange = onContentChange;
   const [issues, setIssues] = useState<CodeIssue[]>([]);
@@ -36,6 +37,32 @@ const Editor: React.FC<EditorProps> = ({ content, fileId, onContentChange, lastS
       setIsAuditing(false);
     }
   };
+
+  // Autonomous Error Awareness Loop
+  React.useEffect(() => {
+    if (!fileId) return;
+
+    const interval = setInterval(async () => {
+      const markers = (window as any).monaco?.editor.getModelMarkers({
+        resource: (window as any).monaco?.editor.getModels().find((m: any) => m.uri.toString().includes(fileId))?.uri
+      });
+
+      if (markers && markers.length > 0) {
+        const errors = markers.filter((m: any) => m.severity === 8); // 8 is Error severity in Monaco
+        if (errors.length > 0) {
+          const { neuralRegistry } = await import('../services/ai/NeuralRegistry');
+          await neuralRegistry.callCapability('health_guard', 'report_error', {
+            message: `Editor reported ${errors.length} syntax/type errors in ${fileId}.`,
+            fileId: fileId,
+            severity: 'error',
+            context: { markerCount: errors.length, samples: errors.slice(0, 3).map((e: any) => e.message) }
+          });
+        }
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [fileId]);
 
   const handleRefactor = async () => {
     if (!content || isRefactoring) return;
@@ -73,6 +100,7 @@ const Editor: React.FC<EditorProps> = ({ content, fileId, onContentChange, lastS
           content={content}
           filename={filename}
           onChange={onChange}
+          onSelectionChange={onSelectionChange}
         />
 
         {showIssuePanel && (

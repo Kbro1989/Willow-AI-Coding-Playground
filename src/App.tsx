@@ -10,6 +10,8 @@ import {
 import { UIAction, assertNever } from './ui/ui-actions';
 import { universalOrchestrator } from './services/ai/universalOrchestrator';
 import { agentSprintService } from './services/ai/agentSprintService';
+import { registerSystemLimbs } from './services/ai/SystemLimbs';
+import { registerApplicationLimbs } from './services/ai/ApplicationLimbs';
 
 // Lucide Icons for the Command Spine and Sidebars
 import {
@@ -37,6 +39,7 @@ import SignIn from './components/auth/SignIn';
 import N8NWorkflow from './components/N8NWorkflow';
 import { CommandSpine } from './components/layout/CommandSpine';
 import { PrimaryNav } from './components/layout/PrimaryNav';
+import NexusControl from './components/layout/NexusControl';
 
 // Nexus Specialized Components (Phase 1 Scaffolding)
 import Director from './components/nexus/Director';
@@ -51,8 +54,9 @@ import Link from './components/nexus/Link';
 import Config from './components/nexus/Config';
 import Narrative from './components/nexus/Narrative';
 import CursorTracker from './components/nexus/CursorTracker';
-import AssistantOverlay from './components/nexus/AssistantOverlay';
 import LazyViewport from './components/nexus/LazyViewport';
+import LimbExplorer from './components/nexus/LimbExplorer';
+import ModelPlayground from './components/nexus/ModelPlayground';
 
 // Services
 import { initialFiles } from './constants';
@@ -61,9 +65,11 @@ import { db } from './lib/db';
 import { initializeAgentAPI } from './services/agentAPI';
 import { nexusBus } from './services/nexusCommandBus';
 import { localBridgeClient } from './services/localBridgeService';
+import { healthGuard } from './services/ai/HealthGuardLimb';
 import { collaborativeSync } from './services/gameData/collaborativeSyncService';
 import { contextService } from './services/ai/contextService';
 import { syncSessionState } from './services/userPreferencesService';
+import { forgeMedia } from './services/forgeMediaService';
 
 // Media components (Forge migration targets)
 import AudioWorkshop from './components/media/AudioWorkshop';
@@ -97,6 +103,8 @@ const App: React.FC = () => {
   const [isPanic, setIsPanic] = useState(false);
   const [showPerformanceHUD, setShowPerformanceHUD] = useState(false);
   const [showApiKeyManager, setShowApiKeyManager] = useState(false);
+  const [isAiPanelVisible, setIsAiPanelVisible] = useState(true);
+  const [editorSelection, setEditorSelection] = useState<string>('');
 
   // --- Core Engine State (World State) ---
   const [project, setProject] = useState<ProjectState>({ id: 'init', name: 'Init', files: initialFiles, activeFile: 'src/App.tsx' as FileId });
@@ -115,7 +123,35 @@ const App: React.FC = () => {
   const [edges, setEdges] = useState<NeuralEdge[]>([]);
   const [bridgeStatus, setBridgeStatus] = useState({ isConnected: true, isCloudMode: false });
 
+  // --- Logging Utility ---
+  const addLog = useCallback((message: string, type: EngineLog['type'] = 'info', source: string = 'Nexus') => {
+    const log: EngineLog = { id: Math.random().toString(36), message, type, timestamp: Date.now(), source };
+    setEngineLogs(prev => [...prev.slice(-199), log]);
+    setTerminalHistory(prev => [...prev.slice(-499), { text: `[${source}] ${message}`, type: type === 'error' ? 'error' : 'output', timestamp: Date.now() }]);
+
+    // Proactive Health Monitoring
+    healthGuard.analyzeLog(message, type === 'error' ? 'error' : 'info');
+  }, []);
+
+  // --- Nexus Command Handlers ---
+  const handlePanic = useCallback(() => {
+    setIsPanic(true);
+    nexusBus.panic();
+    addLog('Global Panic Triggered: All jobs terminated.', 'error', 'Control');
+  }, [addLog]);
+
+  const handleImportAsset = useCallback((a: GameAsset) => {
+    setAssets(prev => [...prev.slice(-99), a]);
+    addLog(`Asset Bound: ${a.name}`, 'success', 'Registry');
+  }, [addLog]);
+
   // --- Real-time Presence Tracking & Bridge Monitoring ---
+  useEffect(() => {
+    registerSystemLimbs();
+    registerApplicationLimbs();
+    contextService.updateLocalState({ activeView, projectEnv });
+  }, [activeView, projectEnv]);
+
   useEffect(() => {
     // 1. Bridge Status Monitoring
     const unsubscribeStatus = localBridgeClient.onStatusChange(status => {
@@ -127,13 +163,41 @@ const App: React.FC = () => {
       }
     });
 
-    // 2. Presence Tracking
-    if (!user) return () => unsubscribeStatus();
+    return () => unsubscribeStatus();
+  }, [addLog]);
+
+  // --- UI Explanation & Event Listeners ---
+  useEffect(() => {
+    const handleUIExplain = async (e: any) => {
+      const { id, context: uiContext } = e;
+      addLog(`Neural Link: Explaining "${id}"...`, 'info', 'Librarian');
+
+      try {
+        const { neuralRegistry } = await import('./services/ai/NeuralRegistry');
+        const explanation = await neuralRegistry.callCapability('forge', 'ui_explain', { componentId: id, context: uiContext });
+        const msg = `[AI GUIDANCE] ${id.toUpperCase()}: ${explanation.explanation}`;
+        addLog(msg, 'success', 'Oracle');
+        setChatMessages(prev => [...prev, {
+          id: `ui-exp-${Date.now()}`,
+          role: 'system',
+          content: msg,
+          timestamp: Date.now(),
+          invocationType: 'explain' as any
+        }]);
+      } catch (err) {
+        addLog('Failed to retrieve neural explanation.', 'error', 'Librarian');
+      }
+    };
+
+    let unsubExplain: (() => void) | undefined;
+
+    import('./services/ai/NeuralRegistry').then(({ neuralRegistry }) => {
+      unsubExplain = neuralRegistry.on('ui:explain', handleUIExplain);
+    });
 
     const handleMouseMove = (e: MouseEvent) => {
-      // Throttle presence updates to avoid flooding InstantDB
+      if (!user) return;
       if (Math.random() > 0.1) return;
-
       collaborativeSync.updatePresence(user.id, {
         userName: user.email?.split('@')[0] || 'Unknown User',
         cursorX: e.clientX,
@@ -143,8 +207,11 @@ const App: React.FC = () => {
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [user, activeView]);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (unsubExplain) unsubExplain();
+    };
+  }, [user, activeView, addLog]);
   const [tasks, setTasks] = useState<TodoTask[]>([]);
   const [syncMode, setSyncMode] = useState<SyncMode>(SyncMode.LOCAL);
   const [stagedFiles, setStagedFiles] = useState<string[]>([]);
@@ -173,30 +240,12 @@ const App: React.FC = () => {
     codingStyle: ['Functional React', 'TailwindCSS'],
     forbiddenPatterns: ['placeholders', 'TODO comments', 'entire file rewrites'],
     architecturalDecisions: ['Nexus Execution Doctrine v1', 'Strict Global Command Plane'],
+    creativeLiberty: ['Mature Themes Authorized', 'Violence/Substances OK', 'Unfiltered Dialogue', 'Unrestricted Creative Agency'],
     lastLearningUpdate: Date.now(),
   });
 
   const chatRef = useRef<ChatHandle>(null);
   const lastSimTimeRef = useRef<number>(Date.now());
-
-  // --- Logging Utility ---
-  const addLog = useCallback((message: string, type: EngineLog['type'] = 'info', source: string = 'Nexus') => {
-    const log: EngineLog = { id: Math.random().toString(36), message, type, timestamp: Date.now(), source };
-    setEngineLogs(prev => [...prev.slice(-199), log]);
-    setTerminalHistory(prev => [...prev.slice(-499), { text: `[${source}] ${message}`, type: type === 'error' ? 'error' : 'output', timestamp: Date.now() }]);
-  }, []);
-
-  // --- Nexus Command Handlers ---
-  const handlePanic = useCallback(() => {
-    setIsPanic(true);
-    nexusBus.panic();
-    addLog('Global Panic Triggered: All jobs terminated.', 'error', 'Control');
-  }, [addLog]);
-
-  const handleImportAsset = useCallback((a: GameAsset) => {
-    setAssets(prev => [...prev.slice(-99), a]);
-    addLog(`Asset Bound: ${a.name}`, 'success', 'Registry');
-  }, [addLog]);
 
   const handleBuild = useCallback((prompt?: string) => {
     if (buildInfo.status === 'building') return;
@@ -320,6 +369,9 @@ const App: React.FC = () => {
         return;
       case 'SYSTEM_TOGGLE_KEY_MANAGER':
         setShowApiKeyManager(prev => !prev);
+        return;
+      case 'SYSTEM_TOGGLE_AI_PANEL':
+        setIsAiPanelVisible(prev => !prev);
         return;
       case 'BRIDGE_TOGGLE_RELAY': {
         const isCurrentlyRelay = localStorage.getItem('antigravity_bridge_url')?.includes('workers.dev');
@@ -476,6 +528,7 @@ const App: React.FC = () => {
       setActiveWorkspaceId('default-pro');
     }
     initializeAgentAPI();
+    forgeMedia.syncFromDisk();
   }, []);
 
   useEffect(() => {
@@ -518,7 +571,9 @@ const App: React.FC = () => {
         <CommandSpine
           projectEnv={projectEnv}
           aiMode={aiMode}
+          activeView={activeView}
           showPerformanceHUD={showPerformanceHUD}
+          isAiPanelVisible={isAiPanelVisible}
           isPanic={isPanic}
           dispatch={dispatchUIAction}
         />
@@ -563,22 +618,10 @@ const App: React.FC = () => {
                           <DiagnosticsPanel />
                           <Director />
                         </div>
-                        <div className="h-[40%] min-h-[200px] border-t border-cyan-900/20 bg-[#050a15]/80 backdrop-blur-md">
-                          <Chat
-                            ref={chatRef} project={project} sceneObjects={sceneObjects} physics={physics} worldConfig={worldConfig}
-                            renderConfig={renderConfig} compositingConfig={compositingConfig} simulation={simulation}
-                            isOverwatchActive={true} messages={chatMessages} setMessages={setChatMessages}
-                            userPrefs={userPrefs} onFileUpdate={handleFileChange}
-                            onAddSceneObject={handleAddSceneObject}
-                            onUpdateSceneObject={handleUpdateSceneObject} onUpdatePhysics={(u) => setPhysics(p => ({ ...p, ...u }))}
-                            onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
-                            onUpdateConfig={(t, u) => { if (t === 'render') setRenderConfig(p => ({ ...p, ...u })); else setCompositingConfig(p => ({ ...p, ...u })); }}
-                            onRemoveSceneObject={(id) => setSceneObjects(prev => prev.filter(o => o.id !== id))}
-                            onInjectScript={handleInjectScript} onSyncVariableData={handleSyncVariableData}
-                            extensions={extensions} projectVersion={projectVersion} onUpdateVersion={setProjectVersion}
-                            onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
-                            onTriggerPresentation={() => setIsPresenting(true)}
-                          />
+                        <div className="h-1/3 min-h-[150px] border-t border-cyan-900/10 text-slate-500 p-4 font-mono text-[9px] uppercase tracking-widest bg-black/20 flex flex-col items-center justify-center text-center opacity-30">
+                          <Brain className="w-8 h-8 mb-2 text-cyan-500/20" />
+                          <span>Interactive Nexus Stream</span>
+                          <span>(Refer to Active Sidebar)</span>
                         </div>
                         <div className="h-1/3 min-h-[150px] border-t border-cyan-900/10">
                           <Terminal onCommand={(cmd) => dispatchUIAction({ type: 'TERMINAL_COMMAND', command: cmd })} history={terminalHistory} />
@@ -603,6 +646,7 @@ const App: React.FC = () => {
                             fileId={project.activeFile}
                             content={activeFileContent}
                             onContentChange={handleFileChange}
+                            onSelectionChange={setEditorSelection}
                             dispatch={dispatchUIAction}
                           />
                         </div>
@@ -641,10 +685,10 @@ const App: React.FC = () => {
                         />
                       </div>
                     );
-                    case 'assets': return <div className="h-full w-full overflow-hidden"><Registry /></div>;
+                    case 'limbs': return <div className="h-full w-full overflow-hidden"><LimbExplorer /></div>;
+                    case 'matrix': return <div className="h-full w-full overflow-hidden"><ModelPlayground /></div>;
                     case 'settings': return <div className="h-full w-full overflow-hidden"><Config /></div>;
                     case 'scene': return null; // Handled by persistent layer
-                    case 'matrix': return null;
                     default: return null;
                   }
                 })()}
@@ -652,7 +696,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Overlays */}
-            <AssistantOverlay />
+            <NexusControl activeView={activeView} dispatch={dispatchUIAction} />
             <CursorTracker currentUserId={user?.id || null} />
             {showApiKeyManager && <ApiKeyManager onClose={() => setShowApiKeyManager(false)} />}
             {isPanic && (
@@ -695,6 +739,50 @@ const App: React.FC = () => {
               </div>
             )}
           </main>
+
+          {/* Persistent AI Sidebar Panel */}
+          {isAiPanelVisible && (
+            <aside className="w-[380px] h-full border-l border-cyan-900/30 bg-[#050a15] flex flex-col shrink-0 animate-in slide-in-from-right duration-300 z-40">
+              <Chat
+                ref={chatRef}
+                project={project}
+                sceneObjects={sceneObjects}
+                physics={physics}
+                worldConfig={worldConfig}
+                renderConfig={renderConfig}
+                compositingConfig={compositingConfig}
+                simulation={simulation}
+                isOverwatchActive={true}
+                messages={chatMessages}
+                setMessages={setChatMessages}
+                userPrefs={userPrefs}
+                onFileUpdate={handleFileChange}
+                onAddSceneObject={handleAddSceneObject}
+                onUpdateSceneObject={handleUpdateSceneObject}
+                onUpdatePhysics={(u) => setPhysics(p => ({ ...p, ...u }))}
+                onUpdateWorld={(u) => setWorldConfig(p => ({ ...p, ...u }))}
+                onUpdateConfig={(t, u) => {
+                  if (t === 'render') setRenderConfig(p => ({ ...p, ...u }));
+                  else setCompositingConfig(p => ({ ...p, ...u }));
+                }}
+                onRemoveSceneObject={(id) => setSceneObjects(prev => prev.filter(o => o.id !== id))}
+                onInjectScript={handleInjectScript}
+                onSyncVariableData={handleSyncVariableData}
+                extensions={extensions}
+                projectVersion={projectVersion}
+                onUpdateVersion={setProjectVersion}
+                onTriggerBuild={() => handleBuild('Agent Directive Mutation')}
+                onTriggerPresentation={() => setIsPresenting(true)}
+                engineLogs={engineLogs}
+                selectionContext={editorSelection}
+                aiMode={aiMode}
+                projectEnv={projectEnv}
+                isPanic={isPanic}
+                activeView={activeView}
+                bridgeStatus={bridgeStatus.isConnected ? 'direct' : bridgeStatus.isCloudMode ? 'relay' : 'offline'}
+              />
+            </aside>
+          )}
         </div>
       </div>
     </ErrorBoundary>

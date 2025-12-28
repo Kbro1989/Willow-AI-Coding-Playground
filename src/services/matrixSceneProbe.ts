@@ -1,4 +1,4 @@
-import { directorMemory } from '../services/directorMemoryService';
+import { directorMemory } from './directorMemoryService';
 
 export interface SceneEntity {
     id: string;
