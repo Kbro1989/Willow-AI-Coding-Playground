@@ -9,8 +9,8 @@ export interface SearchResult {
     snippet: string;
 }
 
-const SEARCH_ENGINE_ID = localStorage.getItem('google_cse_id') || import.meta.env.VITE_GOOGLE_CSE_ID || 'YOUR_PSE_ID';
-const API_KEY = localStorage.getItem('google_api_key') || import.meta.env.VITE_GOOGLE_API_KEY || import.meta.env.VITE_CF_RSC_API_KEY || 'AIzaSyBRrgq6OH9TBDNIkJ-02RTEBNpohyNGGkg';
+const SEARCH_ENGINE_ID = localStorage.getItem('google_cse_id') || import.meta.env.VITE_GOOGLE_CSE_ID || '';
+const API_KEY = localStorage.getItem('google_api_key') || import.meta.env.VITE_GOOGLE_API_KEY || import.meta.env.VITE_CF_RSC_API_KEY || '';
 
 import { chat } from './modelRouter';
 
