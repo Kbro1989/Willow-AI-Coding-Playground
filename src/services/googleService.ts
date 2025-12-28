@@ -10,7 +10,7 @@ export interface SearchResult {
 }
 
 // Bridge-relay URL (deployed worker or local dev)
-const BRIDGE_RELAY_URL = import.meta.env.VITE_BRIDGE_RELAY_URL || 'https://bridge-relay.destiny-antigravity.workers.dev';
+const BRIDGE_RELAY_URL = import.meta.env.VITE_BRIDGE_RELAY_URL || 'https://antigravity-bridge-relay.kristain33rs.workers.dev';
 const SEARCH_ENGINE_ID = localStorage.getItem('google_cse_id') || import.meta.env.VITE_GOOGLE_CSE_ID || '';
 
 import { chat } from './modelRouter';
