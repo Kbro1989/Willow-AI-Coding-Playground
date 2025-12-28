@@ -1,5 +1,5 @@
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { neuralRegistry } from '../services/ai/NeuralRegistry';
 
 interface BehaviorNode {
   id: string;
@@ -96,7 +96,6 @@ const BehaviorTreeEditor: React.FC<BehaviorTreeEditorProps> = ({ onSave, onDebug
 
   // Neural Limb Registration
   useEffect(() => {
-    const { neuralRegistry } = require('../services/ai/NeuralRegistry');
     const limb = {
       id: 'behavior_engine',
       name: 'Behavior Engine',
