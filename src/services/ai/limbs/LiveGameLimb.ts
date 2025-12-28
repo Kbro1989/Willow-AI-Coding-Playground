@@ -178,16 +178,34 @@ export const registerLiveGameLimb = () => {
             {
                 name: 'game_on_event',
                 description: 'Register AI reaction to game event (generates assets/content when event fires).',
-                parameters: { eventType: 'string', reaction: 'generate_enemy|generate_item|play_sound|change_music|spawn_effect' },
+                parameters: { eventType: 'string', reaction: 'generate_enemy|generate_item|play_sound|change_music|spawn_effect|generate_level_pack' },
                 handler: async (params) => {
                     const listener = async (state: GameState, event: any) => {
                         const { modelRouter } = await import('../../modelRouter');
+
                         switch (params.reaction) {
                             case 'generate_enemy':
-                                await modelRouter.orchestrateMedia('image', `game enemy sprite for ${event.data?.context || 'generic'} zone`, 'Reactive Enemy Generation');
+                                // Use AssetPipelineLimb for quick enemy
+                                await neuralRegistry.callCapability('asset_pipeline', 'pipeline_quick_enemy', {
+                                    enemyType: event.data?.enemyType || 'goblin',
+                                    style: 'pixel'
+                                });
                                 break;
                             case 'generate_item':
-                                await modelRouter.orchestrateMedia('image', `game item sprite: ${event.data?.itemType || 'treasure'}`, 'Reactive Item Generation');
+                                // Use AssetPipelineLimb for quick item
+                                await neuralRegistry.callCapability('asset_pipeline', 'pipeline_quick_item', {
+                                    itemType: event.data?.itemType || 'treasure',
+                                    style: 'pixel'
+                                });
+                                break;
+                            case 'generate_level_pack':
+                                // Full level generation on zone change
+                                await neuralRegistry.callCapability('asset_pipeline', 'pipeline_level_pack', {
+                                    levelTheme: state.environment.zone,
+                                    style: 'pixel',
+                                    enemyCount: Math.min(5, state.level + 2),
+                                    itemCount: 5
+                                });
                                 break;
                             case 'play_sound':
                                 await modelRouter.orchestrateMedia('audio', `game sound effect: ${event.type}`, 'Reactive Audio');
@@ -199,6 +217,9 @@ export const registerLiveGameLimb = () => {
                                 await modelRouter.orchestrateMedia('image', `particle effect: ${event.type}`, 'Reactive Effect');
                                 break;
                         }
+
+                        // Log to audit trail
+                        console.log(`[LiveGame] Reactive generation triggered: ${params.reaction} for ${event.type}`);
                     };
 
                     if (!reactiveListeners.has(params.eventType)) {

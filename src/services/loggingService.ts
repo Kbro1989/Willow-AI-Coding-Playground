@@ -1,6 +1,6 @@
 /**
  * Engine Logging Service - Nexus Standard
- * Centralized logging for tasks, model usage, and observability.
+ * Centralized logging for tasks, model usage, audit events, and observability.
  */
 
 const WORKER_URL = '';
@@ -13,6 +13,19 @@ export interface NexusLog {
   metadata?: any;
   timestamp: number;
 }
+
+export interface AuditEvent {
+  event: string;
+  action: string;
+  userId?: string;
+  data?: any;
+  timestamp: number;
+  severity: 'info' | 'warn' | 'error' | 'critical';
+}
+
+// In-memory audit trail (for dashboard display)
+const auditTrail: AuditEvent[] = [];
+const MAX_AUDIT_ENTRIES = 1000;
 
 /**
  * Log a specific task transition or outcome
@@ -53,6 +66,82 @@ export const logModelUsage = async (usage: {
 };
 
 /**
+ * Log an audit event (security, access, actions)
+ */
+export const logAudit = (event: string, action: string, data?: any, severity: AuditEvent['severity'] = 'info'): AuditEvent => {
+  const auditEvent: AuditEvent = {
+    event,
+    action,
+    data,
+    severity,
+    timestamp: Date.now()
+  };
+
+  // Console log with severity prefix
+  const prefix = `[AUDIT:${severity.toUpperCase()}]`;
+  if (severity === 'critical' || severity === 'error') {
+    console.error(`${prefix} ${event}: ${action}`, data || '');
+  } else if (severity === 'warn') {
+    console.warn(`${prefix} ${event}: ${action}`, data || '');
+  } else {
+    console.log(`${prefix} ${event}: ${action}`, data || '');
+  }
+
+  // Add to in-memory trail
+  auditTrail.push(auditEvent);
+
+  // Trim if over max
+  if (auditTrail.length > MAX_AUDIT_ENTRIES) {
+    auditTrail.shift();
+  }
+
+  // Dispatch event for dashboard
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('nexus:audit', { detail: auditEvent }));
+  }
+
+  return auditEvent;
+};
+
+/**
+ * Log security-related events
+ */
+export const logSecurityEvent = (action: string, data?: any) => {
+  return logAudit('SECURITY', action, data, 'warn');
+};
+
+/**
+ * Log AI model access
+ */
+export const logAIAccess = (model: string, prompt: string, success: boolean) => {
+  return logAudit('AI_ACCESS', success ? 'success' : 'failure', {
+    model,
+    promptLength: prompt.length,
+    timestamp: Date.now()
+  }, success ? 'info' : 'error');
+};
+
+/**
+ * Log file system access
+ */
+export const logFileAccess = (operation: string, path: string, success: boolean) => {
+  return logAudit('FILE_ACCESS', operation, { path, success }, success ? 'info' : 'warn');
+};
+
+/**
+ * Get audit trail (for dashboard)
+ */
+export const getAuditTrail = (limit = 100, severity?: AuditEvent['severity']): AuditEvent[] => {
+  let filtered = auditTrail;
+
+  if (severity) {
+    filtered = auditTrail.filter(e => e.severity === severity);
+  }
+
+  return filtered.slice(-limit).reverse();
+};
+
+/**
  * Fetch logs for observability dashboards
  */
 export const getLogs = async (): Promise<NexusLog[]> => {
@@ -63,4 +152,15 @@ export const getLogs = async (): Promise<NexusLog[]> => {
     console.error('[LOGGING_SERVICE] Fetch logs failed:', error);
     return [];
   }
+};
+
+export default {
+  logTask,
+  logModelUsage,
+  logAudit,
+  logSecurityEvent,
+  logAIAccess,
+  logFileAccess,
+  getAuditTrail,
+  getLogs
 };

@@ -352,48 +352,85 @@ What adjustments should be made? Which agents need to re-run? Respond with itera
     console.log('[OrchestratorLimb] 25 capabilities registered.');
 };
 
-// Symphony execution engine
+// Symphony execution engine - uses agenticRouter for parallel execution
 async function executeSymphony(symphonyId: string) {
     const symphony = symphonies.get(symphonyId);
     if (!symphony) return;
 
     const { modelRouter } = await import('../../modelRouter');
+    const { agenticRouter } = await import('../../agenticRouter');
+    const { logAudit } = await import('../../loggingService');
 
-    // Execute agents in dependency order
-    for (const agent of symphony.agents) {
-        // Wait for dependencies
-        const deps = agent.dependencies.map(d => symphony.agents.find(a => a.id === d));
-        const allDepsComplete = deps.every(d => d?.status === 'complete');
+    logAudit('symphony_execution', 'started', { symphonyId, agentCount: symphony.agents.length });
 
-        if (!allDepsComplete) {
-            // Dependencies not ready - this is a simplified version
-            // In production, this would be an event-driven system
-            continue;
+    // Group agents by dependency level for parallel execution
+    const levels: AgentTask[][] = [];
+    const completed = new Set<string>();
+
+    while (completed.size < symphony.agents.length) {
+        // Find agents whose dependencies are all completed
+        const ready = symphony.agents.filter(agent =>
+            !completed.has(agent.id) &&
+            agent.dependencies.every(dep => completed.has(dep))
+        );
+
+        if (ready.length === 0) {
+            console.error('[Orchestrator] Circular dependency detected in symphony');
+            symphony.status = 'failed';
+            return;
         }
 
-        agent.status = 'running';
+        levels.push(ready);
 
-        try {
-            // Execute agent's objective using AI
-            const limbs = AGENT_LIMB_MAP[agent.role] || ['ai'];
-            const prompt = `You are a ${agent.role} agent. Execute: "${agent.objective}". 
-Available capabilities from limbs: ${limbs.join(', ')}. 
-Generate the required output.`;
+        // Execute this level in parallel using agenticRouter
+        const tasks = ready.map(agent => ({
+            id: agent.id,
+            request: {
+                type: 'text' as const,
+                prompt: `You are a ${agent.role} agent. Execute: "${agent.objective}". 
+Available capabilities from limbs: ${(AGENT_LIMB_MAP[agent.role] || ['ai']).join(', ')}. 
+Generate the required output.`,
+                tier: 'standard' as const
+            },
+            priority: 1
+        }));
 
-            const result = await modelRouter.chat(prompt);
-            agent.result = 'content' in result ? result.content : null;
-            agent.status = 'complete';
-            symphony.results[agent.id] = agent.result;
+        // Mark as running
+        ready.forEach(a => a.status = 'running');
 
-            window.dispatchEvent(new CustomEvent('symphony:agent-complete', { detail: { symphonyId, agentId: agent.id, result: agent.result } }));
-        } catch (e) {
-            agent.status = 'failed';
+        // Execute in parallel
+        const results = await agenticRouter.orchestrateSymphony(tasks);
+
+        // Process results
+        for (const result of [...results.completed, ...results.failed]) {
+            const agent = symphony.agents.find(a => a.id === result.id);
+            if (!agent) continue;
+
+            if (result.status === 'fulfilled' && result.result) {
+                agent.result = 'content' in result.result ? result.result.content : null;
+                agent.status = 'complete';
+                symphony.results[agent.id] = agent.result;
+                completed.add(agent.id);
+
+                window.dispatchEvent(new CustomEvent('symphony:agent-complete', {
+                    detail: { symphonyId, agentId: agent.id, result: agent.result }
+                }));
+            } else {
+                agent.status = 'failed';
+                completed.add(agent.id); // Mark as done even if failed
+            }
         }
     }
 
-    // Check if all agents complete
+    // Check final status
     const allComplete = symphony.agents.every(a => a.status === 'complete');
     symphony.status = allComplete ? 'complete' : 'failed';
+
+    logAudit('symphony_execution', 'completed', {
+        symphonyId,
+        status: symphony.status,
+        duration: Date.now() - symphony.startTime
+    });
 
     window.dispatchEvent(new CustomEvent('symphony:complete', { detail: { symphonyId, results: symphony.results } }));
 }
