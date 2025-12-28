@@ -1,11 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "antigravity-engine",
+  "name": "willow-ai-coding-playground",
   "main": "dist/_worker.js",
   "compatibility_date": "2025-02-14",
   "assets": {
     "directory": "./dist",
-    "binding": "ASSETS"
+    "binding": "ENGINE_STATIC_ASSETS"
   },
   "observability": {
     "enabled": true

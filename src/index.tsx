@@ -1,6 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Buffer } from 'buffer';
 import './index.css';
+
+// Initialize global Buffer for browser compatibility (required by RSMV)
+if (typeof window !== 'undefined') {
+    (window as any).Buffer = Buffer;
+}
+if (typeof globalThis !== 'undefined') {
+    (globalThis as any).Buffer = Buffer;
+}
 import App from './App';
 
 const rootElement = document.getElementById('root');

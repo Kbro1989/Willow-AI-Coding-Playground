@@ -15,7 +15,7 @@ const path = require('path');
  */
 
 const PORT = process.env.PORT || 3040;
-const RELAY_URL = process.env.RELAY_URL || null;
+const RELAY_URL = process.env.RELAY_URL || "wss://antigravity-bridge-relay.kristain33rs.workers.dev/bridge/1";
 const APP_ID = process.env.APP_ID || "1";
 
 // Placeholder website for testing

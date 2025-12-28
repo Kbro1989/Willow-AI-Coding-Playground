@@ -95,7 +95,7 @@ export default {
         // Tooling / Structured Output Simulation
         let systemPrompt = body.systemPrompt || 'You are the Antigravity Engine Assistant.';
         if (body.responseFormat === 'json') {
-          systemPrompt += '\n\nIMPORTANT: You must respond ONLY with a valid JSON object. Do not include any other text, markdown blocks, or commentary.';
+          systemPrompt += '\\n\\nIMPORTANT: You must respond ONLY with a valid JSON object. Do not include any other text, markdown blocks, or commentary.';
         }
         
         const result = await env.AI.run(model, {

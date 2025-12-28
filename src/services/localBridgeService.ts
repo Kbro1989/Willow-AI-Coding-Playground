@@ -46,8 +46,8 @@ class LocalBridgeClient {
       return;
     }
 
-    const bridgeUrl = localStorage.getItem('antigravity_bridge_url') || "ws://localhost:3040";
-    const useRelay = bridgeUrl.includes('workers.dev') || bridgeUrl.includes('antigravity.studio');
+    const bridgeUrl = localStorage.getItem('antigravity_bridge_url') || "wss://antigravity-bridge-relay.kristain33rs.workers.dev/bridge/1?role=client";
+    const useRelay = bridgeUrl.includes('workers.dev') || bridgeUrl.includes('antigravity.studio') || bridgeUrl.includes('role=client');
 
     try {
       this.ws = new WebSocket(bridgeUrl, useRelay ? undefined : undefined); // standard ctor

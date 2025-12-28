@@ -34,6 +34,11 @@ async function copyAssets() {
     }
 
     console.log('🎉 Asset copy process completed');
+
+    // Create .assetsignore in dist to prevent _worker.js from being uploaded as an asset
+    const ignorePath = path.join(__dirname, '..', DIST_DIR, '.assetsignore');
+    fs.writeFileSync(ignorePath, '_worker.js\n.DS_Store\n.git*\nnode_modules\n');
+    console.log('📝 Created .assetsignore in dist directory');
 }
 
 async function copyDirectory(source, destination) {
