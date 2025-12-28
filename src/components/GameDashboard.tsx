@@ -35,33 +35,35 @@ const SafeEffectComposer: React.FC<{ compositingConfig: CompositingConfig }> = (
     const bloom = typeof compositingConfig.bloom === 'number' ? compositingConfig.bloom : 0;
     const chromatic = typeof compositingConfig.chromaticAberration === 'number' ? compositingConfig.chromaticAberration : 0;
     const vignette = typeof compositingConfig.vignette === 'number' ? compositingConfig.vignette : 0;
+    const scanlines = typeof compositingConfig.scanlines === 'number' ? compositingConfig.scanlines : 0;
+    const noise = typeof compositingConfig.noise === 'number' ? compositingConfig.noise : 0;
 
     return (
       <EffectComposer>
-        {bloom > 0 && (
+        {bloom > 0 ? (
           <Bloom
             intensity={bloom}
             luminanceThreshold={1.0}
             luminanceSmoothing={0.9}
           />
-        )}
-        {chromatic > 0 && (
+        ) : null}
+        {chromatic > 0 ? (
           <ChromaticAberration
             offset={new THREE.Vector2(chromatic, chromatic)}
           />
-        )}
-        {vignette > 0 && (
+        ) : null}
+        {vignette > 0 ? (
           <Vignette
             offset={0.5}
             darkness={vignette}
           />
-        )}
-        {compositingConfig.scanlines && compositingConfig.scanlines > 0 && (
-          <Scanline opacity={compositingConfig.scanlines} />
-        )}
-        {compositingConfig.noise && compositingConfig.noise > 0 && (
-          <Noise opacity={compositingConfig.noise} />
-        )}
+        ) : null}
+        {scanlines > 0 ? (
+          <Scanline opacity={scanlines} />
+        ) : null}
+        {noise > 0 ? (
+          <Noise opacity={noise} />
+        ) : null}
       </EffectComposer>
     );
   } catch (err) {
