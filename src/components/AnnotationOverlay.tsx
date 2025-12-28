@@ -8,7 +8,7 @@ interface AnnotationOverlayProps {
     onProcess: (imageData: string, mode: '3d' | 'image' | 'code') => void;
 }
 
-type Tool = 'pen' | 'eraser' | 'line' | 'rect' | 'circle' | 'text';
+type Tool = 'pen' | 'eraser' | 'line' | 'rect' | 'circle' | 'text' | 'shape_box' | 'shape_sphere' | 'shape_cone';
 
 interface HistoryState {
     imageData: ImageData;
@@ -136,8 +136,18 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({ isActive, 
         }
     };
 
-    const stopDrawing = () => {
+    const stopDrawing = (e: React.MouseEvent) => {
         if (context) {
+            if (tool === 'text') {
+                const rect = canvasRef.current!.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const text = prompt('Enter label text:');
+                if (text) {
+                    context.font = `${brushSize * 5}px Inter, sans-serif`;
+                    context.fillText(text, x, y);
+                }
+            }
             context.closePath();
             if (isDrawing) {
                 saveToHistory(context);
@@ -145,6 +155,39 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({ isActive, 
         }
         setIsDrawing(false);
         setStartPos(null);
+    };
+
+    const drawPreset = (type: 'box' | 'sphere' | 'cone') => {
+        if (!context || !canvasRef.current) return;
+        const w = canvasRef.current.width;
+        const h = canvasRef.current.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const size = 100;
+
+        context.beginPath();
+        if (type === 'box') {
+            context.strokeRect(cx - size, cy - size, size * 2, size * 2);
+            // Draw "3D" depth lines
+            context.moveTo(cx - size, cy - size);
+            context.lineTo(cx - size + 40, cy - size - 40);
+            context.lineTo(cx + size + 40, cy - size - 40);
+            context.lineTo(cx + size, cy - size);
+            context.moveTo(cx + size + 40, cy - size - 40);
+            context.lineTo(cx + size + 40, cy + size - 40);
+            context.lineTo(cx + size, cy + size);
+        } else if (type === 'sphere') {
+            context.arc(cx, cy, size, 0, 2 * Math.PI);
+            context.ellipse(cx, cy, size, size / 3, 0, 0, 2 * Math.PI);
+        } else if (type === 'cone') {
+            context.moveTo(cx, cy - size);
+            context.lineTo(cx - size, cy + size);
+            context.lineTo(cx + size, cy + size);
+            context.closePath();
+            context.ellipse(cx, cy + size, size, size / 4, 0, 0, 2 * Math.PI);
+        }
+        context.stroke();
+        saveToHistory(context);
     };
 
     const handleProcess = () => {
@@ -219,6 +262,15 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({ isActive, 
                                 {t.icon}
                             </button>
                         ))}
+                    </div>
+
+                    <div className="h-6 w-px bg-cyan-900/50"></div>
+
+                    {/* Presets */}
+                    <div className="flex gap-1">
+                        <button onClick={() => drawPreset('box')} className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-[10px]" title="Insert Box">📦</button>
+                        <button onClick={() => drawPreset('sphere')} className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-[10px]" title="Insert Sphere">🔮</button>
+                        <button onClick={() => drawPreset('cone')} className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-[10px]" title="Insert Cone">🍦</button>
                     </div>
 
                     <div className="h-6 w-px bg-cyan-900/50"></div>
@@ -323,6 +375,14 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({ isActive, 
                         title="Process with AI"
                     >
                         ⚒️ Forge
+                    </button>
+
+                    <button
+                        onClick={() => onProcess(canvasRef.current?.toDataURL('image/png') || '', '3d')}
+                        className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-1 rounded-lg text-[10px] font-black uppercase transition-all"
+                        title="Generate 3D Mesh from Sketch"
+                    >
+                        🎭 Remodel
                     </button>
 
                     <button onClick={clear} className="text-slate-400 hover:text-white px-2" title="Clear canvas">

@@ -894,6 +894,17 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
         onProcess={(img, mode) => {
           onSendVisualFeedback?.(img);
           onRunAction(`ANNOTATION_PROCESSED_${mode.toUpperCase()} `);
+
+          if (mode === '3d' && selectedObjectId) {
+            // Simulate AI remodeling feedback
+            console.log('[FORGE] Triggering AI 3D Reconstruction...');
+            // In a real scenario, this would wait for a worker response.
+            // For now, we update the status or object placeholder.
+            onUpdateSceneObject(selectedObjectId, {
+              name: `Remodeled_${selectedObjectId}`,
+              type: 'prop'
+            });
+          }
         }}
       />
     </div>
