@@ -2,136 +2,148 @@
 
 ## Quick Start
 
-1. **Install Dependencies**
-   ```bash
-   npm install --legacy-peer-deps
-   ```
+### Development
+```bash
+npm install --legacy-peer-deps
+npm run dev
+```
 
-2. **Start Development Server**
-   ```bash
-   npm start
-   ```
+### Production Build
+```bash
+npm run build
+```
 
-3. **Build for Production**
-   ```bash
-   npm run build
-   ```
+## Automatic Deployment (CI/CD)
+
+Push to `main` branch triggers automatic deployment:
+- **Platform**: Cloudflare Pages
+- **URL**: [willow-ai-coding-playground.pages.dev](https://willow-ai-coding-playground.pages.dev/)
+- **Trigger**: GitHub webhook on push to `main`
 
 ## Project Structure
 
 ```
 antigravity-engine/
-├── public/
-│   ├── index.html
-│   └── ...
 ├── src/
-│   ├── components/           # React components
-│   │   ├── ApiKeyManager.tsx
-│   │   ├── BehaviorTreeEditor.tsx
-│   │   ├── Chat.tsx
-│   │   ├── DiagnosticsPanel.tsx
-│   │   ├── Editor.tsx
-│   │   ├── ExtensionRegistry.tsx
-│   │   ├── Forge.tsx
-│   │   ├── GameDashboard.tsx
-│   │   ├── PipelineBuilder.tsx
-│   │   └── index.ts
-│   ├── services/            # AI and orchestration services (universalOrchestrator, etc.)
-│   │   ├── modelRouter.ts
-│   │   ├── ...               # universalOrchestrator, contextService, etc.
-│   │   ├── cloudflareService.ts
-│   │   └── index.ts
-│   ├── types/               # TypeScript definitions
-│   │   └── index.ts
-│   ├── App.tsx              # Main app component
-│   ├── index.tsx            # Entry point
-│   └── index.css            # Global styles
-├── package.json
-├── tsconfig.json
-├── tailwind.config.js
-└── README.md
+│   ├── components/           # React UI components
+│   │   ├── Chat.tsx          # Cognitive Sidebar
+│   │   ├── Editor.tsx        # Code Editor
+│   │   ├── Forge.tsx         # Media Studio
+│   │   ├── GameDashboard.tsx # 3D Viewport
+│   │   └── PipelineBuilder.tsx # n8n-style workflows
+│   ├── services/
+│   │   ├── ai/
+│   │   │   ├── limbs/        # 17 Neural Limbs (505+ capabilities)
+│   │   │   │   ├── EntityLimb.ts
+│   │   │   │   ├── ImageLimb.ts
+│   │   │   │   ├── AudioLimb.ts
+│   │   │   │   ├── OrchestratorLimb.ts
+│   │   │   │   └── ... (14 more)
+│   │   │   └── NeuralRegistry.ts
+│   │   ├── modelRouter.ts    # Multi-provider AI routing
+│   │   ├── cloudflareProvider.ts
+│   │   ├── geminiProvider.ts
+│   │   └── localBridgeService.ts
+│   └── types.ts
+├── bridge/                   # Local file system bridge
+├── bridge-relay/             # Cloudflare Workers relay
+└── docs/                     # Additional documentation
 ```
 
-## Features Implemented
+## Features Overview
 
-### ✅ Core Components
-- **API Key Manager**: Modal for managing AI API keys with security
-- **Behavior Tree Editor**: Visual node-based AI behavior editor
-- **Chat Interface**: Persistent sidebar with context-aware code selection
-- **Intent Orchestrator**: Structured `AIIntent` protocol for global system orchestration
-- **Code Editor**: AI-powered editor with completions and refactoring
-- **Game Dashboard**: 3D viewport with Three.js integration
-- **The Forge**: Multi-modal AI interface (text, code, image, video)
-- **Pipeline Builder**: n8n-style visual workflow editor
-- **Extension Registry**: Extension management system
-- **Diagnostics Panel**: System monitoring and metrics
-
-### ✅ Services Layer
-- **Model Router**: Multi-provider AI routing (Gemini, Cloudflare, Local)
-- **Gemini Service**: Live Director and video generation
-- **Cloudflare Service**: Code completion, auditing, and asset generation
-- **Rate Limiting**: Built-in API usage tracking
-
-### ✅ Type System
-- Comprehensive TypeScript definitions
-- All component props and state properly typed
-- Service interfaces and response types
-
-## Configuration
-
-### Environment Variables
-Create `.env` file:
-```env
-REACT_APP_GEMINI_API_KEY=your_key_here
-REACT_APP_CLOUDFLARE_API_KEY=your_key_here
-```
+### Core Engine
+| Feature | Status | Notes |
+|---------|--------|-------|
+| 3D Viewport | ✅ Production | Three.js + React Three Fiber |
+| Code Editor | ✅ Production | Monaco Editor with AI |
+| Media Forge | ✅ Production | Image/Audio/Video/3D |
+| Visual Pipelines | ✅ Production | n8n-style workflow builder |
+| Neural Limbs | ✅ Production | 17 limbs, 505+ capabilities |
 
 ### AI Providers
-- **Google Gemini**: Primary AI provider for text, images, and live interactions
-- **Cloudflare Workers AI**: Secondary provider with various models
-- **Local Ollama**: Offline AI capabilities
+| Provider | Models | Status |
+|----------|--------|--------|
+| Cloudflare AI | Llama 3.3, Qwen 2.5, DeepSeek R1, SDXL | ✅ Primary |
+| Google Gemini | Gemini 2.0 Flash, Imagen 3, Veo | ✅ Fallback |
+| Local Bridge | File system access | ✅ Production |
 
-## Usage
+### Agent Symphony
+| Capability | Description |
+|------------|-------------|
+| `symphony_from_prompt` | One prompt → multi-agent execution |
+| `orchestrate_2d_game_assets` | Complete 2D game asset set |
+| `pipeline_2d_to_3d` | Convert 2D layouts to 3D environments |
+| `game_ai_director` | AI that adjusts game while playing |
 
-### Development Workflow
-1. **Code Editor**: Write code with AI assistance
-2. **Director Chat**: Get AI help and generate assets
-3. **3D Matrix**: Build and test games
-4. **Forge**: Generate content with multiple AI models
-5. **Pipelines**: Create automated workflows
+## Environment Variables
 
-### Key Features
-- **Hot-swap API Keys**: Change AI providers without restart
-- **Real-time 3D**: Live game development environment
-- **AI Code Intelligence**: Smart completions and refactoring
-- **Visual Workflows**: Drag-and-drop AI pipeline builder
-- **VR/AR Support**: WebXR integration for immersive development
+### Required
+```env
+VITE_GEMINI_API_KEY=your_gemini_api_key
+```
 
-## Build Issues
+### Optional (Cloudflare AI)
+```env
+VITE_CLOUDFLARE_ACCOUNT_ID=your_account_id
+VITE_CLOUDFLARE_API_TOKEN=your_api_token
+```
 
-If you encounter TypeScript version conflicts:
+### Cloud Persistence
+```env
+VITE_INSTANT_APP_ID=your_instantdb_app_id
+```
+
+## Local File System Bridge
+
+For local development with file access:
+
+```bash
+# Terminal 1: Start bridge server
+node bridge/server.js
+
+# Terminal 2: Start dev server
+npm run dev
+```
+
+The bridge enables:
+- Local file read/write
+- Terminal command execution
+- Git operations
+
+## Manual Cloudflare Deployment
+
+```bash
+# Build
+npm run build
+
+# Deploy
+npx wrangler pages deploy dist --project-name=willow-ai-coding-playground
+```
+
+## Troubleshooting
+
+### TypeScript Conflicts
 ```bash
 npm install --legacy-peer-deps
 ```
 
-## Production Deployment
-
-1. Build the project: `npm run build`
-2. Serve the `dist/` directory with any static file server
-3. Configure environment variables for production AI keys (wrangler for Pages)
-
-## Customization
-
-### Adding New AI Providers
-Edit `src/services/modelRouter.ts` to add new providers:
-```typescript
-class NewProvider implements ModelProvider {
-  // Implement required methods
-}
+### Build Memory Issues
+```bash
+NODE_OPTIONS="--max-old-space-size=8192" npm run build
 ```
 
-### Custom Components
-Create new components in `src/components/` following the existing patterns.
+### Cloudflare Pages Limits
+- Max bundle size: 25MB (current: ~15MB)
+- Max functions: 100
 
-### Styling
-Modify Tailwind configuration in `tailwind.config.js` for custom themes.
+## Adding New Features
+
+### New Neural Limb
+1. Create `src/services/ai/limbs/YourLimb.ts`
+2. Register in `src/services/ai/limbs/index.ts`
+3. Export registration function
+
+### New AI Provider
+1. Create `src/services/yourProvider.ts`
+2. Add to pipeline in `modelRouter.ts`

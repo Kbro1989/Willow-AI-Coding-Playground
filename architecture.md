@@ -1,6 +1,6 @@
-# Antigravity Nexus - System Architecture Spec
+# Antigravity Nexus - System Architecture
 
-This document formalizes the production-grade routing and orchestration layer of the Antigravity / ElderScape hybrid engine.
+This document formalizes the production-grade routing and orchestration layer of the Antigravity Engine.
 
 ## 1. High-Level System Topology
 
@@ -15,26 +15,99 @@ graph TD
         Intent --> CodeTask[Code Task]
         Intent --> MediaTask[Media Task]
         Intent --> 3DTask[3D Task]
-        Intent --> GameTask[Game State Task]
+        Intent --> AgentTask[Symphony Task]
     end
     
-    CodeTask & MediaTask & 3DTask & GameTask --> Router[Routing & Orchestration Layer]
+    CodeTask & MediaTask & 3DTask & AgentTask --> Router[Model Router: Multi-Provider]
+    
+    subgraph "AI Providers"
+        Router --> CF[Cloudflare AI]
+        Router --> Gemini[Google Gemini]
+        CF & Gemini --> Fallback[Automatic Fallback]
+    end
     
     subgraph Execution
-        Router --> Sandbox[vibeRun Sandbox / vm2]
-        Router --> Bridge[localBridgeService / Filesystem]
-        Router --> Remote[Remote AI: Cloud / Worker / Gemini]
+        Fallback --> Limbs[Neural Limbs: 505+ Capabilities]
+        Limbs --> Sandbox[vibeRun Sandbox]
+        Limbs --> Bridge[localBridgeService / Filesystem]
     end
     
-    Sandbox & Bridge & Remote --> Pipes[Processing Pipelines]
-    Pipes --> DB[(Persistence: InstantDB / KV)]
+    Sandbox & Bridge --> DB[(Persistence: InstantDB / KV)]
     DB --> Render[UI Rendering + Game Update]
-    Render --> Logs[[Logging / Metrics / Observability]]
 ```
 
-## 2. Intent-Driven Orchestration (universalOrchestrator.ts)
+## 2. Agent Symphony Architecture
 
-The engine dispatches **Structured Intents** instead of raw strings. This ensures context-aware execution.
+```mermaid
+graph TB
+    subgraph Brain ["🧠 BRAIN (OrchestratorLimb)"]
+        Prompt[User Prompt] --> Plan[Symphony Planner]
+        Plan --> Agents[Multi-Agent Spawn]
+    end
+    
+    subgraph Spine ["🦴 SPINE (NeuralRegistry)"]
+        Agents --> Registry[Capability Router]
+        Registry --> Context[Context Aggregation]
+    end
+    
+    subgraph Limbs ["💪 LIMBS (17 Neural Limbs)"]
+        Context --> Artist[Artist: Image/Video/Audio]
+        Context --> Coder[Coder: Code/File/Data]
+        Context --> World[World: Terrain/Physics/Animation]
+        Context --> Game[Game: LiveState/Director]
+    end
+    
+    subgraph Fingers ["🖐️ FINGERS (505+ Capabilities)"]
+        Artist --> ImageGen[image_generate_sprite]
+        Artist --> AudioGen[audio_generate_sfx]
+        Coder --> CodeParse[code_parse]
+        World --> TerrainGen[world_generate_terrain]
+        Game --> AIDirector[game_ai_director]
+    end
+```
+
+## 3. Model Router Pipeline
+
+```mermaid
+flowchart LR
+    Request[ModelRequest] --> Type{Type?}
+    
+    Type -->|text| CF_Chat[Cloudflare Llama 3.3]
+    Type -->|image| CF_SDXL[Cloudflare SDXL]
+    Type -->|audio| CF_Audio[Cloudflare Whisper/TTS]
+    Type -->|video| Gemini_Veo[Gemini Veo]
+    Type -->|3d| CF_3D[Cloudflare 3D Gen]
+    Type -->|code| CF_Qwen[Cloudflare Qwen 2.5]
+    Type -->|reasoning| CF_DeepSeek[Cloudflare DeepSeek R1]
+    
+    CF_Chat & CF_SDXL & CF_Audio & CF_3D & CF_Qwen & CF_DeepSeek -->|Fallback| Gemini[Gemini 2.0 Flash]
+    Gemini_Veo --> Response[ModelResponse]
+    Gemini --> Response
+```
+
+## 4. Neural Limbs Registry
+
+| Limb ID | Name | Capabilities | Domain |
+|---------|------|--------------|--------|
+| `entity` | EntityLimb | 30 | Scene management |
+| `file` | FileLimb | 25 | File I/O |
+| `data` | DataLimb | 30 | Data processing |
+| `mesh` | MeshOpsLimb | 50 | 3D geometry |
+| `material` | MaterialLimb | 25 | PBR materials |
+| `ai` | AIModelLimb | 30 | AI model access |
+| `code` | CodeLimb | 30 | Code operations |
+| `world` | WorldLimb | 30 | Environment |
+| `physics` | PhysicsLimb | 25 | Simulation |
+| `image` | ImageLimb | 35 | Image generation |
+| `audio` | AudioLimb | 35 | Audio generation |
+| `video` | VideoLimb | 30 | Video generation |
+| `animation` | AnimationLimb | 30 | Animation/rigging |
+| `network` | NetworkLimb | 20 | HTTP/WebSocket |
+| `live_game` | LiveGameLimb | 30 | Real-time state |
+| `orchestrator` | OrchestratorLimb | 25 | Multi-agent symphony |
+| `asset_pipeline` | AssetPipelineLimb | 26 | Batch asset generation |
+
+## 5. Intent-Driven Orchestration
 
 ```mermaid
 flowchart TD
@@ -46,90 +119,24 @@ flowchart TD
     Type -- Terminal --> Term[Local Bridge]
     Type -- Action --> Actions[Engine Logic]
     Type -- Nexus --> Specialist[Librarian/Oracle]
+    Type -- Symphony --> Orch[OrchestratorLimb]
 ```
 
 ### AIIntent Schema
-- **`source`**: Origin (`omnibar`, `chat`, `direct_button`).
-- **`verb`**: Desired operation (`explain`, `refactor`, `generate`).
-- **`context`**: Real-time snapshot (`aiMode`, `projectEnv`, `panicState`).
-- **`payload`**: Dynamic data (`selection`, `activeFile`, `text`).
-
-## 3. Post-Execution Processing Pipelines
-
-Data is never sent directly to the UI—it is always structured first.
-
-```mermaid
-graph LR
-    subgraph "processCode.ts"
-        A[Code] --> B[detectLanguage] --> C[analyzeQuality] --> D[Structured Output]
-    end
-    
-    subgraph "processMedia.ts"
-        E[Media] --> F[detectFormat] --> G[optimizeSize] --> H[Media Package]
-    end
-    
-    subgraph "process3D.ts"
-        I[3D Data] --> J[detectFormat] --> K[modifyColors] --> L[3D Descriptor]
-    end
-```
-
-## 5. Nexus UI/UX Command Map
-
-The visual hierarchy of the **Maximal Control Surface**.
-
-```mermaid
-graph LR
-    subgraph Spine ["Global Command Spine (Top Bar)"]
-        Proj[Project Selector]
-        Env[Env: Dev/Prod]
-        Mode[AI: Assist/Auto]
-        Panic[PANIC BUTTON]
-        Search[Global Search]
-    end
-
-    Spine --> Nav[Primary Navigation]
-
-    subgraph Layout ["Engine Workspace Layout"]
-        EDIT_PANEL[Center: Editor / Viewport]
-        AI_SIDEBAR[Right: Cognitive Sidebar]
-        SPINE[Top: Global Command Spine]
-    end
-
-    SPINE --> AI_SIDEBAR
-    AI_SIDEBAR -- Context --> EDIT_PANEL
-    EDIT_PANEL -- Selection --> AI_SIDEBAR
-
-    subgraph NavGroups ["15 Control Surfaces"]
-        DASH[Dashboard: Stats]
-        DIR[Director: Cognitive Sidebar]
-        EDIT[Editor: Code]
-        MAT[Matrix: 3D/World]
-        FORG[Forge: Gen AI]
-        PIPE[Pipelines: n8n]
-        BEH[Behavior: NPC Logic]
-        ASST[Assets: Library]
-        WRLD[World: Lore/State]
-        DATA[Data: Storage]
-        COLL[Collab: Multi]
-        DIAG[Diagnostics: Logs]
-        DEPL[Deploy: CI/CD]
-        SET[Settings: Config]
-    end
-
-    DIR --> DIR_SUB[Chat/Memory/Roles]
-    FORG --> FORG_SUB[Text/Code/Media/3D]
-    MAT --> MAT_SUB[Scene/Physics/XR]
-    PIPE --> PIPE_SUB[Builder/Runs/Failures]
-```
+- **`source`**: Origin (`omnibar`, `chat`, `direct_button`)
+- **`verb`**: Operation (`explain`, `refactor`, `generate`, `symphony`)
+- **`context`**: Real-time snapshot (`aiMode`, `projectEnv`, `panicState`)
+- **`payload`**: Dynamic data (`selection`, `activeFile`, `text`)
 
 ## 6. Hard Rules & Constraints
 
-1.  **Strict Routing**: No task bypasses `universalOrchestrator.ts`.
-2.  **Zero-Direct-AI**: UI components must never call providers directly.
-3.  **Sandboxed Flow**: All browser-side execution must be trapped in `vibeRun`.
-4.  **Full Observability**: Every step—from validation to rendering—is logged via `loggingService`.
+1. **Strict Routing**: No task bypasses `modelRouter.ts`
+2. **Multi-Provider**: Always try Cloudflare first, Gemini fallback
+3. **Capability Discovery**: All AI actions go through `NeuralRegistry`
+4. **Full Observability**: Every step logged via `loggingService`
+5. **Session Quotas**: `sessionService` enforces $5 hard budget limit
 
 ---
 
 > [!NOTE]
-> This diagram is the single source of truth for the Antigravity Engine architecture. Any deviation from this flow is considered an architectural regression.
+> This diagram is the single source of truth for the Antigravity Engine architecture.

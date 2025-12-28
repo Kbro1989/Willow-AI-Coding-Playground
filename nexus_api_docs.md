@@ -1,86 +1,216 @@
-# Antigravity Nexus v4.2 PRO: API Documentation 📚
+# Antigravity Nexus v4.2 PRO: API Documentation
 
-This document provides a technical overview of the core services powering the Antigravity Nexus engine.
+Technical overview of the core services powering the Antigravity Engine.
 
-## 1. Nexus Command Bus (`nexusCommandBus.ts`)
-The central nervous system for job orchestration and lifecycle management.
+---
+
+## 1. Neural Registry (`NeuralRegistry.ts`)
+
+The central nervous system for AI capability discovery and execution.
 
 ### Methods
-- `registerJob(job: Omit<NexusJob, 'startTime'>): NexusJob`
-  Registers a new job (AI, Workflow, Build) for tracking.
-- `completeJob(id: string): void`
-  Marks a job as finished and removes it from the active registry.
-- `panic(): void`
-  **Global Kill Switch.** Aborts every active job across the entire system.
-- `subscribe(listener: (action: any) => void): () => void`
-  Subscribe to job updates and system events.
+```typescript
+registerLimb(limb: NeuralLimb): void
+// Register a new limb with capabilities
+
+getLimb(id: string): NeuralLimb | undefined
+// Get a specific limb by ID
+
+getAllLimbs(): NeuralLimb[]
+// Get all registered limbs
+
+callCapability(limbId: string, capabilityName: string, params: any): Promise<any>
+// Execute a capability by limb and name
+
+getNeuralSchema(): LimbSchema[]
+// Get full schema for AI planning
+```
+
+### Example
+```typescript
+// Execute an image generation capability
+const result = await neuralRegistry.callCapability('image', 'image_generate_sprite', {
+  type: 'character',
+  prompt: 'pixel knight',
+  style: 'pixel'
+});
+```
 
 ---
 
-## 2. Session Service (`sessionService.ts`)
-Manages real-time telemetry, token counts, and financial guardrails.
+## 2. Model Router (`modelRouter.ts`)
+
+Multi-provider AI routing with automatic fallback.
+
+### Functions
+```typescript
+route(request: ModelRequest): Promise<ModelResponse | ReadableStream>
+// Routes to best available provider (Cloudflare → Gemini)
+
+chat(prompt: string, history?, systemPrompt?, stream?, grounding?): Promise<ModelResponse>
+// Convenience function for text chat
+
+generateImage(prompt: string, negativePrompt?): Promise<ModelResponse>
+// Image generation
+
+orchestrateMedia(type: 'image' | 'video' | 'audio' | '3d', prompt: string, context?): Promise<ModelResponse>
+// 3-step orchestration: Plan → Refine → Generate
+```
+
+### ModelRequest Schema
+```typescript
+interface ModelRequest {
+  type: 'text' | 'image' | 'code' | 'audio' | 'video' | 'reasoning' | 'vision' | '3d';
+  prompt: string;
+  tier?: 'standard' | 'premium';
+  history?: Array<{ role: 'user' | 'model'; content: string }>;
+  options?: any;
+}
+```
+
+---
+
+## 3. Nexus Command Bus (`nexusCommandBus.ts`)
+
+Job orchestration and lifecycle management.
 
 ### Methods
-- `updateMetrics(tokens: number, cost: number): void`
-  Increments the session-wide resource consumption.
-- `setHardBudgetEnabled(enabled: boolean): void`
-  Toggle the "Hard Budget" guardrail.
-- `isOverQuota(): boolean`
-  Returns `true` if the session has exceeded the $5.00 hard limit (if enabled).
+```typescript
+registerJob(job: Omit<NexusJob, 'startTime'>): NexusJob
+// Register a new job for tracking
+
+completeJob(id: string): void
+// Mark job as finished
+
+panic(): void
+// Global Kill Switch - aborts all active jobs
+
+subscribe(listener: (action: any) => void): () => void
+// Subscribe to job updates
+```
 
 ---
 
-## 3. Collaborative Sync (`collaborativeSyncService.ts`)
-Handles real-time Delta-Sync via InstantDB.
+## 4. Session Service (`sessionService.ts`)
+
+Real-time telemetry and financial guardrails.
 
 ### Methods
-- `updatePresence(userId: string, data: Partial<Presence>): Promise<void>`
-  Updates user cursor (x, y), active tab, and focus state.
-- `lockEntity(entityId: string, userId: string): Promise<void>`
-  Prevents race conditions by locking a specific engine entity for editing.
+```typescript
+updateMetrics(tokens: number, cost: number): void
+// Increment session consumption
+
+setHardBudgetEnabled(enabled: boolean): void
+// Toggle $5.00 hard limit
+
+isOverQuota(): boolean
+// Check if session exceeded budget
+```
 
 ---
 
-## 4. GitHub Mirror Service (`githubMirrorService.ts`)
-Automated project continuity and cloud backups.
+## 5. Orchestrator Limb (`OrchestratorLimb.ts`)
+
+Multi-agent symphony conductor.
+
+### Key Capabilities
+```typescript
+// One prompt → multi-agent execution
+symphony_from_prompt({ prompt: string, autoExecute?: boolean })
+
+// Pre-built templates
+orchestrate_2d_game_assets({ theme: string, style: 'pixel' | 'anime', ... })
+orchestrate_character({ concept: string, role: 'player' | 'enemy' | 'npc', ... })
+orchestrate_game_level({ levelTheme: string, difficulty: 'easy' | 'medium' | 'hard' })
+```
+
+---
+
+## 6. Live Game Limb (`LiveGameLimb.ts`)
+
+Real-time game state integration.
+
+### Key Capabilities
+```typescript
+// State management
+game_get_state()
+game_set_state({ updates: object })
+game_push_event({ eventType: string, data: object })
+
+// Reactive AI generation
+game_on_event({ eventType: string, reaction: 'generate_enemy' | 'play_sound' | ... })
+
+// AI Director mode
+game_ai_director({ enable: boolean, style: 'balanced' | 'challenging' | 'narrative' })
+```
+
+---
+
+## 7. Asset Pipeline Limb (`AssetPipelineLimb.ts`)
+
+Batch asset generation.
+
+### Key Capabilities
+```typescript
+// Complete asset packs
+pipeline_sprite_sheet({ character: string, style: 'pixel', animations: string[] })
+pipeline_tileset({ theme: string, style: 'pixel', tileSize: number })
+pipeline_ui_kit({ theme: 'fantasy', style: 'pixel' })
+pipeline_audio_pack({ theme: string, includeMusic: true })
+pipeline_character_pack({ concept: string, role: 'player', includeVoice: true })
+
+// Dimensional transformation
+pipeline_2d_to_3d({ source2D: string, targetType: 'model' | 'environment' })
+```
+
+---
+
+## 8. Context Service (`contextService.ts`)
+
+State aggregation for AI consumption.
 
 ### Methods
-- `triggerMirror(message?: string): Promise<{ success: boolean, hash: string }>`
-  Stages, commits, and pushes current workspace changes to the remote repository.
+```typescript
+getUnifiedContext(): Promise<string>
+// Gathers Editor, Matrix, and Narrative state for system prompt
+```
 
 ---
 
-## 5. Nexus Routing Layer (`modelRouter.ts`)
-The primary gateway for all AI-enabled task execution.
+## 9. Local Bridge Service (`localBridgeService.ts`)
 
-### Function
-- `route(request: ModelRequest): Promise<ModelResponse>`
-  Automatically classifies the task (TEXT, VISION, CODE) and routes it to the appropriate model provider (Gemini, Cloudflare, etc.) using strictly enforced Nexus pipelines. Includes failover logic.
-
----
-
-## 6. Workflow Engine (`workflowEngine.ts`)
-Nodes-based execution environment for complex media and logic pipelines.
-
-### Supported Nodes
-- **Media**: `ai_video`, `ai_audio`, `transform_upscale`
-- **Logic**: `ai_logic_refactor`, `filter`, `loop`
-- **IO**: `file_writer`, `http`, `discord`
-
----
-
-## 7. Context Service (`contextService.ts`)
-The "Brain" that aggregates engine state for AI consumption.
+WebSocket bridge for file system access.
 
 ### Methods
-- `getUnifiedContext(): Promise<string>`
-  Gathers data from the Editor, Matrix (Scene Graph), and Narrative engine to form a coherent system prompt.
+```typescript
+readFile(path: string): Promise<string>
+writeFile(path: string, content: string): Promise<void>
+listDirectory(path: string): Promise<FileEntry[]>
+runCommand(command: string): Promise<CommandOutput>
+```
 
 ---
 
-## 8. User Preferences (`userPreferencesService.ts`)
-Cloud synchronization for UI state.
+## Quick Reference: All 17 Limbs
 
-### Methods
-- `syncSessionState(userId: string, data: { activeView?: ActiveView ... }): void`
-  Persists the user's current view and active file to the `presence` entity in InstantDB, allowing session roaming.
+| Limb | ID | Caps | Primary Use |
+|------|----|------|-------------|
+| EntityLimb | `entity` | 30 | Scene CRUD |
+| FileLimb | `file` | 25 | File I/O |
+| DataLimb | `data` | 30 | Data processing |
+| MeshOpsLimb | `mesh` | 50 | 3D geometry |
+| MaterialLimb | `material` | 25 | PBR materials |
+| AIModelLimb | `ai` | 30 | AI access |
+| CodeLimb | `code` | 30 | Code ops |
+| WorldLimb | `world` | 30 | Environment |
+| PhysicsLimb | `physics` | 25 | Simulation |
+| ImageLimb | `image` | 35 | Image gen |
+| AudioLimb | `audio` | 35 | Audio gen |
+| VideoLimb | `video` | 30 | Video gen |
+| AnimationLimb | `animation` | 30 | Animation |
+| NetworkLimb | `network` | 20 | HTTP/WS |
+| LiveGameLimb | `live_game` | 30 | Real-time state |
+| OrchestratorLimb | `orchestrator` | 25 | Multi-agent |
+| AssetPipelineLimb | `asset_pipeline` | 26 | Batch assets |
+
+**Total: 505+ Capabilities**

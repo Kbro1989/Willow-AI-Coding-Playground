@@ -1,49 +1,95 @@
-# 🌌 Antigravity Engine
+# 🌌 Antigravity Engine v4.2 PRO
 
-[![Status](https://img.shields.io/badge/Status-Gold_Master-cyan.svg)](https://github.com/your-repo)
+[![Status](https://img.shields.io/badge/Status-Production-cyan.svg)](https://willow-ai-coding-playground.pages.dev/)
 [![Engine](https://img.shields.io/badge/Engine-React_18_+_Three.js-blue.svg)](https://reactjs.org)
-[![AI](https://img.shields.io/badge/AI-Gemini_2.0_Flash-purple.svg)](https://deepmind.google/technologies/gemini/)
+[![AI](https://img.shields.io/badge/AI-Multi_Provider-purple.svg)](https://deepmind.google/technologies/gemini/)
+[![Limbs](https://img.shields.io/badge/Neural_Limbs-17_Limbs_505+_Caps-green.svg)](#agent-symphony)
+[![Deploy](https://img.shields.io/badge/Deploy-Cloudflare_Pages-orange.svg)](https://willow-ai-coding-playground.pages.dev/)
 
-**The Antigravity Engine** is a next-generation "Operating System for Creation." It fuses a high-performance 3D spatial interface with an advanced AI agentic core, allowing developers and artists to build, dream, and deploy in a unified "Nexus" environment.
+**The Antigravity Engine** is a next-generation **Spatial AI Game Engine + Creative IDE** that combines:
+- 🎮 **Game Development** — 3D viewport, physics, world building
+- 🎨 **Creative Studio** — AI image/audio/video/3D generation
+- 💻 **AI Coding** — Multi-model code completion and refactoring
+- 🧠 **Agent Symphony** — 17 Neural Limbs with 505+ executable AI capabilities
+
+> **Live Demo**: [willow-ai-coding-playground.pages.dev](https://willow-ai-coding-playground.pages.dev/)
 
 ---
 
-## 🚀 Key Features
+## 🚀 What Makes This Different
 
-### 🧠 The Nexus Core
-- **Intent-Driven OS**: An AI architecture built on structured `AIIntent` objects. The system knows *where* an instruction came from and *what* the cognitive mode is for every turn.
-- **Cognitive Sidebar**: A global right-sidebar chat aware of your entire workspace, selection context, and active files.
-- **Context Awareness**: Real-time code selection tracking and active file injection into the AI system prompt.
-- **Multi-Step Pipelines**: Chain atomic AI tasks (e.g., *Ideation -> Text -> Image -> 3D*) using the n8n-style visual workflow builder.
+### Agent Symphony Architecture
+One prompt triggers a coordinated multi-agent symphony:
 
-### 🕸️ The Matrix (Spatial Graph)
-- **Visual Programming**: Drag-and-drop neural nodes to architect AI logic flows.
-- **Persistence**: Save and load complex graph configurations to the cloud via **InstantDB**.
-- **Real-time Visualization**: See data flow through your network in a 3D interface.
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      BRAIN (Orchestrator)                   │
+│  symphony_from_prompt → 1 prompt = multi-agent execution    │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                      SPINE (NeuralRegistry)                 │
+│  Routes capabilities, tracks state, connects all limbs      │
+└───┬─────────┬─────────┬─────────┬─────────┬─────────┬───────┘
+    │         │         │         │         │         │
+┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐
+│Artist │ │Coder  │ │Audio  │ │World  │ │Live   │ │Pipeline│
+│ Limbs │ │ Limbs │ │ Limbs │ │ Limbs │ │ Game  │ │ Limbs  │
+└───────┘ └───────┘ └───────┘ └───────┘ └───────┘ └────────┘
+```
+
+### 17 Neural Limbs (505+ Capabilities)
+
+| Category | Limb | Caps | Features |
+|----------|------|------|----------|
+| **Core** | EntityLimb | 30 | Scene CRUD, transforms, selection |
+| | FileLimb | 25 | Read/write, R2 storage, directories |
+| | DataLimb | 30 | Parsing, statistics, profiling |
+| **3D** | MeshOpsLimb | 50 | Geometry, UV, measurements, export |
+| | MaterialLimb | 25 | PBR, textures, shaders |
+| **AI** | AIModelLimb | 30 | Chat, embeddings, vision, generation |
+| | CodeLimb | 30 | Parse, refactor, execute, analyze |
+| **World** | WorldLimb | 30 | Terrain, weather, lighting, navmesh |
+| | PhysicsLimb | 25 | Rigidbody, colliders, forces, joints |
+| **Media** | ImageLimb | 35 | 15 presets, img2img, sprites, textures |
+| | AudioLimb | 35 | SFX presets, music, remix, mock sounds |
+| | VideoLimb | 30 | Video-from-image, restyle, cutscenes |
+| | AnimationLimb | 30 | Clips, keyframes, rigging, IK, mocap |
+| **Network** | NetworkLimb | 20 | HTTP, WebSocket, caching, APIs |
+| **Symphony** | LiveGameLimb | 30 | Real-time state, AI Director, reactive gen |
+| | OrchestratorLimb | 25 | Multi-agent symphony, pipeline templates |
+| | AssetPipelineLimb | 26 | Batch sprites, tilesets, 2D→3D conversion |
+
+---
+
+## 🎯 Key Features
+
+### 🧠 Multi-Provider AI Routing
+```typescript
+// Cloudflare First → Gemini Fallback → Automatic failover
+modelRouter.route({ type: 'text', prompt: '...', tier: 'standard' });
+```
+- **Cloudflare AI**: Llama 3.3, Qwen 2.5, DeepSeek R1, Stable Diffusion
+- **Google Gemini**: Gemini 2.0 Flash, Imagen 3, Veo
+- **Automatic Fallback**: If one fails, seamlessly routes to another
 
 ### ⚒️ The Forge (Media Studio)
-- **Generative Asset Creation**: unified studio for AI media generation.
-    - **Image**: Text-to-Image (Imagen 3).
-    - **Audio**: Text-to-Speech & SFX.
-    - **Video**: Generative Video (Veo Preview).
-    - **3D**: Text-to-3D asset generation.
-- **Lazy Optimization**: Heavy 3D viewports automatically suspend when off-screen to save performance.
+- **Image**: 15 style presets (pixel, anime, realistic, dark_souls, etc.)
+- **Audio**: SFX generation, music, ambient, voice with emotions
+- **Video**: Text-to-video, image-to-video, video restyle
+- **3D**: Text-to-3D, 2D→3D conversion pipeline
 
-### 🌍 The World Builder
-- **Procedural Generation**: Sculpt terrains and biomes with AI assistance.
-- **Physics Simulation**: Real-time interaction with the environment.
+### 🎮 Live Game State Integration
+```typescript
+// AI generates assets WHILE you play
+game_on_event('player_enter_zone', 'generate_enemy');
+game_ai_director({ enable: true, style: 'challenging' });
+```
 
----
-
-## 💡 How I Actually Use This (Solo Workflow)
-
-1.  **Iterative Engineering**: Open the Editor, select a block of code, and check the **Cognitive Sidebar**. It immediately injects your selection into its "Brain Stem."
-2.  **Intent Dispatching**: Press `Ctrl + K` to focus the OMNI-bar. Type a command (e.g., "Refactor this to use hooks") and watch the logic branch into a specialist pipeline.
-3.  **Friction Removal**:
-    - **Assist Mode**: Default state for questions and minor fixes.
-    - **Refactor Mode**: When you need serious surgical changes.
-    - **Lockdown Mode**: For security audits and final verification passes.
-4.  **Visual Scaffolding**: Use the **Forge** to generate 3D assets or media chains, then link them directly into the Game Matrix via visual pipelines.
+### 🕸️ The Matrix (Spatial Graph)
+- Visual programming with drag-and-drop neural nodes
+- Real-time 3D data flow visualization
+- InstantDB cloud persistence for collaboration
 
 ---
 
@@ -51,72 +97,83 @@
 
 ### Prerequisites
 - Node.js 18+
-- A Google Gemini API Key (for AI features)
+- (Optional) Google Gemini API Key
+- (Optional) Cloudflare Account ID & AI API Token
 
 ### Quick Start
 
-1.  **Clone & Install**
-    ```bash
-    git clone https://github.com/your-username/antigravity-engine.git
-    cd antigravity-engine
-    npm install
-    ```
+```bash
+git clone https://github.com/Kbro1989/Willow-AI-Coding-Playground.git
+cd antigravity-engine
+npm install --legacy-peer-deps
+npm run dev
+```
 
-2.  **Environment Setup**
-    Create a `.env` file in the root:
-    ```env
-    VITE_GEMINI_API_KEY=your_gemini_api_key_here
-    VITE_INSTANT_APP_ID=your_instantdb_app_id_here
-    ```
+### Environment Variables
+```env
+# Required for AI features
+VITE_GEMINI_API_KEY=your_gemini_api_key
 
-3.  **Launch the Bridge (File System Access)**
-    The engine requires a local bridge to read/write files to your disk.
-    ```bash
-    node bridge/server.js
-    ```
+# Optional - Cloudflare AI (free tier available)
+VITE_CLOUDFLARE_ACCOUNT_ID=your_account_id
+VITE_CLOUDFLARE_API_TOKEN=your_api_token
 
-4.  **Ignite the Engine**
-    In a separate terminal:
-    ```bash
-    npm run dev
-    ```
-    Open `http://localhost:5173` to enter the Nexus.
+# Cloud persistence
+VITE_INSTANT_APP_ID=your_instantdb_app_id
+```
+
+### Local File System Bridge
+```bash
+node bridge/server.js
+```
 
 ---
 
-## 🏗️ Architecture
+## 📦 Deployment
 
-The engine is built on a modular Service-Oriented Architecture (SOA):
+### Automatic (GitHub → Cloudflare Pages)
+Push to `main` → Auto-deploys to `willow-ai-coding-playground.pages.dev`
 
-- **`universalOrchestrator`**: The executive entry point. Dispatches structured intents to specialists (Librarian, Forge Master, Oracle).
-- **`contextService`**: Aggregates state from Editor, Graph, and Narrative.
-- **`pipelineService`**: Orchestrates multi-step generative workflows.
-- **`graphStateService`**: Manages persistence of node graphs in InstantDB.
-- **`directorMemoryService`**: Tracks session history and long-term project memory.
-- **`localBridgeService`**: WebSocket bridge for safe local file system operations.
+### Manual
+```bash
+npm run build
+npx wrangler pages deploy dist
+```
 
 ---
 
 ## ⌨️ Keybindings
 
-| Key Combo | Action |
-| :--- | :--- |
-| `Ctrl + Space` | Toggle OMNI-bar (Global Command Spine) |
+| Key | Action |
+|-----|--------|
+| `Ctrl + Space` | Toggle OMNI-bar |
 | `Ctrl + B` | Toggle Cognitive Sidebar |
 | `Ctrl + K` | Focus Global Intent Search |
 | `Ctrl + S` | Save Active File & Graph |
-| `Ctrl + \`` | Toggle Integrated Terminal |
 | `Alt + 1-4` | Switch Views (Director, Editor, Matrix, Forge) |
 
 ---
 
-## 🤝 Contribution
+## 🏗️ Architecture
 
-We welcome Architects. Please fork the repository and submit PRs for:
-- New `PipelineStep` types.
-- Optimized 3D shaders.
-- UI Themes.
+See [architecture.md](./architecture.md) for detailed system topology.
+
+**Core Services:**
+- `modelRouter.ts` — Multi-provider AI routing with fallback
+- `universalOrchestrator.ts` — Intent-driven task dispatch
+- `NeuralRegistry.ts` — Limb registration and capability discovery
+- `localBridgeService.ts` — Secure WebSocket file system bridge
 
 ---
 
-*Built with ❤️ by The Antigravity Team.*
+## 🤝 Contributing
+
+PRs welcome for:
+- New Neural Limb capabilities
+- Additional AI provider integrations
+- 3D shader optimizations
+- UI themes
+
+---
+
+*Built with ❤️ by The Antigravity Team*
