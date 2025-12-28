@@ -209,7 +209,7 @@ export const ideTools: FunctionDeclaration[] = [
       type: SchemaType.OBJECT,
       properties: {
         text: { type: SchemaType.STRING, description: 'The dialogue text to speak.' },
-        voiceId: { type: SchemaType.STRING, description: 'The voice ID to use (e.g., "narrator-depths", "goblin-scout", "knight-captain").', enum: ["narrator-depths", "goblin-scout", "knight-captain", "mystic-seer", "system-ai"] },
+        voiceId: { type: SchemaType.STRING, description: 'The voice ID to use: narrator-depths, goblin-scout, knight-captain, mystic-seer, or system-ai.' },
       },
       required: ['text']
     }

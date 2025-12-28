@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { VoiceService, VoicePreset, MOCK_VOICES } from '../../../voice/voiceService';
+import { VoiceService, VoicePreset, MOCK_VOICES } from '../../voice/voiceService';
 import { Play, Download, Trash, RefreshCw } from 'lucide-react';
 
 export const AudioClipManager: React.FC = () => {
@@ -79,8 +79,8 @@ export const AudioClipManager: React.FC = () => {
                 <div className="flex justify-end">
                     <button
                         className={`px-6 py-2 rounded font-bold flex items-center gap-2 transition-colors ${isGenerating
-                                ? 'bg-gray-600 cursor-not-allowed'
-                                : 'bg-blue-600 hover:bg-blue-500'
+                            ? 'bg-gray-600 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-500'
                             }`}
                         onClick={handleGenerate}
                         disabled={isGenerating || !text.trim()}
