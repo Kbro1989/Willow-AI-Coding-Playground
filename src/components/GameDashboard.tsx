@@ -104,7 +104,7 @@ const SyntheticEnvironment: React.FC<{ envName: string }> = ({ envName }) => {
       setData(null);
       return;
     }
-    fetch(`/ src / assets / environments / ${envName}.json`)
+    fetch(`/src/assets/environments/${envName}.json`)
       .then(res => res.json())
       .then(setData)
       .catch(err => console.error("Failed to load environment for visual feedback:", err));
@@ -336,7 +336,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
       }
 
       const newAsset: GameAsset = {
-        id: `imported - ${Date.now()} `,
+        id: `imported-${Date.now()}`,
         name: file.name,
         type: 'mesh',
         format: file.name.split('.').pop() || 'glb',
@@ -390,7 +390,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
    */
   const handleAiAction = (action: string) => {
     if (!selectedObjectId) return;
-    onRunAction(`AI_EXEC_${action} `);
+    onRunAction(`AI_EXEC_${action}`);
 
     if (action === 'GROUND') {
       const obj = sceneObjects.find(o => o.id === selectedObjectId);
@@ -406,8 +406,8 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
 
   const handleAddPipeline = () => {
     const newPipeline: PipelineConfig = {
-      id: `p - ${Date.now()} `,
-      name: `Neural_Node_${localPipelines.length + 1} `,
+      id: `p-${Date.now()}`,
+      name: `Neural_Node_${localPipelines.length + 1}`,
       provider: 'Local',
       status: 'online',
       endpoints: ['/local/compute'],
@@ -590,7 +590,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
             <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-400 border-b border-white/5 pb-2 pt-4">Terrain Sculpting</h4>
             <div className="grid grid-cols-3 gap-2">
               {['raise', 'lower', 'smooth'].map(tool => (
-                <button key={tool} onClick={() => onUpdateWorld({ activeTool: tool as any })} className={`py - 2 rounded - xl text - [9px] font - black uppercase ${worldConfig.activeTool === tool ? 'bg-cyan-600 text-white' : 'bg-cyan-900/20 text-slate-500'} `}>{tool}</button>
+                <button key={tool} onClick={() => onUpdateWorld({ activeTool: tool as any })} className={`py-2 rounded-xl text-[9px] font-black uppercase ${worldConfig.activeTool === tool ? 'bg-cyan-600 text-white' : 'bg-cyan-900/20 text-slate-500'}`}>{tool}</button>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-3 mt-4">
@@ -680,7 +680,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
               <div key={p.id} className="p-4 bg-[#050a15] border border-cyan-900/30 rounded-2xl shadow-sm">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-[10px] font-black text-cyan-50">{p.name}</span>
-                  <div className={`w - 2 h - 2 rounded - full ${p.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'} `}></div>
+                  <div className={`w-2 h-2 rounded-full ${p.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'}`}></div>
                 </div>
                 <div className="flex justify-between text-[9px] text-slate-500 uppercase tracking-widest mb-3">
                   <span>{p.provider}</span>
@@ -689,7 +689,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      onRunAction(`RUN_PIPELINE_${p.id} `);
+                      onRunAction(`RUN_PIPELINE_${p.id}`);
                       // Mock status update for feedback
                       setLocalPipelines(prev => prev.map(pi => pi.id === p.id ? { ...pi, status: 'offline' } : pi));
                       setTimeout(() => setLocalPipelines(prev => prev.map(pi => pi.id === p.id ? { ...pi, status: 'online' } : pi)), 2000);
@@ -721,11 +721,11 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
   };
 
   return (
-    <div className={`h - full flex flex - col bg - [#050a15] text - white overflow - hidden font - sans transition - all duration - 700 ${isFullscreen ? 'fixed inset-0 z-[1000]' : 'border-t border-cyan-900/30'} `}>
+    <div className={`h-full flex flex-col bg-[#050a15] text-white overflow-hidden font-sans transition-all duration-700 ${isFullscreen ? 'fixed inset-0 z-[1000]' : 'border-t border-cyan-900/30'}`}>
       {!isFullscreen && (
         <div className="flex items-center h-14 bg-[#0a1222]/95 backdrop-blur-3xl px-8 border-b border-cyan-900/40 space-x-2 shrink-0 z-50 shadow-xl">
           <div className="flex items-center space-x-4 mr-12">
-            <div className={`w - 2 h - 2 rounded - full ${simulation.status === 'playing' ? 'bg-cyan-500 shadow-[0_0_10px_#00f2ff] animate-pulse' : 'bg-slate-700'} `}></div>
+            <div className={`w-2 h-2 rounded-full ${simulation.status === 'playing' ? 'bg-cyan-500 shadow-[0_0_10px_#00f2ff] animate-pulse' : 'bg-slate-700'}`}></div>
             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-cyan-100/50">Matrix PRO Runtime</span>
           </div>
 
@@ -734,8 +734,8 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
               <button
                 key={ws}
                 onClick={() => setActiveWorkspace(ws as any)}
-                className={`px - 8 h - full text - [9px] font - black uppercase transition - all flex items - center border - b - 2 tracking - widest ${activeWorkspace === ws ? 'text-cyan-400 border-cyan-500 bg-cyan-600/5' : 'text-slate-600 hover:text-cyan-400 border-transparent'
-                  } `}
+                className={`px-8 h-full text-[9px] font-black uppercase transition-all flex items-center border-b-2 tracking-widest ${activeWorkspace === ws ? 'text-cyan-400 border-cyan-500 bg-cyan-600/5' : 'text-slate-600 hover:text-cyan-400 border-transparent'
+                  }`}
               >
                 {ws}
               </button>
@@ -848,11 +848,11 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
             </Canvas>
           </Suspense>
 
-          <div className={`absolute bottom - 6 right - 6 flex flex - col space - y - 4 z - 40 transition - opacity duration - 500 ${isFullscreen ? 'opacity-30' : 'opacity-100'} `}>
+          <div className={`absolute bottom-6 right-6 flex flex-col space-y-4 z-40 transition-opacity duration-500 ${isFullscreen ? 'opacity-30' : 'opacity-100'}`}>
             {/* Bridge Connection Manager - Compact version for Dashboard overlay */}
             <div className="bg-[#0a1222]/80 backdrop-blur-2xl p-4 rounded-2xl border border-cyan-500/20 shadow-2xl min-w-[300px] flex items-center justify-between pointer-events-auto">
               <div className="flex items-center gap-3">
-                <div className={`w - 2 h - 2 rounded - full ${ws?.readyState === 1 ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'} `}></div>
+                <div className={`w-2 h-2 rounded-full ${ws?.readyState === 1 ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-red-500 animate-pulse'}`}></div>
                 <span className="text-[10px] font-black uppercase text-cyan-600 tracking-widest">Neural Link</span>
               </div>
               <span className="text-[9px] font-bold text-slate-400 uppercase">{ws?.readyState === 1 ? 'CONNECTED' : 'DISCONNECTED'}</span>
