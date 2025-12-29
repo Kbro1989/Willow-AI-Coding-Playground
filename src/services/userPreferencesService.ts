@@ -17,7 +17,6 @@ export const syncSessionState = (
 
     db.transact(
         db.tx.presence[userId].update({
-            userId,
             lastActive: Date.now(),
             ...data
         })

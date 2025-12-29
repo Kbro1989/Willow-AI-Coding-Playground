@@ -35,7 +35,6 @@ class CollaborativeSyncService {
 
             await db.transact([
                 tx.presence[userId].update({
-                    userId,
                     ...safeData,
                     // Map activeTab to activeView if needed, or just include both
                     activeView: data.activeView || data.activeTab,
