@@ -41,20 +41,22 @@ const SafeEffectComposer: React.FC<{ compositingConfig: CompositingConfig }> = (
 
   return (
     <ErrorBoundary fallback={null}>
-      <EffectComposer>
-        <Bloom
-          intensity={bloom}
-          luminanceThreshold={1.0}
-          luminanceSmoothing={0.9}
-        />
-        <ChromaticAberration
-          offset={new THREE.Vector2(chromatic * 0.001, chromatic * 0.001)}
-        />
-        <Vignette
-          offset={0.5}
-          darkness={vignette}
-        />
-      </EffectComposer>
+      <Suspense fallback={null}>
+        <EffectComposer stencilBuffer={false} multisampling={0}>
+          <Bloom
+            intensity={bloom}
+            luminanceThreshold={1.0}
+            luminanceSmoothing={0.9}
+          />
+          <ChromaticAberration
+            offset={new THREE.Vector2(chromatic * 0.001, chromatic * 0.001)}
+          />
+          <Vignette
+            offset={0.5}
+            darkness={vignette}
+          />
+        </EffectComposer>
+      </Suspense>
     </ErrorBoundary>
   );
 };
