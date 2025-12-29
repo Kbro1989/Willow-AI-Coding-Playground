@@ -442,17 +442,93 @@ export const PipelineBuilder: React.FC<PipelineBuilderProps> = ({ onClose }) => 
         </div>
 
         {/* Execution Results */}
+        {/* Output Preview Panel */}
         {executionResults && (
-          <div className="h-48 border-t border-slate-700 bg-[#0a1222] p-4 overflow-auto">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-black uppercase text-cyan-400">Execution Results</h3>
-              <span className={`text-xs font-bold ${executionResults.success ? 'text-emerald-400' : 'text-red-400'}`}>
-                {executionResults.success ? '✓ Success' : '✗ Failed'}
-              </span>
+          <div className="h-64 border-t border-cyan-500/30 bg-gradient-to-b from-[#0a1222] to-[#050a15] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700/50">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xs font-black uppercase tracking-wider text-cyan-400">🎯 Output Preview</h3>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${executionResults.success
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  }`}>
+                  {executionResults.success ? '✓ PIPELINE SUCCESS' : '✗ PIPELINE FAILED'}
+                </span>
+              </div>
+              <button
+                onClick={() => setExecutionResults(null)}
+                className="text-xs text-slate-500 hover:text-white px-2 py-1 hover:bg-slate-700 rounded transition-all"
+              >
+                ✕ Close
+              </button>
             </div>
-            <pre className="text-xs text-slate-300 font-mono bg-slate-900 p-3 rounded overflow-auto">
-              {JSON.stringify(executionResults, null, 2)}
-            </pre>
+
+            {/* Content Grid */}
+            <div className="flex-1 overflow-auto p-4">
+              {executionResults.error ? (
+                <div className="bg-red-950/30 border border-red-500/30 rounded-lg p-4">
+                  <div className="text-xs font-bold text-red-400 mb-1">Error</div>
+                  <pre className="text-xs text-red-300 font-mono whitespace-pre-wrap">{executionResults.error}</pre>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Object.entries(executionResults.outputs || {}).map(([nodeId, output]: [string, any]) => {
+                    const node = workflow.nodes.find(n => n.id === nodeId);
+                    const nodeDef = node ? NODE_DEFINITIONS[node.type] : null;
+
+                    return (
+                      <div
+                        key={nodeId}
+                        className="bg-slate-900/50 border border-slate-700/50 rounded-lg overflow-hidden hover:border-cyan-500/30 transition-all"
+                      >
+                        {/* Node Header */}
+                        <div className="px-3 py-2 bg-slate-800/50 border-b border-slate-700/50 flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-cyan-400 uppercase">
+                            {nodeDef?.icon} {nodeDef?.label || nodeId}
+                          </span>
+                          <span className="text-[9px] text-emerald-400">✓</span>
+                        </div>
+
+                        {/* Output Content */}
+                        <div className="p-3">
+                          {/* Image Output */}
+                          {(output?.imageUrl || output?.url || (typeof output === 'string' && output.startsWith('data:image'))) && (
+                            <img
+                              src={output?.imageUrl || output?.url || output}
+                              alt="Output preview"
+                              className="w-full h-32 object-cover rounded-md border border-slate-700"
+                            />
+                          )}
+
+                          {/* Text/Code Output */}
+                          {(typeof output === 'string' && !output.startsWith('data:image')) && (
+                            <pre className="text-[10px] text-slate-300 font-mono bg-black/30 p-2 rounded max-h-24 overflow-auto whitespace-pre-wrap">
+                              {output.length > 500 ? output.substring(0, 500) + '...' : output}
+                            </pre>
+                          )}
+
+                          {/* Object Output */}
+                          {(typeof output === 'object' && !output?.imageUrl && !output?.url) && (
+                            <pre className="text-[10px] text-slate-400 font-mono bg-black/30 p-2 rounded max-h-24 overflow-auto">
+                              {JSON.stringify(output, null, 2).substring(0, 300)}...
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Empty State */}
+                  {Object.keys(executionResults.outputs || {}).length === 0 && (
+                    <div className="col-span-full text-center py-8 text-slate-500">
+                      <div className="text-2xl mb-2">📭</div>
+                      <div className="text-xs">No outputs generated</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
