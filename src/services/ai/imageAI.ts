@@ -1,12 +1,13 @@
 /**
  * Image AI Service
  * Handles AI-powered image operations using Cloudflare Workers AI and Gemini
+ * Routes through worker proxy to avoid CORS issues
  */
 
 import type { MediaAsset } from '../../types/media';
 
-const CF_ACCOUNT_ID = '6872653edcee9c791787c1b783173793'; // Corrected from user credentials
-const CF_API_TOKEN = localStorage.getItem('cloudflare_api_key') || '';
+// Use worker proxy to avoid CORS issues with direct Cloudflare API calls
+const WORKER_URL = import.meta.env.VITE_AI_WORKER_URL || 'https://ai-game-studio.kristain33rs.workers.dev';
 
 interface CloudflareAIResponse {
     result: {
@@ -17,7 +18,7 @@ interface CloudflareAIResponse {
 }
 
 /**
- * Remove background from image using Cloudflare Workers AI
+ * Remove background from image using Cloudflare Workers AI (via worker proxy)
  */
 export async function removeBackgroundAI(imageData: ImageData): Promise<ImageData> {
     try {
@@ -39,33 +40,25 @@ export async function removeBackgroundAI(imageData: ImageData): Promise<ImageDat
             reader.readAsDataURL(blob);
         });
 
-        // Call Cloudflare Workers AI - Using specialized background removal if available, 
-        // fall back to SD for now but with better parameters for 'Absolute Reality'
-        const response = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/lykon/absolute-reality-v1.8.1`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${CF_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    prompt: 'subject on pure transparent background, high contrast, studio lighting, alpha channel',
-                    image: base64.split(',')[1],
-                    strength: 0.8,
-                    num_steps: 25
-                })
-            }
-        );
+        // Route through worker proxy to avoid CORS
+        const response = await fetch(`${WORKER_URL}/api/image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'remove-background',
+                image: base64.split(',')[1],
+                prompt: 'subject on pure transparent background, high contrast, studio lighting, alpha channel'
+            })
+        });
 
         if (!response.ok) {
-            throw new Error(`Cloudflare AI error: ${response.statusText}`);
+            throw new Error(`Worker AI error: ${response.statusText}`);
         }
 
-        const result: CloudflareAIResponse = await response.json();
+        const result = await response.json();
 
-        if (!result.success) {
-            throw new Error(result.errors?.[0]?.message || 'Unknown error');
+        if (!result.success && result.error) {
+            throw new Error(result.error);
         }
 
         // Convert result back to ImageData
@@ -73,7 +66,7 @@ export async function removeBackgroundAI(imageData: ImageData): Promise<ImageDat
         await new Promise((resolve, reject) => {
             resultImage.onload = resolve;
             resultImage.onerror = reject;
-            resultImage.src = `data:image/png;base64,${result.result.image}`;
+            resultImage.src = `data:image/png;base64,${result.image || result.result?.image}`;
         });
 
         const resultCanvas = document.createElement('canvas');
@@ -111,34 +104,29 @@ export async function upscaleImageAI(imageData: ImageData, factor: 2 | 4 = 2): P
             reader.readAsDataURL(blob);
         });
 
-        // Use Cloudflare Workers AI upscaling model
-        const response = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${CF_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    prompt: `upscale ${factor}x, high quality, sharp details`,
-                    image: base64.split(',')[1],
-                    num_steps: 30
-                })
-            }
-        );
+        // Route through worker proxy
+        const response = await fetch(`${WORKER_URL}/api/image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'upscale',
+                image: base64.split(',')[1],
+                factor,
+                prompt: `upscale ${factor}x, high quality, sharp details`
+            })
+        });
 
-        const result: CloudflareAIResponse = await response.json();
+        const result = await response.json();
 
-        if (!result.success) {
-            throw new Error(result.errors?.[0]?.message || 'Upscale failed');
+        if (!result.success && result.error) {
+            throw new Error(result.error);
         }
 
         // Convert back
         const upscaledImage = new Image();
         await new Promise((resolve) => {
             upscaledImage.onload = resolve;
-            upscaledImage.src = `data:image/png;base64,${result.result.image}`;
+            upscaledImage.src = `data:image/png;base64,${result.image || result.result?.image}`;
         });
 
         const resultCanvas = document.createElement('canvas');
@@ -156,31 +144,22 @@ export async function upscaleImageAI(imageData: ImageData, factor: 2 | 4 = 2): P
 
 
 /**
- * Generate image from text prompt using AI
+ * Generate image from text prompt using AI (via worker proxy)
  */
 export async function generateImageAI(prompt: string): Promise<string> {
     try {
-        const response = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${CF_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    prompt,
-                    num_steps: 40
-                })
-            }
-        );
+        const response = await fetch(`${WORKER_URL}/api/image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'generate', prompt })
+        });
 
-        if (!response.ok) throw new Error(`Cloudflare AI error: ${response.statusText}`);
-        const result: CloudflareAIResponse = await response.json();
+        if (!response.ok) throw new Error(`Worker AI error: ${response.statusText}`);
+        const result = await response.json();
 
-        if (!result.success) throw new Error(result.errors?.[0]?.message || 'Generation failed');
+        if (!result.success && result.error) throw new Error(result.error);
 
-        return result.result.image; // Base64
+        return result.image || result.result?.image; // Base64
     } catch (error) {
         console.error('[IMAGE_AI] Generation failed:', error);
         throw error;
@@ -188,31 +167,22 @@ export async function generateImageAI(prompt: string): Promise<string> {
 }
 
 /**
- * Generate image using FLUX-1 Schnell (State-of-the-art)
+ * Generate image using FLUX-1 Schnell (via worker proxy)
  */
 export async function generateFluxImage(prompt: string, steps: number = 4): Promise<string> {
     try {
-        const response = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${CF_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    prompt,
-                    num_steps: steps
-                })
-            }
-        );
+        const response = await fetch(`${WORKER_URL}/api/image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'flux', prompt, steps })
+        });
 
-        if (!response.ok) throw new Error(`FLUX AI error: ${response.statusText}`);
-        const result: CloudflareAIResponse = await response.json();
+        if (!response.ok) throw new Error(`Worker FLUX error: ${response.statusText}`);
+        const result = await response.json();
 
-        if (!result.success) throw new Error(result.errors?.[0]?.message || 'FLUX generation failed');
+        if (!result.success && result.error) throw new Error(result.error);
 
-        return result.result.image;
+        return result.image || result.result?.image;
     } catch (error) {
         console.error('[IMAGE_AI] FLUX generation failed:', error);
         throw error;
@@ -220,34 +190,24 @@ export async function generateFluxImage(prompt: string, steps: number = 4): Prom
 }
 
 /**
- * Generate video from image using AI (Image-to-Video)
+ * Generate video from image using AI (via worker proxy)
  */
 export async function generateVideoAI(imageBase64: string): Promise<string> {
     try {
-        const response = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/stabilityai/stable-video-diffusion-img2vid-xt`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${CF_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    image: imageBase64,
-                    num_steps: 30,
-                    decoder_steps: 10
-                })
-            }
-        );
+        const response = await fetch(`${WORKER_URL}/api/video`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'img2vid',
+                image: imageBase64
+            })
+        });
 
-        if (!response.ok) throw new Error(`Cloudflare AI error: ${response.statusText}`);
+        if (!response.ok) throw new Error(`Worker AI error: ${response.statusText}`);
 
-        const result: CloudflareAIResponse = await response.json();
+        const result = await response.json();
 
-        // Note: SVD output field might vary, assuming 'video' or 'result.video'
-        // If the type definition doesn't handle 'video', we cast or check result.
-        // CloudflareAIResponse interface has result: { image: string }. We might need to handle video.
-        return (result as any).result.video || result.result.image;
+        return result.video || result.image || result.result?.video;
     } catch (error) {
         console.error('[IMAGE_AI] Video generation failed:', error);
         throw error;
@@ -363,35 +323,29 @@ export async function inpaintImage(
             })
         ]);
 
-        // Call Cloudflare Workers AI inpainting
-        const response = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/runwayml/stable-diffusion-v1-5-inpainting`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${CF_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    prompt,
-                    image: imageBase64.split(',')[1],
-                    mask: maskBase64.split(',')[1],
-                    num_steps: 25
-                })
-            }
-        );
+        // Route through worker proxy
+        const response = await fetch(`${WORKER_URL}/api/image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'inpaint',
+                prompt,
+                image: imageBase64.split(',')[1],
+                mask: maskBase64.split(',')[1]
+            })
+        });
 
-        const result: CloudflareAIResponse = await response.json();
+        const result = await response.json();
 
-        if (!result.success) {
-            throw new Error(result.errors?.[0]?.message || 'Inpainting failed');
+        if (!result.success && result.error) {
+            throw new Error(result.error);
         }
 
         // Convert result
         const resultImage = new Image();
         await new Promise(resolve => {
             resultImage.onload = resolve;
-            resultImage.src = `data:image/png;base64,${result.result.image}`;
+            resultImage.src = `data:image/png;base64,${result.image || result.result?.image}`;
         });
 
         const resultCanvas = document.createElement('canvas');
@@ -426,24 +380,19 @@ export async function generateImageDescription(imageData: ImageData): Promise<st
         reader.readAsDataURL(blob);
     });
 
-    // Use Cloudflare Workers AI image captioning
-    const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/unum/uform-gen2-qwen-500m`,
-        {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${CF_API_TOKEN}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                image: base64.split(',')[1],
-                prompt: 'Describe this image in detail'
-            })
-        }
-    );
+    // Route through worker proxy for image captioning
+    const response = await fetch(`${WORKER_URL}/api/image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'describe',
+            image: base64.split(',')[1],
+            prompt: 'Describe this image in detail'
+        })
+    });
 
     const result = await response.json();
-    return result.result?.description || 'No description available';
+    return result.description || result.result?.description || 'No description available';
 }
 
 /**
