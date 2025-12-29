@@ -62,6 +62,43 @@ export default {
             }
         }
 
+        // Git Operations API endpoint (stateful via Durable Objects)
+        if (url.pathname === '/api/git') {
+            if (request.method !== 'POST') {
+                return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+                    status: 405,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+
+            try {
+                const body = await request.json() as { command: string; message?: string; name?: string };
+                const { command, message, name } = body;
+
+                // Use a Durable Object for persistent git state
+                const gitStateId = env.BRIDGE_SESSIONS.idFromName('git-state');
+                const gitStateObj = env.BRIDGE_SESSIONS.get(gitStateId);
+
+                // Forward to Durable Object for stateful operations
+                const stateResponse = await gitStateObj.fetch(new Request('http://internal/git', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command, message, name })
+                }));
+
+                const result = await stateResponse.json();
+                return new Response(JSON.stringify(result), {
+                    status: 200,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            } catch (error) {
+                return new Response(JSON.stringify({ error: String(error) }), {
+                    status: 500,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+        }
+
         // WebSocket Bridge Relay (existing logic)
         // Supports: /bridge/:appId?role=agent|client
         const appId = url.pathname.split('/')[2] || '1';
@@ -85,6 +122,12 @@ export class BridgeSession {
 
     async fetch(request: Request) {
         const url = new URL(request.url);
+
+        // Handle Git API requests (internal routing from main worker)
+        if (url.pathname === '/git' && request.method === 'POST') {
+            return this.handleGitCommand(request);
+        }
+
         // Role from URL query param (browser compatible) or header (Node.js agent)
         const role = url.searchParams.get('role') ||
             request.headers.get('x-bridge-role') ||
@@ -183,5 +226,114 @@ export class BridgeSession {
 
     webSocketError(ws: WebSocket, error: unknown) {
         console.error('[Relay] WebSocket error:', error);
+    }
+
+    /**
+     * Handle Git-like state management commands
+     * Since Workers can't run actual git, this provides cloud-based branch/commit tracking
+     */
+    async handleGitCommand(request: Request): Promise<Response> {
+        const body = await request.json() as { command: string; message?: string; name?: string };
+        const { command, message, name } = body;
+
+        // Get or initialize git state from Durable Object storage
+        let gitState = await this.state.storage.get<{
+            currentBranch: string;
+            branches: string[];
+            commits: Array<{ id: string; message: string; timestamp: number; branch: string }>;
+            staged: string[];
+            unstaged: string[];
+        }>('gitState');
+
+        if (!gitState) {
+            gitState = {
+                currentBranch: 'main',
+                branches: ['main'],
+                commits: [],
+                staged: [],
+                unstaged: []
+            };
+        }
+
+        let result: any;
+
+        switch (command) {
+            case 'status':
+                result = {
+                    staged: gitState.staged,
+                    unstaged: gitState.unstaged,
+                    currentBranch: gitState.currentBranch
+                };
+                break;
+
+            case 'branches':
+                result = {
+                    current: gitState.currentBranch,
+                    all: gitState.branches
+                };
+                break;
+
+            case 'commit':
+                if (!message) {
+                    return new Response(JSON.stringify({ error: 'Commit message required' }), {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                const commitId = `${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 6)}`;
+                gitState.commits.push({
+                    id: commitId,
+                    message,
+                    timestamp: Date.now(),
+                    branch: gitState.currentBranch
+                });
+                gitState.staged = []; // Clear staged files after commit
+                await this.state.storage.put('gitState', gitState);
+                result = { success: true, commitId };
+                break;
+
+            case 'checkout-b':
+                if (!name) {
+                    return new Response(JSON.stringify({ error: 'Branch name required' }), {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                if (!gitState.branches.includes(name)) {
+                    gitState.branches.push(name);
+                }
+                gitState.currentBranch = name;
+                await this.state.storage.put('gitState', gitState);
+                result = { success: true, branch: name };
+                break;
+
+            case 'checkout':
+                if (!name || !gitState.branches.includes(name)) {
+                    return new Response(JSON.stringify({ error: 'Invalid branch name' }), {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                gitState.currentBranch = name;
+                await this.state.storage.put('gitState', gitState);
+                result = { success: true, branch: name };
+                break;
+
+            case 'log':
+                result = {
+                    commits: gitState.commits
+                        .filter(c => c.branch === gitState.currentBranch)
+                        .slice(-20) // Last 20 commits
+                };
+                break;
+
+            default:
+                result = { error: `Unknown command: ${command}` };
+        }
+
+        return new Response(JSON.stringify(result), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }

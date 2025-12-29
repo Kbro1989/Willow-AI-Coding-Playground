@@ -3,7 +3,8 @@
  * Interacts with the Cloudflare Worker to perform Git operations
  */
 
-const WORKER_URL = 'https://ai-game-studio.kristain33rs.workers.dev';
+// Bridge-relay worker hosts the /api/git endpoint
+const WORKER_URL = 'https://antigravity-bridge-relay.kristain33rs.workers.dev';
 
 export const getGitStatus = async (): Promise<{ staged: string[], unstaged: string[] }> => {
   try {
