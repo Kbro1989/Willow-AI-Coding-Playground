@@ -2,6 +2,7 @@
   "name": "antigravity-bridge-relay",
   "version": "1.0.0",
   "scripts": {
+    "build": "echo 'No build step needed - wrangler handles bundling'",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "types": "wrangler types src/worker-configuration.d.ts"
