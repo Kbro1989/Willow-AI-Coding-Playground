@@ -697,7 +697,6 @@ const App: React.FC = () => {
                       case 'limbs': return <div className="h-full w-full overflow-hidden"><LimbExplorer /></div>;
                       case 'matrix': return <div className="h-full w-full overflow-hidden"><ModelPlayground /></div>;
                       case 'settings': return <div className="h-full w-full overflow-hidden"><Config /></div>;
-                      case 'console': return <div className="h-full w-full overflow-hidden"><DiagnosticsPanel /></div>;
                       // case 'scene': Handled by persistent layer & default (null)
                       default: return null;
                     }
