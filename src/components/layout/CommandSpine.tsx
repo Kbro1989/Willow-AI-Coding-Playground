@@ -127,14 +127,14 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                 <div className="h-8 w-px bg-white/5" />
                 <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
                     {projectEnvs.map(env => (
-                        <button key={env} onClick={() => dispatch({ type: 'ENV_SET_PROJECT_ENV', env })} className={`px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${projectEnv === env ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(0,242,255,0.4)]' : 'text-slate-500 hover:text-white'}`}>
+                        <button key={env} onClick={() => dispatch({ type: 'ENV_SET_PROJECT_ENV', env })} className={`px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all nexus-btn ${projectEnv === env ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(0,242,255,0.4)]' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}>
                             {env}
                         </button>
                     ))}
                 </div>
                 <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
                     {aiModes.map(mode => (
-                        <button key={mode} onClick={() => dispatch({ type: 'AI_SET_MODE', mode })} className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${aiMode === mode ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'text-slate-600 hover:text-white'}`}>
+                        <button key={mode} onClick={() => dispatch({ type: 'AI_SET_MODE', mode })} className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all nexus-btn ${aiMode === mode ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'text-slate-600 hover:text-white hover:bg-white/5'}`}>
                             {mode}
                         </button>
                     ))}

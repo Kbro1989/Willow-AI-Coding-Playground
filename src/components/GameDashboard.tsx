@@ -25,8 +25,8 @@ declare module 'react' {
 const SafeEffectComposer: React.FC<{ compositingConfig: CompositingConfig }> = ({ compositingConfig }) => {
   const { gl } = useThree();
 
-  // Don't render until WebGL context is ready
-  if (!gl) return null;
+  // Don't render until WebGL context is ready and stable
+  if (!gl || !gl.getContext()) return null;
 
   // Use safe default values - always render effects but with 0 intensity when disabled
   const bloom = Math.max(0, compositingConfig.bloom ?? 0);
@@ -40,20 +40,22 @@ const SafeEffectComposer: React.FC<{ compositingConfig: CompositingConfig }> = (
   if (!hasAnyEffect) return null;
 
   return (
-    <EffectComposer>
-      <Bloom
-        intensity={bloom}
-        luminanceThreshold={1.0}
-        luminanceSmoothing={0.9}
-      />
-      <ChromaticAberration
-        offset={new THREE.Vector2(chromatic * 0.001, chromatic * 0.001)}
-      />
-      <Vignette
-        offset={0.5}
-        darkness={vignette}
-      />
-    </EffectComposer>
+    <ErrorBoundary fallback={null}>
+      <EffectComposer disableNormalPass>
+        <Bloom
+          intensity={bloom}
+          luminanceThreshold={1.0}
+          luminanceSmoothing={0.9}
+        />
+        <ChromaticAberration
+          offset={new THREE.Vector2(chromatic * 0.001, chromatic * 0.001)}
+        />
+        <Vignette
+          offset={0.5}
+          darkness={vignette}
+        />
+      </EffectComposer>
+    </ErrorBoundary>
   );
 };
 
