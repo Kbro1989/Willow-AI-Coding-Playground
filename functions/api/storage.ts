@@ -8,6 +8,10 @@ export const onRequest: any = async (context: any) => {
     // STORAGE is the R2 bucket binding
     const storage = (env as any).STORAGE;
 
+    const url = new URL(request.url);
+    const path = url.pathname.replace('/api/storage/', '').replace('/api/storage', '');
+    const prefix = url.searchParams.get('prefix');
+
     // Check if R2 binding exists
     if (!storage) {
         // If no R2, return empty results for list, 404 for reads
@@ -21,10 +25,6 @@ export const onRequest: any = async (context: any) => {
             headers: { 'Content-Type': 'application/json' }
         });
     }
-
-    const url = new URL(request.url);
-    const path = url.pathname.replace('/api/storage/', '').replace('/api/storage', '');
-    const prefix = url.searchParams.get('prefix');
 
     try {
         switch (method) {

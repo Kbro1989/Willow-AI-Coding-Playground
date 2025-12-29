@@ -7,8 +7,8 @@
   "workers_dev": true,
   "migrations": [
     {
-      "new_sqlite_classes": ["BridgeSession"],
-      "tag": "v1"
+      "tag": "v1",
+      "new_classes": ["BridgeSession"]
     }
   ],
   "durable_objects": {
