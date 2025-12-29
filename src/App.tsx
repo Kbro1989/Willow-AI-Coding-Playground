@@ -611,7 +611,7 @@ const App: React.FC = () => {
               </div>
 
               {/* Dynamic Views: Relative to the forced min-h-0 container */}
-              <div className="relative z-10 w-full h-full">
+              <div className={`relative z-10 w-full h-full ${activeView === 'scene' ? 'pointer-events-none' : ''}`}>
                 {(() => {
                   switch (activeView) {
                     case 'console': return (
