@@ -20,6 +20,20 @@ class NexusCommandBus {
         this.restoreMemory();
         // Auto-save every 5 seconds
         setInterval(() => this.saveMemory(), 5000);
+
+        // --- SPINAL REFLEX ARC ---
+        // Automatically route pain signals to Proprioception
+        this.subscribe((event) => {
+            if (event.type === 'REFLEX_PAIN') {
+                console.warn('[NEXUS_SPINE] Reflex Arc Triggered:', event.payload);
+                import('./ai/contextService').then(({ contextService }) => {
+                    contextService.recordReflexPain(
+                        event.payload.provider || 'unknown',
+                        event.payload.severity === 'reflex' ? 0.8 : 0.4
+                    );
+                });
+            }
+        });
     }
 
     setEnv(env: 'dev' | 'prod') { this.env = env; }

@@ -40,6 +40,51 @@ class CloudflareProvider {
   }
 
   /**
+   * Universal fetch helper with fallback to generic model runner
+   */
+  private async executeRequest(
+    endpoint: string,
+    body: any,
+    options: { signal?: AbortSignal; model?: string; isBinary?: boolean } = {}
+  ): Promise<any> {
+    const urls = [
+      `${this.workerUrl}${endpoint}`,
+      `${this.workerUrl}/api/run-model`,
+      `${this.workerUrl}/api/chat`
+    ];
+
+    let lastError: any;
+
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: options.signal,
+          body: JSON.stringify({ ...body, model: body.model || options.model })
+        });
+
+        if (response.status === 404) continue; // Try next URL
+
+        if (!response.ok) {
+          throw new Error(`Cloudflare API error: ${response.status}`);
+        }
+
+        if (options.isBinary) {
+          return await response.blob();
+        }
+
+        return await response.json();
+      } catch (err) {
+        lastError = err;
+        if (options.signal?.aborted) throw err;
+      }
+    }
+
+    throw lastError || new Error(`All endpoints failed for ${endpoint}`);
+  }
+
+  /**
    * Cloudflare is always available (generous free tier)
    */
   isAvailable(): boolean {
@@ -223,28 +268,14 @@ class CloudflareProvider {
     negativePrompt?: string
   ): Promise<{ imageUrl: string; model: string }> {
     try {
-      const response = await fetch(`${this.workerUrl}/api/generate-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          negativePrompt,
-          model: '@cf/stabilityai/stable-diffusion-xl-base-1.0'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Cloudflare API error: ${response.status}`);
-      }
-
-      // Handle binary response (pattern from text-to-image-template)
-      const blob = await response.blob();
-      const imageUrl = URL.createObjectURL(blob);
-
-      return {
-        imageUrl,
+      const blob = await this.executeRequest('/api/generate-image', {
+        prompt,
+        negativePrompt,
         model: '@cf/stabilityai/stable-diffusion-xl-base-1.0'
-      };
+      }, { isBinary: true });
+
+      const imageUrl = URL.createObjectURL(blob);
+      return { imageUrl, model: '@cf/stabilityai/stable-diffusion-xl-base-1.0' };
     } catch (error) {
       console.error('[CF/SDXL] Image generation error:', error);
       throw error;
@@ -257,28 +288,13 @@ class CloudflareProvider {
    */
   async imageWithFlux(prompt: string, signal?: AbortSignal): Promise<{ imageUrl: string; model: string }> {
     try {
-      const response = await fetch(`${this.workerUrl}/api/generate-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal,
-        body: JSON.stringify({
-          prompt,
-          model: '@cf/black-forest-labs/flux-1-schnell'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Cloudflare API error: ${response.status}`);
-      }
-
-      // Handle binary response
-      const blob = await response.blob();
-      const imageUrl = URL.createObjectURL(blob);
-
-      return {
-        imageUrl,
+      const blob = await this.executeRequest('/api/generate-image', {
+        prompt,
         model: '@cf/black-forest-labs/flux-1-schnell'
-      };
+      }, { signal, isBinary: true });
+
+      const imageUrl = URL.createObjectURL(blob);
+      return { imageUrl, model: '@cf/black-forest-labs/flux-1-schnell' };
     } catch (error) {
       console.error('[CF/FLUX] Image generation error:', error);
       throw error;
@@ -357,20 +373,10 @@ class CloudflareProvider {
    */
   async embed(text: string): Promise<{ embedding: number[]; model: string }> {
     try {
-      const response = await fetch(`${this.workerUrl}/api/embed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          model: '@cf/baai/bge-large-en-v1.5'
-        })
+      const data = await this.executeRequest('/api/embed', {
+        text,
+        model: '@cf/baai/bge-large-en-v1.5'
       });
-
-      if (!response.ok) {
-        throw new Error(`Cloudflare API error: ${response.status}`);
-      }
-
-      const data = await response.json() as any;
 
       return {
         embedding: data.embedding || data.data,

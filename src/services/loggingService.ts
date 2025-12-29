@@ -3,7 +3,7 @@
  * Centralized logging for tasks, model usage, audit events, and observability.
  */
 
-const WORKER_URL = '';
+const WORKER_URL = import.meta.env.VITE_AI_WORKER_URL || 'https://ai-game-studio.kristain33rs.workers.dev';
 
 export interface NexusLog {
   taskId: string;

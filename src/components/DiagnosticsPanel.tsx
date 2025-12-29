@@ -8,13 +8,16 @@ import {
   Link as LinkIcon, Box, Terminal, Code as StatusIcon
 } from 'lucide-react';
 import { neuralRegistry } from '../services/ai/NeuralRegistry';
+import { CostDashboard } from './nexus/CostDashboard';
 
 const DiagnosticsPanel: React.FC = () => {
   const [jobs, setJobs] = useState<NexusJob[]>(nexusBus.getJobs());
   const [metrics, setMetrics] = useState<SessionMetrics & { isHardBudgetEnabled: boolean }>(sessionService.getMetrics());
   const [bridgeStatus, setBridgeStatus] = useState(localBridgeClient.getStatus());
   const [pipelineStatus, setPipelineStatus] = useState({ success: true, errorCount: 0 });
+
   const [isPulsing, setIsPulsing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'OVERWATCH' | 'FINANCIAL' | 'LOGS'>('OVERWATCH');
 
   useEffect(() => {
     // Pipeline Monitor Subscription
@@ -70,242 +73,265 @@ const DiagnosticsPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Primary Insight Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-10">
-        {/* Neural Link Module */}
-        <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-cyan-500/30 group relative">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <LinkIcon className="w-5 h-5 text-cyan-400 group-hover:rotate-45 transition-transform" />
-              <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Neural Link</h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
-                title="AI Help"
-                onClick={() => neuralRegistry.emit('ui:explain', { id: 'neural-link', context: 'The communication bridge between the local machine and Cloudflare services.' })}
-              >
-                ?
-              </button>
-              <div className={`px-2 py-0.5 rounded-full text-[8px] font-black ${bridgeStatus.isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} uppercase tracking-widest border border-current/20`}>
-                {bridgeStatus.isConnected ? 'Active' : 'Offline'}
-              </div>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
-              <span className="text-[9px] text-slate-500 uppercase font-bold block mb-2">Bridge Endpoint</span>
-              <span className="text-[10px] font-mono text-cyan-400 truncate block">{localStorage.getItem('antigravity_bridge_url') || 'ws://localhost:3040'}</span>
-            </div>
-            <div className="flex justify-between items-center px-2">
-              <span className="text-[10px] text-slate-500 uppercase font-bold">Sync Mode</span>
-              <span className="text-xs font-black text-white uppercase">{bridgeStatus.isCloudMode ? 'Cloud-Only' : 'Dual-Sync'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Economy Overwatch */}
-        <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-purple-500/30 lg:col-span-2 relative">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-purple-400" />
-              <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Economy Guardrails</h3>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
-                title="AI Help"
-                onClick={() => neuralRegistry.emit('ui:explain', { id: 'economy-guardrails', context: 'Real-time monitoring and limiting of AI API usage costs and token burn.' })}
-              >
-                ?
-              </button>
-              <button
-                onClick={() => sessionService.setHardBudgetEnabled(!metrics.isHardBudgetEnabled)}
-                className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${metrics.isHardBudgetEnabled ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-white/5 text-slate-500'}`}
-              >
-                Budget Lock: {metrics.isHardBudgetEnabled ? 'ACTIVE' : 'READY'}
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="space-y-1">
-              <span className="text-[9px] text-slate-500 uppercase font-bold">Session Burn</span>
-              <div className="text-2xl font-black text-white font-mono">${metrics.totalCost.toFixed(3)}</div>
-            </div>
-            <div className="space-y-1">
-              <span className="text-[9px] text-slate-500 uppercase font-bold">Max Threshold</span>
-              <div className="text-2xl font-black text-slate-500 font-mono">$5.00</div>
-            </div>
-            <div className="space-y-1">
-              <span className="text-[9px] text-slate-500 uppercase font-bold">Efficiency</span>
-              <div className="text-2xl font-black text-cyan-400 font-mono">94%</div>
-            </div>
-            <div className="space-y-1">
-              <span className="text-[9px] text-slate-500 uppercase font-bold">Tokens Load</span>
-              <div className="text-2xl font-black text-purple-400 font-mono">{Math.floor(metrics.totalCost * 125000).toLocaleString()}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Presence Module */}
-        <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-blue-500/30 relative">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Users className="w-5 h-5 text-blue-400" />
-              <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Collaborators</h3>
-            </div>
-            <button
-              className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
-              title="AI Help"
-              onClick={() => neuralRegistry.emit('ui:explain', { id: 'collaborators', context: 'Real-time presence and collaborative session tracking for multiple developers.' })}
-            >
-              ?
-            </button>
-          </div>
-          <div className="flex -space-x-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 border-4 border-[#0a1222] flex items-center justify-center text-[10px] font-black text-white shadow-xl relative z-10">OP</div>
-            <div className="w-10 h-10 rounded-full bg-slate-800 border-4 border-[#0a1222] flex items-center justify-center text-[10px] font-black text-slate-600 shadow-xl">AI</div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[9px] font-black text-slate-600 uppercase">1 Online</span>
-            <p className="text-[10px] text-slate-500 italic leading-relaxed">System isolate: Running in single-user master node.</p>
-          </div>
-        </div>
-
-        {/* Pipeline Health Module */}
-        <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-amber-500/30 group relative">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <StatusIcon className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-              <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Pipeline Health</h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
-                title="AI Help"
-                onClick={() => neuralRegistry.emit('ui:explain', { id: 'pipeline-health', context: 'Real-time build monitoring, linting results, and TypeScript compiler status.' })}
-              >
-                ?
-              </button>
-              <div className={`px-2 py-0.5 rounded-full text-[8px] font-black ${pipelineStatus.success ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'} uppercase tracking-widest border border-current/20`}>
-                {pipelineStatus.success ? 'Healthy' : 'Build Failed'}
-              </div>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
-              <span className="text-[9px] text-slate-500 uppercase font-bold block mb-2">Build Integrity</span>
-              <span className={`text-[10px] font-mono font-black ${pipelineStatus.success ? 'text-amber-400' : 'text-rose-400'} truncate block`}>
-                {pipelineStatus.errorCount} Errors / 0 Warnings
-              </span>
-            </div>
-            <div className="flex justify-between items-center px-2">
-              <span className="text-[10px] text-slate-500 uppercase font-bold">TSC Watch</span>
-              <span className="text-xs font-black text-white uppercase animate-pulse">Active</span>
-            </div>
-          </div>
-        </div>
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl w-fit mb-8 border border-white/5">
+        {['OVERWATCH', 'FINANCIAL', 'LOGS'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab as any)}
+            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-cyan-500/20 text-cyan-400 shadow-[0_0_10px_rgba(0,242,255,0.2)]' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-        {/* Technical Registry */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 font-black text-xs uppercase tracking-[0.3em] text-slate-500">
-              <div className="w-2 h-2 bg-cyan-500 rounded-full animate-ping shadow-[0_0_10px_#00f2ff]" />
-              Live Job Registry
-            </div>
-            <button
-              onClick={() => nexusBus.clearCompletedJobs()}
-              className="text-[9px] font-black text-white/30 hover:text-cyan-400 transition-colors flex items-center gap-2"
-            >
-              <RefreshCcw className="w-3 h-3" />
-              FLUSH COMPLETED
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {jobs.length === 0 ? (
-              <div className="h-48 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[2.5rem] text-[10px] text-slate-600 uppercase tracking-widest gap-4">
-                <Box className="w-8 h-8 opacity-20" />
-                No active sub-routines
-              </div>
-            ) : (
-              jobs.map(job => (
-                <div key={job.id} className="p-6 bg-black/40 border border-white/5 rounded-[2rem] flex items-center justify-between group hover:border-cyan-500/30 transition-all hover:translate-x-1">
-                  <div className="flex items-center gap-6">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl transition-all ${job.type === 'ai' ? 'bg-purple-500/10 text-purple-400' : 'bg-cyan-500/10 text-cyan-400'}`}>
-                      {job.type === 'ai' ? <BrainIcon className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-black text-white uppercase tracking-tight mb-1">{job.description}</span>
-                      <div className="flex items-center gap-3 text-[10px] font-mono">
-                        <span className="text-slate-600">{job.id}</span>
-                        <span className="text-cyan-500/50">•</span>
-                        <span className="text-emerald-500 italic">Running {Math.floor((Date.now() - job.startTime) / 1000)}s</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-8">
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="h-1.5 w-32 bg-white/5 rounded-full overflow-hidden shadow-inner translate-y-1">
-                        <div className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 animate-progress w-[60%] shadow-[0_0_15px_rgba(0,242,255,0.5)]"></div>
-                      </div>
-                      <span className="text-[9px] text-cyan-400 font-black tracking-widest translate-y-2 group-hover:translate-y-0 transition-transform opacity-0 group-hover:opacity-100 uppercase">Processing...</span>
-                    </div>
-                    <button onClick={() => job.abortController.abort()} className="w-10 h-10 flex items-center justify-center bg-red-500/10 text-red-500/40 hover:text-red-500 hover:bg-red-500/20 rounded-xl transition-all border border-red-500/10">
-                      <AlertTriangle className="w-5 h-5" />
-                    </button>
+      {activeTab === 'FINANCIAL' ? (
+        <CostDashboard />
+      ) : activeTab === 'LOGS' ? (
+        <div className="text-center p-20 text-slate-600 font-mono text-xs uppercase tracking-widest border-2 border-dashed border-white/5 rounded-3xl">
+          Raw Kernel Logs Stream [Locked]
+        </div>
+      ) : (
+        <>
+          {/* Primary Insight Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-10">
+            {/* Neural Link Module */}
+            <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-cyan-500/30 group relative">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <LinkIcon className="w-5 h-5 text-cyan-400 group-hover:rotate-45 transition-transform" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Neural Link</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
+                    title="AI Help"
+                    onClick={() => neuralRegistry.emit('ui:explain', { id: 'neural-link', context: 'The communication bridge between the local machine and Cloudflare services.' })}
+                  >
+                    ?
+                  </button>
+                  <div className={`px-2 py-0.5 rounded-full text-[8px] font-black ${bridgeStatus.isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} uppercase tracking-widest border border-current/20`}>
+                    {bridgeStatus.isConnected ? 'Active' : 'Offline'}
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+              </div>
+              <div className="space-y-4">
+                <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                  <span className="text-[9px] text-slate-500 uppercase font-bold block mb-2">Bridge Endpoint</span>
+                  <span className="text-[10px] font-mono text-cyan-400 truncate block">{localStorage.getItem('antigravity_bridge_url') || 'ws://localhost:3040'}</span>
+                </div>
+                <div className="flex justify-between items-center px-2">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">Sync Mode</span>
+                  <span className="text-xs font-black text-white uppercase">{bridgeStatus.isCloudMode ? 'Cloud-Only' : 'Dual-Sync'}</span>
+                </div>
+              </div>
+            </div>
 
-        {/* Resource Analytics & Quick Access */}
-        <div className="space-y-8">
-          <div className="nexus-glass p-8 rounded-[2.5rem] shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]">
-            <h3 className="text-xs font-black uppercase tracking-[0.5em] text-cyan-500/50 mb-8 flex items-center gap-3">
-              <Cpu className="w-4 h-4" />
-              Vitals Baseline
-            </h3>
-            <div className="space-y-8">
-              <VitalBar label="Core Execution Path" value={72} color="bg-cyan-500" />
-              <VitalBar label="Memory Buffer Utilization" value={42} color="bg-purple-500" />
-              <VitalBar label="Neural Link Bandwidth" value={18} color="bg-emerald-500" />
-              <VitalBar label="Thread Pool Context Status" value={95} color="bg-amber-500" />
+            {/* Economy Overwatch */}
+            <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-purple-500/30 lg:col-span-2 relative">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 text-purple-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Economy Guardrails</h3>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
+                    title="AI Help"
+                    onClick={() => neuralRegistry.emit('ui:explain', { id: 'economy-guardrails', context: 'Real-time monitoring and limiting of AI API usage costs and token burn.' })}
+                  >
+                    ?
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('FINANCIAL')}
+                    className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all bg-white/5 text-slate-500 hover:text-white hover:bg-white/10`}
+                  >
+                    View Full Report
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="space-y-1">
+                  <span className="text-[9px] text-slate-500 uppercase font-bold">Session Burn</span>
+                  <div className="text-2xl font-black text-white font-mono">${metrics.totalCost.toFixed(3)}</div>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[9px] text-slate-500 uppercase font-bold">Max Threshold</span>
+                  <div className="text-2xl font-black text-slate-500 font-mono">$5.00</div>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[9px] text-slate-500 uppercase font-bold">Efficiency</span>
+                  <div className="text-2xl font-black text-cyan-400 font-mono">94%</div>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[9px] text-slate-500 uppercase font-bold">Tokens Load</span>
+                  <div className="text-2xl font-black text-purple-400 font-mono">{Math.floor(metrics.totalCost * 125000).toLocaleString()}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Presence Module */}
+            <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-blue-500/30 relative">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Collaborators</h3>
+                </div>
+                <button
+                  className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
+                  title="AI Help"
+                  onClick={() => neuralRegistry.emit('ui:explain', { id: 'collaborators', context: 'Real-time presence and collaborative session tracking for multiple developers.' })}
+                >
+                  ?
+                </button>
+              </div>
+              <div className="flex -space-x-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 border-4 border-[#0a1222] flex items-center justify-center text-[10px] font-black text-white shadow-xl relative z-10">OP</div>
+                <div className="w-10 h-10 rounded-full bg-slate-800 border-4 border-[#0a1222] flex items-center justify-center text-[10px] font-black text-slate-600 shadow-xl">AI</div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] font-black text-slate-600 uppercase">1 Online</span>
+                <p className="text-[10px] text-slate-500 italic leading-relaxed">System isolate: Running in single-user master node.</p>
+              </div>
+            </div>
+
+            {/* Pipeline Health Module */}
+            <div className="nexus-glass-edge p-6 rounded-[2rem] shadow-2xl transition-all hover:border-amber-500/30 group relative">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <StatusIcon className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Pipeline Health</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="w-5 h-5 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-cyan-400 transition-colors"
+                    title="AI Help"
+                    onClick={() => neuralRegistry.emit('ui:explain', { id: 'pipeline-health', context: 'Real-time build monitoring, linting results, and TypeScript compiler status.' })}
+                  >
+                    ?
+                  </button>
+                  <div className={`px-2 py-0.5 rounded-full text-[8px] font-black ${pipelineStatus.success ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'} uppercase tracking-widest border border-current/20`}>
+                    {pipelineStatus.success ? 'Healthy' : 'Build Failed'}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                  <span className="text-[9px] text-slate-500 uppercase font-bold block mb-2">Build Integrity</span>
+                  <span className={`text-[10px] font-mono font-black ${pipelineStatus.success ? 'text-amber-400' : 'text-rose-400'} truncate block`}>
+                    {pipelineStatus.errorCount} Errors / 0 Warnings
+                  </span>
+                </div>
+                <div className="flex justify-between items-center px-2">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">TSC Watch</span>
+                  <span className="text-xs font-black text-white uppercase animate-pulse">Active</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <QuickAction
-              icon={HardDrive}
-              label="Sync Local FS"
-              desc="Commit buffer to disk"
-              onClick={() => localBridgeClient.runTerminalCommand('git add . && git commit -m "Auto-sync from Overwatch"')}
-            />
-            <QuickAction
-              icon={RefreshCcw}
-              label="Hard Reboot"
-              desc="Reload kernel services"
-              onClick={() => window.location.reload()}
-            />
-            <QuickAction
-              icon={Globe}
-              label="Deploy Staging"
-              desc="Push to edge workers"
-              onClick={() => localBridgeClient.runTerminalCommand('npm run deploy')}
-            />
-            <QuickAction
-              icon={Terminal}
-              label="Bridge Reset"
-              desc="Purge link memory"
-              onClick={() => localBridgeClient.setBridgeUrl(localStorage.getItem('antigravity_bridge_url') || 'ws://localhost:3040')}
-            />
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+            {/* Technical Registry */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 font-black text-xs uppercase tracking-[0.3em] text-slate-500">
+                  <div className="w-2 h-2 bg-cyan-500 rounded-full animate-ping shadow-[0_0_10px_#00f2ff]" />
+                  Live Job Registry
+                </div>
+                <button
+                  onClick={() => nexusBus.clearCompletedJobs()}
+                  className="text-[9px] font-black text-white/30 hover:text-cyan-400 transition-colors flex items-center gap-2"
+                >
+                  <RefreshCcw className="w-3 h-3" />
+                  FLUSH COMPLETED
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {jobs.length === 0 ? (
+                  <div className="h-48 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[2.5rem] text-[10px] text-slate-600 uppercase tracking-widest gap-4">
+                    <Box className="w-8 h-8 opacity-20" />
+                    No active sub-routines
+                  </div>
+                ) : (
+                  jobs.map(job => (
+                    <div key={job.id} className="p-6 bg-black/40 border border-white/5 rounded-[2rem] flex items-center justify-between group hover:border-cyan-500/30 transition-all hover:translate-x-1">
+                      <div className="flex items-center gap-6">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl transition-all ${job.type === 'ai' ? 'bg-purple-500/10 text-purple-400' : 'bg-cyan-500/10 text-cyan-400'}`}>
+                          {job.type === 'ai' ? <BrainIcon className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-black text-white uppercase tracking-tight mb-1">{job.description}</span>
+                          <div className="flex items-center gap-3 text-[10px] font-mono">
+                            <span className="text-slate-600">{job.id}</span>
+                            <span className="text-cyan-500/50">•</span>
+                            <span className="text-emerald-500 italic">Running {Math.floor((Date.now() - job.startTime) / 1000)}s</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-8">
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="h-1.5 w-32 bg-white/5 rounded-full overflow-hidden shadow-inner translate-y-1">
+                            <div className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 animate-progress w-[60%] shadow-[0_0_15px_rgba(0,242,255,0.5)]"></div>
+                          </div>
+                          <span className="text-[9px] text-cyan-400 font-black tracking-widest translate-y-2 group-hover:translate-y-0 transition-transform opacity-0 group-hover:opacity-100 uppercase">Processing...</span>
+                        </div>
+                        <button onClick={() => job.abortController.abort()} className="w-10 h-10 flex items-center justify-center bg-red-500/10 text-red-500/40 hover:text-red-500 hover:bg-red-500/20 rounded-xl transition-all border border-red-500/10">
+                          <AlertTriangle className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Resource Analytics & Quick Access */}
+            <div className="space-y-8">
+              <div className="nexus-glass p-8 rounded-[2.5rem] shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]">
+                <h3 className="text-xs font-black uppercase tracking-[0.5em] text-cyan-500/50 mb-8 flex items-center gap-3">
+                  <Cpu className="w-4 h-4" />
+                  Vitals Baseline
+                </h3>
+                <div className="space-y-8">
+                  <VitalBar label="Core Execution Path" value={72} color="bg-cyan-500" />
+                  <VitalBar label="Memory Buffer Utilization" value={42} color="bg-purple-500" />
+                  <VitalBar label="Neural Link Bandwidth" value={18} color="bg-emerald-500" />
+                  <VitalBar label="Thread Pool Context Status" value={95} color="bg-amber-500" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <QuickAction
+                  icon={HardDrive}
+                  label="Sync Local FS"
+                  desc="Commit buffer to disk"
+                  onClick={() => localBridgeClient.runTerminalCommand('git add . && git commit -m "Auto-sync from Overwatch"')}
+                />
+                <QuickAction
+                  icon={RefreshCcw}
+                  label="Hard Reboot"
+                  desc="Reload kernel services"
+                  onClick={() => window.location.reload()}
+                />
+                <QuickAction
+                  icon={Globe}
+                  label="Deploy Staging"
+                  desc="Push to edge workers"
+                  onClick={() => localBridgeClient.runTerminalCommand('npm run deploy')}
+                />
+                <QuickAction
+                  icon={Terminal}
+                  label="Bridge Reset"
+                  desc="Purge link memory"
+                  onClick={() => localBridgeClient.setBridgeUrl(localStorage.getItem('antigravity_bridge_url') || 'ws://localhost:3040')}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };

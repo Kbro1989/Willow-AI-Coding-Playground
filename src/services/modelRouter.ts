@@ -1,5 +1,7 @@
 import geminiProvider, { GeminiTextRequest, GeminiImageRequest, GeminiCodeRequest } from './geminiProvider';
 import cloudflareProvider from './cloudflareProvider';
+import { hardBlockEnforcer } from './hardBlockEnforcer';
+import { contextService } from './ai/contextService';
 import aiUsageService from './gameData/aiUsageService';
 import { ModelKey } from '../types';
 import { validatePrompt } from '../backend/validateInput';
@@ -87,6 +89,9 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
     };
   }
 
+  // --- ZERO-COST STRATEGY GUARDRAIL (Integrated into Pipeline) ---
+  // Checks are performed during pipeline construction below.
+
   // 1.5 RSMV Professional Integration Branch
   if (request.domain === '3D' && request.source === 'RSMV') {
     return orchestrateRSMV(request);
@@ -115,10 +120,18 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
 
   // "Cloudflare First" Doctrine
   // We prioritize Cloudflare for cost and latency, falling back to Gemini for high-reasoning or unsupported specialized types.
-  pipeline.push({ provider: 'cloudflare', executor: routeToCloudflare });
+  if (hardBlockEnforcer.canUseProvider('cloudflare')) {
+    pipeline.push({ provider: 'cloudflare', executor: routeToCloudflare });
+  } else {
+    console.warn('🚨 Cloudflare blocked by Zero-Cost Enforcer. Skipping to fallback.');
+  }
 
-  if (geminiProvider.isAvailable()) {
+  if (geminiProvider.isAvailable() && hardBlockEnforcer.canUseProvider('gemini')) {
     pipeline.push({ provider: 'gemini', executor: routeToGemini });
+  }
+
+  if (pipeline.length === 0) {
+    throw new Error('❌ HARD BLOCK: All Daily Free Quotas Exhausted. Wait for 00:00 UTC reset.');
   }
 
   let finalResponse: ModelResponse | ReadableStream | undefined;
@@ -147,9 +160,17 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
         };
         break; // Success!
       } catch (error) {
-        console.warn(`[ROUTER] Step ${step.provider} failed:`, error);
+        console.warn(`[ROUTER] Step ${step.provider} failed (Reflex Triggered):`, error);
+
+        // Dispatch "Pain" Signal to the Nervous System
+        nexusBus.dispatchEvent('REFLEX_PAIN', {
+          provider: step.provider,
+          error: error instanceof Error ? error.message : 'Unknown Error',
+          severity: 'reflex'
+        });
+
         lastError = error;
-        continue; // Try next fallback
+        continue; // Reflexively switch to next limb (fallback)
       }
     }
 
@@ -177,6 +198,9 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
         duration: resp.latency,
         success: true
       }).catch(err => console.error('[ROUTER] Failed to log usage:', err));
+
+      // Track Hard Block Usage
+      hardBlockEnforcer.trackUsage(resp.provider as any, resp.cost);
     }
 
     // 4. Log Success
@@ -215,7 +239,7 @@ async function routeToGemini(request: ModelRequest, signal?: AbortSignal): Promi
       const geminiRequest: GeminiTextRequest = {
         prompt: request.prompt,
         history: request.history,
-        systemPrompt: request.systemPrompt,
+        systemPrompt: request.systemPrompt || "You are a cost-optimized fallback intelligence. Be concise.",
         functionDeclarations: request.functionDeclarations,
         model: ModelKey.COMMANDER
       };
@@ -559,6 +583,47 @@ export const synthesizeSpeech = async (text: string): Promise<ModelResponse | Re
   return processAudio(text, 'tts');
 };
 
+/**
+ * Specialized Pipeline: 2D Game Asset -> 3D World Object
+ * Biological Analogy: Evolution (2D -> 3D)
+ */
+export async function generateGameAsset(
+  prompt: string,
+  mode: '2d' | '3d' | '2d_to_3d'
+): Promise<ModelResponse> {
+  const startTime = Date.now();
+  console.log(`[EVOLUTION] Starting Game Asset Gen (${mode}): "${prompt}"`);
+
+  // Step 1: Generate Base 2D Texture/Sprite (Always Cloudflare Flux for cost)
+  const textureData = await route({
+    type: 'image',
+    prompt: mode === '2d' ? prompt : `Flat texture map, symmetrical, game ready, ${prompt}`,
+    tier: 'standard' // Force free tier
+  }) as ModelResponse;
+
+  if (mode === '2d') return textureData;
+
+  // Step 2: Evolve to 3D (If requested)
+  if (mode === '3d' || mode === '2d_to_3d') {
+    // Logic: Use the 2D image as a controlnet/input for 3D gen if supported, 
+    // or use the refined prompt. For now, we chain the prompt.
+    const modelData = await route({
+      type: '3d',
+      prompt: `3D model of ${prompt}, matching style of generated texture`,
+      tier: 'standard'
+    }) as ModelResponse;
+
+    return {
+      ...modelData,
+      imageUrl: textureData.imageUrl, // Keep 2D ref
+      content: `[EVOLUTION COMPLETE] 2D Texture -> 3D Model`,
+      latency: Date.now() - startTime
+    };
+  }
+
+  return textureData;
+}
+
 export const modelRouter = {
   route,
   chat,
@@ -570,7 +635,8 @@ export const modelRouter = {
   generate3D,
   generateCinematic,
   synthesizeSpeech,
-  orchestrateMedia
+  orchestrateMedia,
+  generateGameAsset
 };
 
 export default modelRouter;

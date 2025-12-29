@@ -590,7 +590,7 @@ const App: React.FC = () => {
 
               {/* Persistent Matrix: Kept outside the map to prevent WebGL Context Loss */}
               <div
-                className={`absolute inset-0 z-0 transition-opacity duration-500 ${activeView === 'scene' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                className={`absolute inset-0 z-10 transition-opacity duration-500 ${activeView === 'scene' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
                 style={{ height: '100%', width: '100%' }}
               >
                 <GameDashboard
@@ -611,96 +611,98 @@ const App: React.FC = () => {
               </div>
 
               {/* Dynamic Views: Relative to the forced min-h-0 container */}
-              <div className={`relative z-10 w-full h-full ${activeView === 'scene' ? 'pointer-events-none' : ''}`}>
-                {(() => {
-                  switch (activeView) {
-                    case 'console': return (
-                      <div className="h-full flex flex-col overflow-hidden">
-                        <div className="flex-1 min-h-0 overflow-hidden bg-[#050a15]/40 backdrop-blur-sm">
-                          <DiagnosticsPanel />
-                          <Director />
-                        </div>
-                        <div className="h-1/3 min-h-[150px] border-t border-cyan-900/10 text-slate-500 p-4 font-mono text-[9px] uppercase tracking-widest bg-black/20 flex flex-col items-center justify-center text-center opacity-30">
-                          <Brain className="w-8 h-8 mb-2 text-cyan-500/20" />
-                          <span>Interactive Nexus Stream</span>
-                          <span>(Refer to Active Sidebar)</span>
-                        </div>
-                        <div className="h-1/3 min-h-[150px] border-t border-cyan-900/10">
-                          <Terminal onCommand={(cmd) => dispatchUIAction({ type: 'TERMINAL_COMMAND', command: cmd })} history={terminalHistory} />
-                        </div>
-                      </div>
-                    );
-                    case 'editor': return (
-                      <div className="flex h-full overflow-hidden">
-                        <div style={{ width: `${sidebarWidth}px` }} className="relative shrink-0 flex flex-col border-r border-cyan-900/10 h-full overflow-hidden">
-                          <Sidebar
-                            isOpen={true} setIsOpen={() => { }} files={project.files} activeFile={project.activeFile}
-                            stagedFiles={stagedFiles} commitHistory={commitHistory} tasks={tasks}
-                            tokenMetrics={limiter.getMetrics()} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions}
-                            dispatch={dispatchUIAction}
-                          />
-                          <div onMouseDown={() => setIsResizingSidebar(true)} className="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-50 group">
-                            <div className="w-px h-full bg-cyan-500/10 group-hover:bg-cyan-500 mx-auto transition-colors"></div>
+              {activeView !== 'scene' && (
+                <div className="relative z-20 w-full h-full">
+                  {(() => {
+                    switch (activeView) {
+                      case 'console': return (
+                        <div className="h-full flex flex-col overflow-hidden">
+                          <div className="flex-1 min-h-0 overflow-hidden bg-[#050a15]/40 backdrop-blur-sm">
+                            <DiagnosticsPanel />
+                            <Director />
+                          </div>
+                          <div className="h-1/3 min-h-[150px] border-t border-cyan-900/10 text-slate-500 p-4 font-mono text-[9px] uppercase tracking-widest bg-black/20 flex flex-col items-center justify-center text-center opacity-30">
+                            <Brain className="w-8 h-8 mb-2 text-cyan-500/20" />
+                            <span>Interactive Nexus Stream</span>
+                            <span>(Refer to Active Sidebar)</span>
+                          </div>
+                          <div className="h-1/3 min-h-[150px] border-t border-cyan-900/10">
+                            <Terminal onCommand={(cmd) => dispatchUIAction({ type: 'TERMINAL_COMMAND', command: cmd })} history={terminalHistory} />
                           </div>
                         </div>
-                        <div className="flex-1 flex flex-col relative min-w-0 h-full overflow-hidden">
-                          <Editor
-                            fileId={project.activeFile}
-                            content={activeFileContent}
-                            onContentChange={handleFileChange}
-                            onSelectionChange={setEditorSelection}
-                            dispatch={dispatchUIAction}
+                      );
+                      case 'editor': return (
+                        <div className="flex h-full overflow-hidden">
+                          <div style={{ width: `${sidebarWidth}px` }} className="relative shrink-0 flex flex-col border-r border-cyan-900/10 h-full overflow-hidden">
+                            <Sidebar
+                              isOpen={true} setIsOpen={() => { }} files={project.files} activeFile={project.activeFile}
+                              stagedFiles={stagedFiles} commitHistory={commitHistory} tasks={tasks}
+                              tokenMetrics={limiter.getMetrics()} sceneObjects={sceneObjects} userPrefs={userPrefs} extensions={extensions}
+                              dispatch={dispatchUIAction}
+                            />
+                            <div onMouseDown={() => setIsResizingSidebar(true)} className="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-50 group">
+                              <div className="w-px h-full bg-cyan-500/10 group-hover:bg-cyan-500 mx-auto transition-colors"></div>
+                            </div>
+                          </div>
+                          <div className="flex-1 flex flex-col relative min-w-0 h-full overflow-hidden">
+                            <Editor
+                              fileId={project.activeFile}
+                              content={activeFileContent}
+                              onContentChange={handleFileChange}
+                              onSelectionChange={setEditorSelection}
+                              dispatch={dispatchUIAction}
+                            />
+                          </div>
+                        </div>
+                      );
+                      case 'forge': return <div className="h-full w-full overflow-hidden"><LazyViewport><Forge /></LazyViewport></div>;
+                      case 'pipelines': return <div className="h-full w-full overflow-hidden"><N8NWorkflow /></div>;
+                      case 'behavior': return <div className="h-full w-full overflow-hidden"><Behavior sceneObjects={sceneObjects} /></div>;
+                      case 'narrative': return <div className="h-full w-full overflow-hidden"><Narrative /></div>;
+                      case 'world': return (
+                        <div className="h-full w-full overflow-hidden">
+                          <World
+                            worldConfig={worldConfig}
+                            onUpdateWorld={(u) => setWorldConfig(prev => ({ ...prev, ...u }))}
                           />
                         </div>
-                      </div>
-                    );
-                    case 'forge': return <div className="h-full w-full overflow-hidden"><LazyViewport><Forge /></LazyViewport></div>;
-                    case 'pipelines': return <div className="h-full w-full overflow-hidden"><N8NWorkflow /></div>;
-                    case 'behavior': return <div className="h-full w-full overflow-hidden"><Behavior sceneObjects={sceneObjects} /></div>;
-                    case 'narrative': return <div className="h-full w-full overflow-hidden"><Narrative /></div>;
-                    case 'world': return (
-                      <div className="h-full w-full overflow-hidden">
-                        <World
-                          worldConfig={worldConfig}
-                          onUpdateWorld={(u) => setWorldConfig(prev => ({ ...prev, ...u }))}
-                        />
-                      </div>
-                    );
-                    case 'persistence': return (
-                      <div className="h-full w-full overflow-hidden">
-                        <Persistence
-                          variableData={variableData}
-                          sceneObjects={sceneObjects}
-                          assets={assets}
-                          engineLogs={engineLogs}
-                        />
-                      </div>
-                    );
-                    case 'collab': return <div className="h-full w-full overflow-hidden"><Link /></div>;
-                    case 'deploy': return <div className="h-full w-full overflow-hidden"><Deploy /></div>;
-                    case 'rsmv': return (
-                      <div className="h-full w-full overflow-hidden">
-                        <Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-[#050a15] text-cyan-500 font-black uppercase tracking-[0.2em] animate-pulse">Initialising Asset Vault...</div>}>
-                          <RSMVBrowser addLog={addLog} />
-                        </Suspense>
-                      </div>
-                    );
-                    case 'shader': return (
-                      <div className="h-full w-full overflow-hidden border-t border-cyan-900/30">
-                        <ShaderGraph
-                          onCompile={(glsl: string) => addLog('Shader Compiled: ' + glsl.substring(0, 50) + '...', 'success', 'Compiler')}
-                          onApplyToObjects={(id: string) => addLog(`Applying shader to object ${id}`, 'info', 'Shader')}
-                        />
-                      </div>
-                    );
-                    case 'limbs': return <div className="h-full w-full overflow-hidden"><LimbExplorer /></div>;
-                    case 'matrix': return <div className="h-full w-full overflow-hidden"><ModelPlayground /></div>;
-                    case 'settings': return <div className="h-full w-full overflow-hidden"><Config /></div>;
-                    case 'scene': return null; // Handled by persistent layer
-                    default: return null;
-                  }
-                })()}
-              </div>
+                      );
+                      case 'persistence': return (
+                        <div className="h-full w-full overflow-hidden">
+                          <Persistence
+                            variableData={variableData}
+                            sceneObjects={sceneObjects}
+                            assets={assets}
+                            engineLogs={engineLogs}
+                          />
+                        </div>
+                      );
+                      case 'collab': return <div className="h-full w-full overflow-hidden"><Link /></div>;
+                      case 'deploy': return <div className="h-full w-full overflow-hidden"><Deploy /></div>;
+                      case 'rsmv': return (
+                        <div className="h-full w-full overflow-hidden">
+                          <Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-[#050a15] text-cyan-500 font-black uppercase tracking-[0.2em] animate-pulse">Initialising Asset Vault...</div>}>
+                            <RSMVBrowser addLog={addLog} />
+                          </Suspense>
+                        </div>
+                      );
+                      case 'shader': return (
+                        <div className="h-full w-full overflow-hidden border-t border-cyan-900/30">
+                          <ShaderGraph
+                            onCompile={(glsl: string) => addLog('Shader Compiled: ' + glsl.substring(0, 50) + '...', 'success', 'Compiler')}
+                            onApplyToObjects={(id: string) => addLog(`Applying shader to object ${id}`, 'info', 'Shader')}
+                          />
+                        </div>
+                      );
+                      case 'limbs': return <div className="h-full w-full overflow-hidden"><LimbExplorer /></div>;
+                      case 'matrix': return <div className="h-full w-full overflow-hidden"><ModelPlayground /></div>;
+                      case 'settings': return <div className="h-full w-full overflow-hidden"><Config /></div>;
+                      // case 'scene': Handled by persistent layer & default (null)
+                      default: return null;
+                    }
+                  })()}
+                </div>
+              )}
             </div>
 
             {/* Overlays */}
@@ -748,9 +750,9 @@ const App: React.FC = () => {
             )}
           </main>
 
-          {/* Persistent AI Sidebar Panel */}
+          {/* Persistent AI Sidebar Panel - Use fixed width but allow shrinking if window is too small */}
           {isAiPanelVisible && (
-            <aside className="w-[380px] h-full border-l border-cyan-900/30 bg-[#050a15] flex flex-col shrink-0 animate-in slide-in-from-right duration-300 z-40">
+            <aside className="w-[380px] max-w-[30vw] h-full border-l border-cyan-900/30 bg-[#050a15] flex flex-col shrink-0 animate-in slide-in-from-right duration-300 z-40 relative">
               <Chat
                 ref={chatRef}
                 project={project}

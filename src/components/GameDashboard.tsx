@@ -41,7 +41,7 @@ const SafeEffectComposer: React.FC<{ compositingConfig: CompositingConfig }> = (
 
   return (
     <ErrorBoundary fallback={null}>
-      <EffectComposer disableNormalPass>
+      <EffectComposer>
         <Bloom
           intensity={bloom}
           luminanceThreshold={1.0}
@@ -1057,7 +1057,7 @@ const GameDashboard: React.FC<GameDashboardProps> = ({
                   castShadow
                 />
 
-                <ViewportManager />
+                <ViewportManager targets={sceneObjects} />
                 <SyntheticEnvironment envName={worldConfig.syntheticEnvironment || 'none'} />
 
                 {sceneObjects.map(obj => (

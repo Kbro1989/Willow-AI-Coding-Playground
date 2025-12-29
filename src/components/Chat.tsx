@@ -5,7 +5,7 @@ import { Message, ProjectState, ModelKey, SprintPlan, GroundingChunk, UserPrefer
 // Hybrid: Cloudflare for text/images now through modelRouter, Gemini for live audio/video
 import { LiveDirectorSession } from '../services/geminiService'; // Only LiveDirectorSession remains in geminiService
 import { cloudlareLimiter as limiter } from '../services/cloudflareService';
-import { modelRouter, ModelResponse, generate3D, generateImage, generateCinematic, synthesizeSpeech } from '../services/modelRouter';
+import { modelRouter, ModelResponse, generate3D, generateImage, generateCinematic, synthesizeSpeech, generateGameAsset } from '../services/modelRouter';
 import { localBridgeClient } from '../services/localBridgeService';
 import { behaviorBridge } from '../services/logic/behaviorBridge';
 import { VoiceService } from '../services/voice/voiceService';
@@ -212,6 +212,16 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
           toolResult = await generate3D(args.prompt) as ModelResponse;
           addMessage({ role: 'assistant', content: `Generated 3D asset based on "${args.prompt}"`, modelUrl: toolResult.modelUrl, model: 'Cloudflare AI 3D' });
           break;
+        case 'generate_game_asset': // Optimized 2D/3D Pipeline
+          toolResult = await generateGameAsset(args.prompt, args.mode || '2d');
+          addMessage({
+            role: 'assistant',
+            content: `Generated Game Asset (${args.mode}): "${args.prompt}"`,
+            imageUrl: toolResult.imageUrl,
+            modelUrl: toolResult.modelUrl,
+            model: 'Cloudflare Flux/Tripo'
+          });
+          break;
         case 'run_terminal_command': // Local Code Agent - Terminal
           toolResult = await localBridgeClient.runTerminalCommand(args.command);
           // Terminal output is broadcast via WebSocket. For immediate feedback, you might want to send a message to the chat.
@@ -288,8 +298,8 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
       }
       if (/object|entity|mesh|scene/i.test(prompt)) {
         if (/generate 3d|create 3d|sculpt/i.test(prompt)) {
-          steps.push(`Generate 3D asset with AI`);
-          tools.push('generate_3d_asset');
+          steps.push(`Generate optimized 3D game asset`);
+          tools.push('generate_game_asset'); // Use new 2D->3D pipeline
         } else {
           steps.push(`Define object properties from prompt`);
           steps.push(`Add object to 3D scene`);
@@ -297,9 +307,9 @@ const Chat = forwardRef<ChatHandle, ChatProps>(({
         }
       }
       if (/image|texture|asset/i.test(prompt)) {
-        steps.push(`Generate asset with AI (FLUX)`);
+        steps.push(`Generate 2D Game Asset (Cost-Optimized)`);
         steps.push(`Import asset into registry`);
-        tools.push('generate_image'); // Use the new generate_image tool
+        tools.push('generate_game_asset'); // Use optimized pipeline for textures too
       }
       if (/video|cinematic/i.test(prompt)) {
         steps.push(`Generate video with AI`);

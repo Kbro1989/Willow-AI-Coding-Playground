@@ -119,6 +119,18 @@ export class WorkflowEngine {
   }
 
   /**
+   * Clean AI response of thinking blocks and markdown
+   */
+  private cleanResponse(content: string): string {
+    // Remove DeepSeek <think> blocks
+    let cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    // Remove markdown code blocks
+    cleaned = cleaned.replace(/```json\s*([\s\S]*?)\s*```/gi, '$1');
+    cleaned = cleaned.replace(/```\s*([\s\S]*?)\s*```/gi, '$1');
+    return cleaned.trim();
+  }
+
+  /**
    * Execute a node with one automated retry if it fails
    */
   private async executeNodeWithRetry(node: WorkflowNode, inputs: Record<string, any>, signal: AbortSignal, jobId: string, depth = 0): Promise<any> {
@@ -149,7 +161,8 @@ export class WorkflowEngine {
 
       if (!(reflection instanceof ReadableStream)) {
         try {
-          const suggestion = JSON.parse(reflection.content || '{}');
+          const cleanedText = this.cleanResponse(reflection.content || '{}');
+          const suggestion = JSON.parse(cleanedText);
           console.log(`[WORKFLOW] AI Reflection for ${node.id}:`, suggestion.analysis);
 
           await logTask({
@@ -210,7 +223,7 @@ export class WorkflowEngine {
       case 'ai_text':
         const textResponse = await modelRouter.route({
           type: 'text',
-          prompt: inputs.prompt || node.parameters.prompt || '',
+          prompt: String(inputs.prompt || node.parameters.prompt || ''),
           systemPrompt: 'You are a helpful AI assistant.',
           options: { signal }
         });
@@ -220,7 +233,7 @@ export class WorkflowEngine {
       case 'ai_image':
         const imageResponse = await modelRouter.route({
           type: 'image',
-          prompt: inputs.prompt || node.parameters.prompt || '',
+          prompt: String(inputs.prompt || node.parameters.prompt || ''),
           options: { signal }
         });
         if (imageResponse instanceof ReadableStream) throw new Error('Streaming not supported in workflows');
@@ -229,7 +242,7 @@ export class WorkflowEngine {
       case 'ai_code':
         const codeResponse = await modelRouter.route({
           type: 'code',
-          prompt: inputs.prompt || node.parameters.prompt || '',
+          prompt: String(inputs.prompt || node.parameters.prompt || ''),
           language: node.parameters.language || 'typescript',
           options: { signal }
         });

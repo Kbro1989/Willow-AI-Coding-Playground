@@ -1,17 +1,19 @@
 
 import React from 'react';
 import {
-    Blocks, ChevronDown, Search, Undo2, Redo2, Cpu, Bell, ShieldAlert, Brain
+    Blocks, ChevronDown, Search, Undo2, Redo2, Cpu, ShieldAlert, Zap, PenTool
 } from 'lucide-react';
-import { ProjectEnv, AIModelMode, AIIntent } from '../../types';
+import { ProjectEnv, AIModelMode, AIIntent, ActiveView } from '../../types';
 import { localBridgeClient } from '../../services/localBridgeService';
-import { Network, Link2, Link2Off } from 'lucide-react';
+import { Network, Link2, Link2Off, Bell, Brain } from 'lucide-react';
 import { UIActionDispatcher } from '../../ui/ui-actions';
+import { universalOrchestrator } from '../../services/ai/universalOrchestrator';
+import { PainIndicator } from '../nexus/PainIndicator';
 
 interface CommandSpineProps {
     projectEnv: ProjectEnv;
     aiMode: AIModelMode;
-    activeView: string;
+    activeView: ActiveView;
     showPerformanceHUD: boolean;
     isAiPanelVisible: boolean;
     isPanic: boolean;
@@ -24,6 +26,7 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
     const [searchValue, setSearchValue] = React.useState('');
     const [isSearching, setIsSearching] = React.useState(false);
     const [isPulsing, setIsPulsing] = React.useState(false);
+    const [isFocused, setIsFocused] = React.useState(false);
 
     const [bridgeStatus, setBridgeStatus] = React.useState(localBridgeClient.getStatus());
 
@@ -98,7 +101,7 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                         projectEnv,
                         bridgeStatus: bridgeStatus.isConnected ? 'direct' : 'offline',
                         panic: isPanic,
-                        view: activeView as any
+                        view: activeView
                     }
                 });
                 setSearchValue('');
@@ -143,8 +146,8 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                 <button
                     onClick={() => dispatch({ type: 'BRIDGE_TOGGLE_RELAY' })}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${bridgeStatus.isConnected
-                        ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-                        : 'bg-red-500/10 border-red-500/50 text-red-500'
+                            ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                            : 'bg-red-500/10 border-red-500/50 text-red-500'
                         }`}
                 >
                     {bridgeStatus.isConnected ? <Link2 className="w-3.5 h-3.5" /> : <Link2Off className="w-3.5 h-3.5" />}
@@ -153,14 +156,20 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                     </span>
                 </button>
             </div>
-            <div className="flex items-center gap-4">
-                <div className="relative group">
+            {/* --- CENTRAL CONSOLE (OMNIBAR) --- */}
+            <div className="flex-1 flex justify-center max-w-2xl relative mx-4">
+                <div className="absolute -top-6 left-0 right-0 flex justify-center pb-2 pointer-events-none">
+                    <PainIndicator />
+                </div>
+                <div className={`relative w-full transition-all duration-300 ${isFocused ? 'scale-105' : 'scale-100'}`}>
                     <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isSearching ? 'text-cyan-400 animate-spin' : 'text-slate-500'}`} />
                     <input
                         type="text"
                         value={searchValue}
                         onChange={(e) => setSearchValue(e.target.value)}
                         onKeyDown={handleSearch}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => setIsFocused(false)}
                         placeholder={isSearching ? `INTENT: SEARCH | MODE: ${aiMode.toUpperCase()} | ENV: ${projectEnv.toUpperCase()}` : placeholderMap[aiMode]}
                         className="bg-black/40 border border-white/5 rounded-xl py-1.5 pl-9 pr-4 text-[10px] font-black tracking-widest text-white focus:outline-none focus:border-cyan-500/50 min-w-[300px] nexus-glass"
                     />
@@ -189,6 +198,6 @@ export const CommandSpine: React.FC<CommandSpineProps> = ({
                 </div>
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-purple-600 border border-white/10 flex items-center justify-center text-[10px] font-black text-white">OP</div>
             </div>
-        </div >
+        </div>
     );
 };

@@ -11,11 +11,26 @@ export const useViewportSync = () => {
     // We'll export a version that can be used outside as well if needed
 };
 
-export const ViewportManager: React.FC = () => {
+export const ViewportManager: React.FC<{ targets?: any[] }> = ({ targets = [] }) => {
     const { camera, gl, scene, size } = useThree();
 
     const fitToScreen = useCallback((padding = 1.2) => {
-        const box = new THREE.Box3().setFromObject(scene);
+        const box = new THREE.Box3();
+
+        if (targets.length > 0) {
+            // Find world objects in the scene that match our state targets
+            scene.traverse((obj) => {
+                if (obj.name.startsWith('obj-') || (obj.type === 'Mesh' && targets.some(t => t.name === obj.name))) {
+                    box.expandByObject(obj);
+                }
+            });
+        }
+
+        // If box is still empty or we want to lock to center
+        if (box.isEmpty()) {
+            box.setFromCenterAndSize(new THREE.Vector3(0, 0, 0), new THREE.Vector3(2, 2, 2));
+        }
+
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
@@ -23,18 +38,20 @@ export const ViewportManager: React.FC = () => {
         const fov = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180);
         let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
 
-        cameraZ *= padding; // Add padding
+        cameraZ *= padding;
+        cameraZ = Math.min(Math.max(cameraZ, 12), 60);
 
-        camera.position.set(center.x + cameraZ, center.y + cameraZ, center.z + cameraZ);
+        camera.position.set(center.x + cameraZ, center.y + cameraZ * 0.6, center.z + cameraZ);
         camera.lookAt(center);
         (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
-    }, [camera, scene]);
+    }, [camera, scene, targets]);
+
 
     useEffect(() => {
-        // Auto-fit on initial load or scene change
         const timer = setTimeout(() => fitToScreen(), 500);
         return () => clearTimeout(timer);
-    }, [size, fitToScreen]);
+    }, [fitToScreen]);
+
 
     return null;
 };

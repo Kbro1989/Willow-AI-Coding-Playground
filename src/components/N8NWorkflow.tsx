@@ -108,7 +108,10 @@ const nodeTypes = {
 const N8NWorkflow: React.FC = () => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
-    const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const selectedNode = useMemo(() =>
+        selectedNodeId ? nodes.find(n => n.id === selectedNodeId) || null : null
+        , [nodes, selectedNodeId]);
     const [isRunning, setIsRunning] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
 
@@ -139,7 +142,7 @@ const N8NWorkflow: React.FC = () => {
         };
 
         setNodes((nds) => nds.concat(newNode));
-        setSelectedNode(newNode); // Auto-select on add
+        setSelectedNodeId(id); // Auto-select on add
     }, []);
 
     const onNodesChange = useCallback((changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
@@ -296,7 +299,7 @@ const N8NWorkflow: React.FC = () => {
                     onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
                     nodeTypes={nodeTypes}
-                    onNodeClick={(_, node) => setSelectedNode(node)}
+                    onNodeClick={(_, node) => setSelectedNodeId(node.id)}
                     fitView
                 >
                     <Background color="#164e63" gap={20} size={1} />
@@ -317,7 +320,7 @@ const N8NWorkflow: React.FC = () => {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={async () => {
-                                            if (!selectedNode) return;
+                                            if (!selectedNodeId || !selectedNode) return;
                                             setLogs(prev => [...prev, `Testing node: ${selectedNode.data.label}...`]);
                                             try {
                                                 const result = await workflowEngine.executeNode(
@@ -341,8 +344,9 @@ const N8NWorkflow: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => {
-                                            setNodes(nds => nds.filter(n => n.id !== selectedNode.id));
-                                            setSelectedNode(null);
+                                            if (!selectedNodeId) return;
+                                            setNodes(nds => nds.filter(n => n.id !== selectedNodeId));
+                                            setSelectedNodeId(null);
                                         }}
                                         className="p-2 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 transition-all"
                                     >
