@@ -2,6 +2,8 @@ import geminiProvider, { GeminiTextRequest, GeminiImageRequest, GeminiCodeReques
 import cloudflareProvider from './cloudflareProvider';
 import aiUsageService from './gameData/aiUsageService';
 import { ModelKey } from '../types';
+import { validatePrompt } from '../backend/validateInput';
+import { logAIAccess, logSecurityEvent } from './loggingService';
 
 export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning' | 'vision' | '3d';
 
@@ -56,6 +58,18 @@ import { orchestrateRSMV } from './rsmv/rsmvCompiler';
 
 export async function route(request: ModelRequest): Promise<ModelResponse | ReadableStream> {
   const startTime = Date.now();
+
+  // 0. Security Validation
+  const validation = validatePrompt(request.prompt);
+  if (!validation.isValid) {
+    logSecurityEvent('BLOCKED_AI_PROMPT', { prompt: request.prompt, error: validation.error });
+    throw new Error(`[SECURITY] ${validation.error}`);
+  }
+
+  // Update prompt if sanitized (soft block)
+  if (validation.sanitized && validation.sanitized !== request.prompt) {
+    request.prompt = validation.sanitized;
+  }
 
   // 1. Handle Bundled Requests (Multi-modal)
   if (request.bundle && request.subRequests) {
@@ -165,6 +179,11 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
       }).catch(err => console.error('[ROUTER] Failed to log usage:', err));
     }
 
+    // 4. Log Success
+    if (!(finalResponse instanceof ReadableStream)) {
+      logAIAccess(finalResponse.model, request.prompt, true);
+    }
+
     return finalResponse;
 
   } catch (error) {
@@ -178,6 +197,7 @@ export async function route(request: ModelRequest): Promise<ModelResponse | Read
       success: false
     }).catch(e => console.error('[ROUTER] Failed to log error usage:', e));
 
+    logAIAccess('error', request.prompt, false);
     throw error;
   } finally {
     nexusBus.completeJob(taskId);

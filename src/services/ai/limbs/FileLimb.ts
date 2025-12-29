@@ -17,6 +17,9 @@ export const registerFileLimb = () => {
                 description: 'Read file contents as text.',
                 parameters: { path: 'string' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'file', capability: 'file_read' });
+                    });
                     return await localBridgeClient.readLocalFile(params.path);
                 }
             },
@@ -66,6 +69,9 @@ export const registerFileLimb = () => {
                 description: 'Write text content to a file.',
                 parameters: { path: 'string', content: 'string' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'file', capability: 'file_write' });
+                    });
                     return await localBridgeClient.writeLocalFile(params.path, params.content);
                 }
             },
@@ -133,6 +139,9 @@ export const registerFileLimb = () => {
                 description: 'List contents of a directory.',
                 parameters: { path: 'string' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'file', capability: 'dir_list' });
+                    });
                     return await localBridgeClient.listDirectory(params.path);
                 }
             },

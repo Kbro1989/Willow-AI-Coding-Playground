@@ -37,10 +37,15 @@ class UniversalOrchestrator {
             const memorySummary = (await import('../directorMemoryService')).directorMemory.getContextSummary();
             const prompt = intent.payload.text || '';
             const neuralSchema = neuralRegistry.getNeuralSchema();
+            const { getAuditTrail } = await import('../loggingService');
+            const auditTrail = getAuditTrail(5); // Get last 5 events for context
 
             // 1. Intent Classification
             const classificationPrompt = `
                 SYTEM: You are the Antigravity Universal Orchestrator.
+                AUDIT_TRAIL (LAST 5 EVENTS):
+                ${JSON.stringify(auditTrail, null, 2)}
+
                 SOURCE: ${intent.source}
                 VIRTUAL INTENT: ${intent.verb}
                 AI_MODE: ${intent.context.aiMode}

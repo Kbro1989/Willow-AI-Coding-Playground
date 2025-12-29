@@ -27,6 +27,9 @@ export const registerMaterialLimb = () => {
                     emissiveIntensity: 'number?'
                 },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'material', capability: 'material_create_standard' });
+                    });
                     const mat = new THREE.MeshStandardMaterial({
                         color: params.color || '#ffffff',
                         metalness: params.metalness ?? 0,
@@ -122,6 +125,9 @@ export const registerMaterialLimb = () => {
                 description: 'Set material color.',
                 parameters: { id: 'string', color: 'string' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'material', capability: 'material_set_color' });
+                    });
                     const mat = materialRegistry.get(params.id) as any;
                     if (!mat || !mat.color) return { success: false, error: 'Material not found or has no color' };
                     mat.color.set(params.color);
@@ -190,6 +196,9 @@ export const registerMaterialLimb = () => {
                 description: 'Generate a texture using AI.',
                 parameters: { prompt: 'string', width: 'number?', height: 'number?' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'material', capability: 'texture_generate_ai' });
+                    });
                     const { modelRouter } = await import('../../modelRouter');
                     const result = await modelRouter.orchestrateMedia('image', params.prompt, 'Texture Generation');
                     return result;

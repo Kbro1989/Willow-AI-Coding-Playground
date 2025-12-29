@@ -107,7 +107,8 @@ const ModelPreview: React.FC<{ model: RSMVModelEntry | null, wireframe: boolean 
 };
 
 const RealModelView = React.lazy(() => import('./RSMV/RealModelView').then(m => ({ default: m.RealModelView })));
-import { getRsmvModels, verifyJagexLauncher, RSMVEngine, FEATURED_MODELS } from '../services/rsmvService';
+import { getRsmvModels, verifyJagexLauncher, FEATURED_MODELS } from '../services/rsmvService';
+import { loadRSMV } from '../services/rsmv/rsmvLoader';
 import { BethesdaAssetService } from '../services/bethesdaAssetService';
 const AudioClipManager = React.lazy(() => import('../services/rsmv/viewer/AudioClipManager').then(m => ({ default: m.AudioClipManager })));
 
@@ -150,7 +151,8 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const rsmvModel = await RSMVEngine.getInstance().getRemoteModelData(
+      const RSMVEngine = await loadRSMV();
+      const rsmvModel = await RSMVEngine.getRemoteModelData(
         parseInt(remoteCacheId),
         parseInt(remoteModelId)
       );
@@ -178,7 +180,8 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
   const handleLinkCache = async () => {
     setIsLoading(true);
     try {
-      await RSMVEngine.getInstance().linkLocalCache();
+      const RSMVEngine = await loadRSMV();
+      await RSMVEngine.linkLocalCache();
       setIsCacheLinked(true);
       const data = await getRsmvModels(gameSource, category);
       setModels(data);
@@ -219,7 +222,8 @@ const RSMVBrowser: React.FC<RSMVBrowserProps> = ({
         throw new Error("No valid cache files (.jcache, .jag, .mem) found in drop.");
       }
 
-      await RSMVEngine.getInstance().linkDroppedCache(blobs);
+      const RSMVEngine = await loadRSMV();
+      await RSMVEngine.linkDroppedCache(blobs);
       setIsCacheLinked(true);
       const data = await getRsmvModels('runescape', category);
       setModels(data);

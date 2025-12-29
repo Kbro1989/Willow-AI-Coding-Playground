@@ -20,6 +20,9 @@ export const registerMeshOpsLimb = () => {
                 description: 'Create a box geometry.',
                 parameters: { id: 'string', width: 'number', height: 'number', depth: 'number' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'mesh', capability: 'mesh_create_box' });
+                    });
                     const geo = new THREE.BoxGeometry(params.width || 1, params.height || 1, params.depth || 1);
                     meshRegistry.set(params.id, geo);
                     return { id: params.id, vertices: geo.attributes.position.count, faces: geo.index ? geo.index.count / 3 : 0 };
@@ -72,6 +75,9 @@ export const registerMeshOpsLimb = () => {
                 description: 'Subdivide mesh faces (increase detail).',
                 parameters: { id: 'string', iterations: 'number' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'mesh', capability: 'mesh_subdivide' });
+                    });
                     // Simulated - real subdivision would use LoopSubdivision
                     const geo = meshRegistry.get(params.id);
                     if (!geo) return { success: false, error: 'Mesh not found' };
@@ -408,6 +414,9 @@ export const registerMeshOpsLimb = () => {
                 description: 'Scale mesh geometry.',
                 parameters: { id: 'string', scale: '[x,y,z]' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'mesh', capability: 'mesh_scale' });
+                    });
                     const geo = meshRegistry.get(params.id);
                     if (!geo) return { success: false, error: 'Mesh not found' };
                     geo.scale(params.scale[0], params.scale[1], params.scale[2]);

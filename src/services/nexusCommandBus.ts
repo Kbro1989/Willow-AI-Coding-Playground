@@ -72,6 +72,10 @@ class NexusCommandBus {
         this.notify({ type: 'PANIC_TRIGGERED' });
     }
 
+    dispatchEvent(type: string, payload?: any) {
+        this.notify({ type, payload });
+    }
+
     private notify(action: any) {
         this.listeners.forEach(l => l(action));
     }

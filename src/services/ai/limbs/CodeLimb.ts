@@ -17,6 +17,9 @@ export const registerCodeLimb = () => {
                 description: 'Parse code into AST representation.',
                 parameters: { code: 'string', language: 'string' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'code', capability: 'code_parse_ast' });
+                    });
                     // Simplified AST parsing - would use real parser in production
                     const lines = params.code.split('\n').length;
                     const functions = (params.code.match(/function\s+\w+|const\s+\w+\s*=/g) || []).length;
@@ -89,6 +92,9 @@ export const registerCodeLimb = () => {
                 description: 'Search for patterns in codebase.',
                 parameters: { pattern: 'string', directory: 'string', extensions: 'string[]?' },
                 handler: async (params) => {
+                    import('../../nexusCommandBus').then(({ nexusBus }) => {
+                        nexusBus.dispatchEvent('limb:pulse', { limbId: 'code', capability: 'code_search' });
+                    });
                     // Use terminal grep
                     const ext = params.extensions?.length ? `--include=*.{${params.extensions.join(',')}}` : '';
                     const result = await localBridgeClient.runTerminalCommand(

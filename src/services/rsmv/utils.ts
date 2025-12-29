@@ -58,9 +58,8 @@ export function cacheFilenameHash(name: string, oldhash: boolean) {
 			hash = (((hash << 5) - hash) | 0) + ch.charCodeAt(0) | 0;
 		}
 	}
-	return hash >>> 0;//cast to u32
+	return hash >>> 0;
 }
-(globalThis as any).cacheFilenameHash = cacheFilenameHash;
 
 export function stringToMapArea(str: string) {
 	let [x, z, xsize, zsize] = str.split(/[,\.\/:;]/).map(n => +n);
@@ -417,8 +416,6 @@ export function RGB2HSL(r: number, g: number, b: number): [number, number, numbe
 	}
 	return [h, s, l];
 }
-
-(globalThis as any).hsl = (v: number) => HSL2RGB(packedHSL2HSL(v));
 
 
 export function HSL2packHSL(h: number, s: number, l: number) {

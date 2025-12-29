@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import {
   FileNode, ProjectState, TerminalLine, GitCommit, TodoTask,
   TokenMetrics, BuildInfo, GameAsset, SceneObject, PhysicsConfig,
@@ -32,7 +32,7 @@ import PipelineBuilder from './components/PipelineBuilder';
 import BehaviorTreeEditor from './components/BehaviorTreeEditor';
 import ShaderGraph from './components/ShaderGraph';
 import Copywriter from './components/Copywriter';
-import RSMVBrowser from './components/RSMVBrowser';
+const RSMVBrowser = React.lazy(() => import('./components/RSMVBrowser'));
 import DiagnosticsPanel from './components/DiagnosticsPanel';
 import ApiKeyManager from './components/ApiKeyManager';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -678,7 +678,13 @@ const App: React.FC = () => {
                     );
                     case 'collab': return <div className="h-full w-full overflow-hidden"><Link /></div>;
                     case 'deploy': return <div className="h-full w-full overflow-hidden"><Deploy /></div>;
-                    case 'rsmv': return <div className="h-full w-full overflow-hidden"><RSMVBrowser addLog={addLog} /></div>;
+                    case 'rsmv': return (
+                      <div className="h-full w-full overflow-hidden">
+                        <Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-[#050a15] text-cyan-500 font-black uppercase tracking-[0.2em] animate-pulse">Initialising Asset Vault...</div>}>
+                          <RSMVBrowser addLog={addLog} />
+                        </Suspense>
+                      </div>
+                    );
                     case 'shader': return (
                       <div className="h-full w-full overflow-hidden border-t border-cyan-900/30">
                         <ShaderGraph

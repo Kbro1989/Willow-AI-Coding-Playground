@@ -29,6 +29,9 @@ export const registerAssetPipelineLimb = () => {
 
                     const results: Record<string, any> = {};
                     for (const anim of anims) {
+                        import('../../nexusCommandBus').then(({ nexusBus }) => {
+                            nexusBus.dispatchEvent('limb:pulse', { limbId: 'asset_pipeline', capability: 'pipeline_sprite_sheet', step: anim });
+                        });
                         results[anim] = await modelRouter.orchestrateMedia(
                             'image',
                             `${params.style} sprite sheet, ${res}x${res} pixels, ${params.character} ${anim} animation, ${frames} frames, transparent background, game asset`,
@@ -61,6 +64,9 @@ export const registerAssetPipelineLimb = () => {
 
                     const results: Record<string, any> = {};
                     for (const type of types) {
+                        import('../../nexusCommandBus').then(({ nexusBus }) => {
+                            nexusBus.dispatchEvent('limb:pulse', { limbId: 'asset_pipeline', capability: 'pipeline_tileset', step: type });
+                        });
                         results[type] = await modelRouter.orchestrateMedia(
                             'image',
                             `${params.style} tileset tile, ${params.tileSize}x${params.tileSize} pixels, ${params.theme} theme, ${type} tile, seamless edges, game asset`,
