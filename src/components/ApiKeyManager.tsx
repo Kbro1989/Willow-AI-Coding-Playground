@@ -17,6 +17,7 @@ const PROVIDERS: ProviderKey[] = [
   { id: 'cloudflare', label: 'Cloudflare Workers AI', storageKey: 'TEMP_CLOUDFLARE_KEY', envKey: 'VITE_CLOUDFLARE_API_TOKEN' },
   { id: 'openai', label: 'OpenAI (DALL-E/Whisper)', storageKey: 'TEMP_OPENAI_KEY' },
   { id: 'anthropic', label: 'Anthropic Claude', storageKey: 'TEMP_ANTHROPIC_KEY' },
+  { id: 'aimlapi', label: 'AIML API (TripoSR, GLM-4.7)', storageKey: 'TEMP_AIMLAPI_KEY' },
 ];
 
 export const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose }) => {

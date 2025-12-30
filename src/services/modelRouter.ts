@@ -6,8 +6,9 @@ import aiUsageService from './gameData/aiUsageService';
 import { ModelKey } from '../types';
 import { validatePrompt } from '../backend/validateInput';
 import { logAIAccess, logSecurityEvent } from './loggingService';
+import aimlapiService from './aimlapiService';
 
-export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning' | 'vision' | '3d';
+export type ModelType = 'text' | 'function_calling' | 'image' | 'code' | 'audio' | 'video' | 'reasoning' | 'vision' | '3d' | 'image-to-3d';
 
 export interface ModelRequest {
   type: ModelType;
@@ -413,6 +414,22 @@ async function routeToCloudflare(request: ModelRequest, signal?: AbortSignal): P
       };
     }
 
+    case 'image-to-3d': {
+      // Check if AIML API key exists
+      const apiKey = localStorage.getItem('TEMP_AIMLAPI_KEY');
+      if (!apiKey) {
+        throw new Error('AIML API key required for image-to-3D generation. Please add it in Settings > API Keys.');
+      }
+
+      console.log('[ROUTER] Using AIML API for image-to-3D conversion');
+      const result = await aimlapiService.imageToModel(request.prompt, apiKey);
+      return {
+        modelUrl: result.url,
+        model: 'triposr',
+        content: `Generated 3D model: ${result.fileName} (${Math.round(result.blob.size / 1024)}KB)`,
+      };
+    }
+
     default:
       throw new Error(`Unsupported model type: ${request.type}`);
   }
@@ -575,6 +592,18 @@ export async function generate3D(
 }
 
 /**
+ * Convert 2D image to 3D model using TripoSR (AIML API)
+ */
+export async function generateModelFromImage(
+  imageUrl: string
+): Promise<ModelResponse | ReadableStream> {
+  return route({
+    type: 'image-to-3d',
+    prompt: imageUrl  // imageUrl passed as prompt
+  });
+}
+
+/**
  * Aliases for Chat.tsx compatibility
  */
 export const generateCinematic = generateVideo;
@@ -633,6 +662,7 @@ export const modelRouter = {
   processAudio,
   generateVideo,
   generate3D,
+  generateModelFromImage,
   generateCinematic,
   synthesizeSpeech,
   orchestrateMedia,

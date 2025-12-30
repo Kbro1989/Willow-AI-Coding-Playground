@@ -45,7 +45,7 @@ class CloudflareProvider {
   private async executeRequest(
     endpoint: string,
     body: any,
-    options: { signal?: AbortSignal; model?: string; isBinary?: boolean } = {}
+    options: { signal?: AbortSignal; model?: string; isBinary?: boolean; useMultipart?: boolean } = {}
   ): Promise<any> {
     const urls = [
       `${this.workerUrl}${endpoint}`,
@@ -54,20 +54,41 @@ class CloudflareProvider {
     ];
 
     let lastError: any;
+    let requestBody = { ...body, model: body.model || options.model };
+
+    // If model expects multipart (e.g., image generation with Workers AI)
+    if (options.useMultipart) {
+      requestBody = { multipart: requestBody };
+    }
 
     for (const url of urls) {
       try {
+        console.log(`[CF/REQUEST] Attempting ${url} with model: ${requestBody.model}`);
+
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           signal: options.signal,
-          body: JSON.stringify({ ...body, model: body.model || options.model })
+          body: JSON.stringify(requestBody)
         });
 
-        if (response.status === 404) continue; // Try next URL
+        if (response.status === 404) {
+          console.warn(`[CF/REQUEST] 404 on ${url}, trying next...`);
+          continue; // Try next URL
+        }
 
         if (!response.ok) {
-          throw new Error(`Cloudflare API error: ${response.status}`);
+          // Try to get error details from response
+          let errorMessage = `${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+            console.error(`[CF/REQUEST] Error details:`, errorData);
+          } catch (e) {
+            // Response not JSON, use status text
+            errorMessage = `${response.status} ${response.statusText}`;
+          }
+          throw new Error(`Cloudflare API error: ${errorMessage}`);
         }
 
         if (options.isBinary) {
@@ -76,6 +97,7 @@ class CloudflareProvider {
 
         return await response.json();
       } catch (err) {
+        console.error(`[CF/REQUEST] Failed on ${url}:`, err);
         lastError = err;
         if (options.signal?.aborted) throw err;
       }
@@ -101,7 +123,7 @@ class CloudflareProvider {
     systemPrompt?: string,
     stream: boolean = false,
     signal?: AbortSignal,
-    maxTokens: number = 4096
+    maxTokens: number = 8192
   ): Promise<CloudflareTextResponse | ReadableStream> {
     try {
       const response = await fetch(`${this.workerUrl}/api/chat`, {
@@ -152,7 +174,7 @@ class CloudflareProvider {
     prompt: string,
     language: string = 'typescript',
     signal?: AbortSignal,
-    maxTokens: number = 4096
+    maxTokens: number = 8192
   ): Promise<{ code: string; model: string }> {
     try {
       const response = await fetch(`${this.workerUrl}/api/code-complete`, {
@@ -270,9 +292,9 @@ class CloudflareProvider {
     try {
       const blob = await this.executeRequest('/api/generate-image', {
         prompt,
-        negativePrompt,
+        negative_prompt: negativePrompt,  // Use snake_case for Workers AI
         model: '@cf/stabilityai/stable-diffusion-xl-base-1.0'
-      }, { isBinary: true });
+      }, { isBinary: true, useMultipart: true });  // Enable multipart
 
       const imageUrl = URL.createObjectURL(blob);
       return { imageUrl, model: '@cf/stabilityai/stable-diffusion-xl-base-1.0' };
@@ -600,6 +622,24 @@ class CloudflareProvider {
     } catch (error) {
       console.error('[CF/3D] 3D generation error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Fetch worker logs (if endpoint exists)
+   */
+  async getLogs(limit: number = 50): Promise<any[]> {
+    try {
+      const response = await fetch(`${this.workerUrl}/api/logs?limit=${limit}`);
+      if (!response.ok) {
+        console.warn('[CF/LOGS] Logs endpoint unavailable');
+        return [];
+      }
+      const data = await response.json();
+      return data.logs || data || [];
+    } catch (error) {
+      console.error('[CF/LOGS] Failed to fetch logs:', error);
+      return [];
     }
   }
 }

@@ -59,7 +59,7 @@ export const sanitizeAIInput = (input: string): string => {
  * Validates a prompt for malicious patterns
  */
 export const validatePrompt = (prompt: string): { isValid: boolean; error?: string; sanitized?: string } => {
-    const MAX_PROMPT_LENGTH = 50000; // 50k chars max
+    const MAX_PROMPT_LENGTH = 100000; // 100k chars max
 
     if (!prompt || typeof prompt !== 'string') {
         return { isValid: false, error: 'Invalid prompt type' };
